@@ -1,26 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F5F5F5;
+  --foreground: #333333;
+  
+  --brand-navy: #0D1B6E;
+  --brand-red: #E4222E;
+  --brand-cta: #1E4FD8;
+  --brand-maroon: #6B1420;
+  --brand-gray: #333333;
+  --brand-bg: #F5F5F5;
+  --brand-link: #3B5BDB;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-red: var(--brand-red);
+  --color-brand-cta: var(--brand-cta);
+  --color-brand-maroon: var(--brand-maroon);
+  --color-brand-gray: var(--brand-gray);
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-link: var(--brand-link);
+  
+  --font-heading: var(--font-poppins), 'Poppins', 'Montserrat', sans-serif;
+  --font-body: var(--font-inter), 'Inter', 'Roboto', sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--brand-bg);
+  color: var(--brand-gray);
 }
+
+/* Premium Styles & Micro-animations */
+.premium-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px -2px rgba(13, 27, 110, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(13, 27, 110, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.btn-premium {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-premium:active {
+  transform: scale(0.97);
+}
+

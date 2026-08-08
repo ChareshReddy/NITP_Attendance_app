@@ -1,0 +1,148 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  role          String         @default("EMPLOYEE") // EMPLOYEE, TL, HR_ADMIN
+  teamId        String?
+  managerId     String?
+  team          Team?          @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  manager       User?          @relation("ManagerToEmployee", fields: [managerId], references: [id], onDelete: SetNull)
+  employees     User[]         @relation("ManagerToEmployee")
+  attendance    Attendance[]
+  trackSheets   TrackSheet[]
+  assignedTasks Task[]         @relation("AssignedTo")
+  createdTasks  Task[]         @relation("AssignedBy")
+  reports       Report[]       @relation("ReportSubmittedBy")
+  hrReports     Report[]       @relation("ReportSubmittedTo")
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  passwordResets PasswordReset[]
+  ledTeams      Team[]         @relation("TeamLeader")
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Team {
+  id           String   @id @default(uuid())
+  name         String
+  teamLeaderId String?
+  teamLeader   User?    @relation("TeamLeader", fields: [teamLeaderId], references: [id], onDelete: SetNull)
+  members      User[]   @relation("TeamMembers")
+  tasks        Task[]
+  reports      Report[]
+}
+
+model Attendance {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         String    // YYYY-MM-DD
+  checkInTime  DateTime
+  checkOutTime DateTime?
+  status       String    // PRESENT, LATE, ABSENT, LEAVE
+  ip           String
+  tz           String    // e.g., "Asia/Kolkata" or "UTC"
+  
+  @@unique([userId, date])
+}
+
+model TrackSheet {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String   // YYYY-MM-DD
+  project         String
+  taskDescription String
+  hours           Float
+  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  notes           String?
+  
+  @@index([userId, date])
+}
+
+model Task {
+  id           String   @id @default(uuid())
+  teamId       String?
+  team         Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignedById String
+  assignedBy   User     @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+  assignedToId String
+  assignedTo   User     @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  title        String
+  description  String
+  dueDate      DateTime
+  priority     String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  status       String   @default("TODO") // TODO, IN_PROGRESS, COMPLETED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([assignedToId, status])
+}
+
+model Report {
+  id                String   @id @default(uuid())
+  teamId            String
+  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  submittedById     String
+  submittedBy       User     @relation("ReportSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
+  submittedToUserId String
+  submittedTo       User     @relation("ReportSubmittedTo", fields: [submittedToUserId], references: [id], onDelete: Cascade)
+  periodStart       DateTime
+  periodEnd         DateTime
+  summary           String
+  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt         DateTime @default(now())
+}
+
+model LeaveType {
+  id          String @id @default(uuid())
+  name        String @unique
+  daysAllowed Int
+}
+
+model Holiday {
+  id   String   @id @default(uuid())
+  date DateTime @unique
+  name String
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String   // e.g. "CHECK_IN", "CREATE_TASK"
+  entity    String   // e.g. "Attendance", "Task"
+  entityId  String?
+  createdAt DateTime @default(now())
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+}
