@@ -117,6 +117,10 @@ export default function AdminDashboard() {
   const [userTeamId, setUserTeamId] = useState('');
   const [userManagerId, setUserManagerId] = useState('');
 
+  // Team Form States
+  const [newTeamName, setNewTeamName] = useState('');
+  const [newTeamLeaderId, setNewTeamLeaderId] = useState('');
+
   // Export Form States
   const [exportType, setExportType] = useState('attendance');
   const [exportTeam, setExportTeam] = useState('all');
@@ -205,6 +209,35 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error creating user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/admin/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTeamName, teamLeaderId: newTeamLeaderId || null }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create team');
+
+      setSuccessMsg(`Team "${newTeamName}" created successfully!`);
+      setNewTeamName('');
+      setNewTeamLeaderId('');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error creating team');
     } finally {
       setLoading(false);
     }
@@ -623,8 +656,11 @@ export default function AdminDashboard() {
         {activeTab === 'users' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            {/* Create Account Form */}
-            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1">
+            {/* Left side actions column */}
+            <div className="space-y-6 lg:col-span-1">
+              
+              {/* Create Account Form */}
+              <div className="bg-white premium-card p-6 border border-gray-100">
               <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-brand-cta" />
                 Provision New Account
@@ -715,6 +751,52 @@ export default function AdminDashboard() {
                   {loading ? 'Creating...' : 'Create Account'}
                 </button>
               </form>
+            </div>
+
+              {/* Create Team Form */}
+              <div className="bg-white premium-card p-6 border border-gray-100">
+                <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-brand-red" />
+                  Create New Team
+                </h3>
+
+                <form onSubmit={handleCreateTeam} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Team Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
+                      placeholder="e.g. Sales Team"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assign Team Leader (Optional)</label>
+                    <select
+                      value={newTeamLeaderId}
+                      onChange={(e) => setNewTeamLeaderId(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="">No Team Leader</option>
+                      {users.filter(u => u.role === 'TL').map(tl => (
+                        <option key={tl.id} value={tl.id}>{tl.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
+                  >
+                    {loading ? 'Creating Team...' : 'Create Team'}
+                  </button>
+                </form>
+              </div>
+
             </div>
 
             {/* Accounts Directory */}
