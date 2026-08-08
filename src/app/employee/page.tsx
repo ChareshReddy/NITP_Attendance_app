@@ -65,7 +65,7 @@ export default function EmployeeDashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Form States
-  const [project, setProject] = useState('SAP Rollout - Client A');
+  const [project, setProject] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
   const [hours, setHours] = useState('8.0');
   const [notes, setNotes] = useState('');
@@ -186,6 +186,7 @@ export default function EmployeeDashboard() {
       if (!res.ok) throw new Error(data.error || 'Failed to log hours');
 
       setSuccessMsg('Track sheet entry created successfully!');
+      setProject('');
       setTaskDescription('');
       setNotes('');
       fetchData();
@@ -425,17 +426,15 @@ export default function EmployeeDashboard() {
             <form onSubmit={handleSubmitTrackSheet} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Project / Client</label>
-                  <select
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Task</label>
+                  <input
+                    type="text"
+                    required
                     value={project}
                     onChange={(e) => setProject(e.target.value)}
+                    placeholder="e.g. Database Refactoring"
                     className="block w-full rounded-lg border-0 py-2.5 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
-                  >
-                    <option>SAP Rollout - Client A</option>
-                    <option>AI Consulting - Client B</option>
-                    <option>IT Infrastructure Upgrade</option>
-                    <option>Internal Training</option>
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Hours Logged</label>
@@ -549,7 +548,7 @@ export default function EmployeeDashboard() {
                 <thead>
                   <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
                     <th className="py-3 px-2">Date</th>
-                    <th className="py-3 px-2">Project</th>
+                    <th className="py-3 px-2">Task</th>
                     <th className="py-3 px-2">Description</th>
                     <th className="py-3 px-2 text-center">Hours</th>
                     <th className="py-3 px-2 text-center">Status</th>

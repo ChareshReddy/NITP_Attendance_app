@@ -97,7 +97,7 @@ export default function TeamLeaderDashboard() {
 
   // Filtering States for Track Sheets
   const [filterMember, setFilterMember] = useState('all');
-  const [filterProject, setFilterProject] = useState('all');
+  const [filterProject, setFilterProject] = useState('');
 
   // Status message states
   const [errorMsg, setErrorMsg] = useState('');
@@ -269,7 +269,7 @@ export default function TeamLeaderDashboard() {
   // Filtered Track Sheets
   const filteredTrackSheets = trackSheets.filter(sheet => {
     const matchesMember = filterMember === 'all' || sheet.user.id === filterMember;
-    const matchesProject = filterProject === 'all' || sheet.project === filterProject;
+    const matchesProject = filterProject.trim() === '' || sheet.project.toLowerCase().includes(filterProject.toLowerCase());
     return matchesMember && matchesProject;
   });
 
@@ -438,17 +438,13 @@ export default function TeamLeaderDashboard() {
                     <option value="all">All Members</option>
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
-                  <select
+                  <input
+                    type="text"
                     value={filterProject}
                     onChange={(e) => setFilterProject(e.target.value)}
-                    className="rounded-lg border border-gray-200 py-1.5 px-2 text-xs text-brand-gray bg-white outline-none"
-                  >
-                    <option value="all">All Projects</option>
-                    <option value="SAP Rollout - Client A">SAP Rollout - Client A</option>
-                    <option value="AI Consulting - Client B">AI Consulting - Client B</option>
-                    <option value="IT Infrastructure Upgrade">IT Infrastructure Upgrade</option>
-                    <option value="Internal Training">Internal Training</option>
-                  </select>
+                    placeholder="Filter by Task..."
+                    className="rounded-lg border border-gray-200 py-1.5 px-2 text-xs text-brand-gray bg-white outline-none w-36"
+                  />
                 </div>
               </div>
             </div>
@@ -459,7 +455,7 @@ export default function TeamLeaderDashboard() {
                   <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
                     <th className="py-3 px-2">Member</th>
                     <th className="py-3 px-2">Date</th>
-                    <th className="py-3 px-2">Project</th>
+                    <th className="py-3 px-2">Task</th>
                     <th className="py-3 px-2">Task Description</th>
                     <th className="py-3 px-2 text-center">Hours</th>
                     <th className="py-3 px-2">Notes</th>

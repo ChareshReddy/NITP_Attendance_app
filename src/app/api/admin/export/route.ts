@@ -92,7 +92,7 @@ export async function GET(request: Request) {
         { header: 'Date', key: 'date', width: 15 },
         { header: 'Name', key: 'name', width: 25 },
         { header: 'Email', key: 'email', width: 30 },
-        { header: 'Project', key: 'project', width: 25 },
+        { header: 'Task', key: 'project', width: 25 },
         { header: 'Task Description', key: 'taskDescription', width: 40 },
         { header: 'Hours Logged', key: 'hours', width: 15 },
         { header: 'Approval Status', key: 'status', width: 15 },
