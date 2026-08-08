@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { signIn } from 'next-auth/react';
 
 export default function Home() {
   const router = useRouter();
@@ -38,24 +39,32 @@ export default function Home() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const res = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed');
+      if (res?.error) {
+        if (res.error === "DEACTIVATED" || res.error.includes("DEACTIVATED")) {
+          throw new Error('Account is deactivated. Please contact HR/Admin.');
+        }
+        throw new Error('Invalid email or password');
       }
 
-      const role = data.user.role;
+      // Fetch user session to determine role redirect
+      const sessionRes = await fetch('/api/auth/session');
+      const sessionData = await sessionRes.json();
+      const role = sessionData?.user?.role;
+      
       if (role === 'HR_ADMIN') {
         router.push('/admin');
       } else if (role === 'TL') {
         router.push('/tl');
-      } else {
+      } else if (role === 'EMPLOYEE') {
         router.push('/employee');
+      } else {
+        throw new Error('Unauthorized role');
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');

@@ -33,11 +33,11 @@ async function main() {
 
   // 2. Seed Holidays
   const holidays = [
-    { date: new Date('2026-01-01'), name: 'New Year' },
-    { date: new Date('2026-01-26'), name: 'Republic Day' },
-    { date: new Date('2026-08-15'), name: 'Independence Day' },
-    { date: new Date('2026-10-02'), name: 'Gandhi Jayanti' },
-    { date: new Date('2026-12-25'), name: 'Christmas Day' },
+    { date: '2026-01-01', name: 'New Year' },
+    { date: '2026-01-26', name: 'Republic Day' },
+    { date: '2026-08-15', name: 'Independence Day' },
+    { date: '2026-10-02', name: 'Gandhi Jayanti' },
+    { date: '2026-12-25', name: 'Christmas Day' },
   ];
   for (const h of holidays) {
     await prisma.holiday.create({ data: h });

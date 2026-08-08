@@ -1,20 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  if (!token) return null;
-  return await verifyJWT(token);
-}
-
 export async function GET() {
   try {
-    const user = await getAuthUser();
-    if (!user || user.role !== 'HR_ADMIN') {
+    const session = await auth();
+    if (!session || session.user?.role !== 'HR_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -43,8 +35,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getAuthUser();
-    if (!user || user.role !== 'HR_ADMIN') {
+    const session = await auth();
+    if (!session || session.user?.role !== 'HR_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -77,7 +69,7 @@ export async function POST(request: Request) {
 
     await prisma.auditLog.create({
       data: {
-        userId: user.userId,
+        userId: session.user.id,
         action: 'CREATE_USER',
         entity: 'User',
         entityId: newUser.id,
@@ -93,8 +85,8 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const user = await getAuthUser();
-    if (!user || user.role !== 'HR_ADMIN') {
+    const session = await auth();
+    if (!session || session.user?.role !== 'HR_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -122,15 +114,7 @@ export async function PUT(request: Request) {
     if (managerId !== undefined) updateData.managerId = managerId || null;
 
     if (deactivate !== undefined) {
-      if (deactivate) {
-        if (!existing.passwordHash.startsWith('DEACTIVATED_')) {
-          updateData.passwordHash = `DEACTIVATED_${existing.passwordHash}`;
-        }
-      } else {
-        if (existing.passwordHash.startsWith('DEACTIVATED_')) {
-          updateData.passwordHash = existing.passwordHash.replace('DEACTIVATED_', '');
-        }
-      }
+      updateData.isActive = !deactivate;
     }
 
     const updated = await prisma.user.update({
@@ -140,7 +124,7 @@ export async function PUT(request: Request) {
 
     await prisma.auditLog.create({
       data: {
-        userId: user.userId,
+        userId: session.user.id,
         action: deactivate ? 'DEACTIVATE_USER' : 'UPDATE_USER',
         entity: 'User',
         entityId: id,

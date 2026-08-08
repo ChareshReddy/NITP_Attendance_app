@@ -42,6 +42,7 @@ interface User {
   passwordHash: string;
   teamId: string | null;
   managerId: string | null;
+  isActive: boolean;
   team: {
     id: string;
     name: string;
@@ -749,7 +750,7 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {filteredUsers.map((u) => {
-                      const isDeactivated = u.passwordHash.startsWith('DEACTIVATED_');
+                      const isDeactivated = !u.isActive;
                       return (
                         <tr key={u.id} className="hover:bg-gray-50/50">
                           <td className="py-3 px-2">

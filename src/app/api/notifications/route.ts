@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifyJWT } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { auth } from '@/lib/auth';
 
 async function getAuthUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('session_token')?.value;
-  if (!token) return null;
-  return await verifyJWT(token);
+  const session = await auth();
+  if (!session?.user) return null;
+  return {
+    userId: session.user.id,
+    role: session.user.role,
+    email: session.user.email,
+    teamId: session.user.teamId,
+    name: session.user.name,
+  };
 }
 
 export async function GET() {

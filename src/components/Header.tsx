@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { LogOut, User as UserIcon } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 interface UserSession {
   name: string;
@@ -35,10 +36,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
-      if (res.ok) {
-        router.push('/');
-      }
+      await signOut({ callbackUrl: '/' });
     } catch (e) {
       console.error('Logout failed:', e);
     }

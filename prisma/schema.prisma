@@ -1,23 +1,59 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
 
 generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+enum Role {
+  EMPLOYEE
+  TL
+  HR_ADMIN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+  LEAVE
+}
+
+enum TrackSheetStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ReportStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model User {
   id            String         @id @default(uuid())
   name          String
   email         String         @unique
-  passwordHash  String
-  role          String         @default("EMPLOYEE") // EMPLOYEE, TL, HR_ADMIN
-  teamId        String?
-  managerId     String?
+  passwordHash  String         @map("password_hash")
+  role          Role           @default(EMPLOYEE)
+  isActive      Boolean        @default(true) @map("is_active")
+  teamId        String?        @map("team_id")
+  managerId     String?        @map("manager_id")
   team          Team?          @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
   manager       User?          @relation("ManagerToEmployee", fields: [managerId], references: [id], onDelete: SetNull)
   employees     User[]         @relation("ManagerToEmployee")
@@ -32,117 +68,138 @@ model User {
   passwordResets PasswordReset[]
   ledTeams      Team[]         @relation("TeamLeader")
 
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
 }
 
 model Team {
   id           String   @id @default(uuid())
   name         String
-  teamLeaderId String?
+  teamLeaderId String?  @map("team_leader_id")
   teamLeader   User?    @relation("TeamLeader", fields: [teamLeaderId], references: [id], onDelete: SetNull)
   members      User[]   @relation("TeamMembers")
   tasks        Task[]
   reports      Report[]
+
+  @@map("teams")
 }
 
 model Attendance {
-  id           String    @id @default(uuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date         String    // YYYY-MM-DD
-  checkInTime  DateTime
-  checkOutTime DateTime?
-  status       String    // PRESENT, LATE, ABSENT, LEAVE
+  id           String           @id @default(uuid())
+  userId       String           @map("user_id")
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date         String           // YYYY-MM-DD
+  checkInTime  DateTime         @map("check_in_time")
+  checkOutTime DateTime?        @map("check_out_time")
+  status       AttendanceStatus
   ip           String
-  tz           String    // e.g., "Asia/Kolkata" or "UTC"
+  tz           String           // e.g., "Asia/Kolkata" or "UTC"
   
   @@unique([userId, date])
+  @@map("attendance")
 }
 
 model TrackSheet {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date            String   // YYYY-MM-DD
+  id              String           @id @default(uuid())
+  userId          String           @map("user_id")
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String           // YYYY-MM-DD
   project         String
-  taskDescription String
+  taskDescription String           @map("task_description")
   hours           Float
-  status          String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  status          TrackSheetStatus @default(PENDING)
   notes           String?
   
   @@index([userId, date])
+  @@index([project])
+  @@map("track_sheets")
 }
 
 model Task {
-  id           String   @id @default(uuid())
-  teamId       String?
-  team         Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  assignedById String
-  assignedBy   User     @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
-  assignedToId String
-  assignedTo   User     @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid())
+  teamId       String?    @map("team_id")
+  team         Team?      @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignedById String     @map("assigned_by")
+  assignedBy   User       @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+  assignedToId String     @map("assigned_to")
+  assignedTo   User       @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: Cascade)
   title        String
   description  String
-  dueDate      DateTime
-  priority     String   @default("MEDIUM") // LOW, MEDIUM, HIGH
-  status       String   @default("TODO") // TODO, IN_PROGRESS, COMPLETED
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  dueDate      DateTime   @map("due_date")
+  priority     Priority   @default(MEDIUM)
+  status       TaskStatus @default(TODO)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   @@index([assignedToId, status])
+  @@index([teamId])
+  @@map("tasks")
 }
 
 model Report {
-  id                String   @id @default(uuid())
-  teamId            String
-  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  submittedById     String
-  submittedBy       User     @relation("ReportSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
-  submittedToUserId String
-  submittedTo       User     @relation("ReportSubmittedTo", fields: [submittedToUserId], references: [id], onDelete: Cascade)
-  periodStart       DateTime
-  periodEnd         DateTime
+  id                String       @id @default(uuid())
+  teamId            String       @map("team_id")
+  team              Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  submittedById     String       @map("submitted_by")
+  submittedBy       User         @relation("ReportSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
+  submittedToUserId String       @map("submitted_to_user_id")
+  submittedTo       User         @relation("ReportSubmittedTo", fields: [submittedToUserId], references: [id], onDelete: Cascade)
+  periodStart       DateTime     @map("period_start")
+  periodEnd         DateTime     @map("period_end")
   summary           String
-  status            String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  createdAt         DateTime @default(now())
+  status            ReportStatus @default(PENDING)
+  createdAt         DateTime     @default(now()) @map("created_at")
+
+  @@map("reports")
 }
 
 model LeaveType {
   id          String @id @default(uuid())
   name        String @unique
-  daysAllowed Int
+  daysAllowed Int    @map("days_allowed")
+
+  @@map("leave_types")
 }
 
 model Holiday {
-  id   String   @id @default(uuid())
-  date DateTime @unique
+  id   String @id @default(uuid())
+  date String @unique // Standardized to String YYYY-MM-DD
   name String
+
+  @@map("holidays")
 }
 
 model Notification {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   message   String
   read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
 }
 
 model AuditLog {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  action    String   // e.g. "CHECK_IN", "CREATE_TASK"
-  entity    String   // e.g. "Attendance", "Task"
-  entityId  String?
-  createdAt DateTime @default(now())
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("audit_log")
 }
 
 model PasswordReset {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
-  expiresAt DateTime
+  expiresAt DateTime @map("expires_at")
+
+  @@map("password_resets")
 }
