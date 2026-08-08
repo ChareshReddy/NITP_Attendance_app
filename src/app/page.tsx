@@ -232,25 +232,6 @@ export default function Home() {
                   {!loading && <ArrowRight className="w-4 h-4" />}
                 </button>
               </div>
-
-              {/* Demo Accounts Helper */}
-              <div className="mt-6 border-t border-gray-100 pt-6">
-                <p className="text-xs font-semibold text-brand-navy mb-2 tracking-wider uppercase text-center font-heading">Demo Accounts (For Testing)</p>
-                <div className="space-y-1.5 text-xs text-gray-500">
-                  <div className="flex justify-between bg-gray-50 p-2 rounded">
-                    <span>Admin: <strong className="text-brand-navy select-all">admin@nextitpoint.com</strong></span>
-                    <span className="font-mono">AdminPass123</span>
-                  </div>
-                  <div className="flex justify-between bg-gray-50 p-2 rounded">
-                    <span>TL: <strong className="text-brand-navy select-all">tl@nextitpoint.com</strong></span>
-                    <span className="font-mono">TlPass123</span>
-                  </div>
-                  <div className="flex justify-between bg-gray-50 p-2 rounded">
-                    <span>Employee: <strong className="text-brand-navy select-all">employee@nextitpoint.com</strong></span>
-                    <span className="font-mono">EmployeePass123</span>
-                  </div>
-                </div>
-              </div>
             </form>
           )}
 
