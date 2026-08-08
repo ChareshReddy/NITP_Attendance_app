@@ -30,13 +30,24 @@ export async function GET(request: Request) {
     if (user.role === 'EMPLOYEE') {
       where.assignedToId = user.userId;
     } else if (user.role === 'TL') {
-      if (teamId) {
-        where.teamId = teamId;
-      } else {
-        where.teamId = user.teamId || undefined;
-      }
+      where.AND = [
+        {
+          OR: [
+            { assignedById: user.userId },
+            ...(user.teamId ? [{ teamId: user.teamId }] : []),
+          ],
+        },
+      ];
+
       if (assignedToId) {
-        where.assignedToId = assignedToId;
+        where.AND.push({ assignedToId });
+      }
+      if (teamId) {
+        if (teamId === user.teamId) {
+          where.AND.push({ teamId });
+        } else {
+          where.AND.push({ teamId: 'unauthorized_team_id' });
+        }
       }
     } else if (user.role === 'HR_ADMIN') {
       if (teamId) where.teamId = teamId;
@@ -145,10 +156,13 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    if (user.role === 'EMPLOYEE') {
+    if (status !== undefined && status !== existing.status) {
       if (existing.assignedToId !== user.userId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        return NextResponse.json({ error: 'Forbidden: Only the assignee can change task status' }, { status: 403 });
       }
+    }
+
+    if (user.role === 'EMPLOYEE') {
       if (!status) {
         return NextResponse.json({ error: 'Employees can only update task status' }, { status: 400 });
       }
