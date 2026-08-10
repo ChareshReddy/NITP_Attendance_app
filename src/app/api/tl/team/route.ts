@@ -14,7 +14,7 @@ async function getAuthUser() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getAuthUser();
     if (!user) {
@@ -25,6 +25,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const queryTeamId = searchParams.get('teamId');
+
     let teamId = user.teamId;
 
     if (!teamId) {
@@ -34,8 +37,21 @@ export async function GET() {
       if (ledTeam) teamId = ledTeam.id;
     }
 
+    let allTeams: any[] = [];
+    if (user.role === 'HR_ADMIN') {
+      allTeams = await prisma.team.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+      if (queryTeamId) {
+        teamId = queryTeamId;
+      } else if (!teamId && allTeams.length > 0) {
+        teamId = allTeams[0].id;
+      }
+    }
+
     if (!teamId) {
-      return NextResponse.json({ members: [], team: null });
+      return NextResponse.json({ members: [], team: null, allTeams });
     }
 
     const team = await prisma.team.findUnique({
@@ -73,6 +89,7 @@ export async function GET() {
     return NextResponse.json({
       team,
       members: membersWithStatus,
+      allTeams,
     });
   } catch (error) {
     console.error('TL team status GET error:', error);

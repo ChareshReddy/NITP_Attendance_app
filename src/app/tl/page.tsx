@@ -82,6 +82,8 @@ export default function TeamLeaderDashboard() {
   const [trackSheets, setTrackSheets] = useState<TeamTrackSheet[]>([]);
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [reports, setReports] = useState<TeamReport[]>([]);
+  const [allTeams, setAllTeams] = useState<any[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState('');
   
   // Leave Request States
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
@@ -113,17 +115,27 @@ export default function TeamLeaderDashboard() {
 
   useEffect(() => {
     fetchTeamData();
-  }, [activeTab]);
+  }, [activeTab, selectedTeamId]);
 
   const fetchTeamData = async () => {
     try {
+      let currentMembers: TeamMember[] = [];
+
       // Fetch Team & Members
-      const teamRes = await fetch('/api/tl/team');
+      const teamUrl = selectedTeamId ? `/api/tl/team?teamId=${selectedTeamId}` : '/api/tl/team';
+      const teamRes = await fetch(teamUrl);
       if (teamRes.ok) {
         const teamData = await teamRes.json();
         setTeam(teamData.team);
         setMembers(teamData.members || []);
-        if (teamData.members?.length > 0 && !taskAssignee) {
+        currentMembers = teamData.members || [];
+        if (teamData.allTeams) {
+          setAllTeams(teamData.allTeams);
+          if (teamData.allTeams.length > 0 && !selectedTeamId && teamData.team) {
+            setSelectedTeamId(teamData.team.id);
+          }
+        }
+        if (teamData.members?.length > 0) {
           setTaskAssignee(teamData.members[0].id);
         }
       }
@@ -137,21 +149,16 @@ export default function TeamLeaderDashboard() {
 
       // Fetch Team Track Sheets
       if (activeTab === 'tracksheets') {
-        const tsRes = await fetch('/api/tracksheets');
         const sheetsDataList: TeamTrackSheet[] = [];
-        const memberRes = await fetch('/api/tl/team');
-        if (memberRes.ok) {
-          const mData = await memberRes.json();
-          for (const m of mData.members) {
-            const mSheetsRes = await fetch(`/api/tracksheets?userId=${m.id}`);
-            if (mSheetsRes.ok) {
-              const mSheetsData = await mSheetsRes.json();
-              const mapped = mSheetsData.trackSheets.map((s: any) => ({
-                ...s,
-                user: { id: m.id, name: m.name }
-              }));
-              sheetsDataList.push(...mapped);
-            }
+        for (const m of currentMembers) {
+          const mSheetsRes = await fetch(`/api/tracksheets?userId=${m.id}`);
+          if (mSheetsRes.ok) {
+            const mSheetsData = await mSheetsRes.json();
+            const mapped = mSheetsData.trackSheets.map((s: any) => ({
+              ...s,
+              user: { id: m.id, name: m.name }
+            }));
+            sheetsDataList.push(...mapped);
           }
         }
         sheetsDataList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -171,7 +178,11 @@ export default function TeamLeaderDashboard() {
       const leaveRes = await fetch('/api/leave-requests');
       if (leaveRes.ok) {
         const leaveData = await leaveRes.json();
-        setLeaveRequests(leaveData.requests || []);
+        const memberIds = currentMembers.map(m => m.id);
+        const filteredRequests = (leaveData.requests || []).filter((r: any) => 
+          memberIds.includes(r.userId)
+        );
+        setLeaveRequests(filteredRequests);
       }
 
       // Fetch Performance Scores
@@ -181,7 +192,11 @@ export default function TeamLeaderDashboard() {
         setPerformanceScores(perfData.performanceData || []);
         
         const counts = { RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 };
-        (perfData.performanceData || []).forEach((p: any) => {
+        const memberIds = currentMembers.map(m => m.id);
+        const filteredPerf = (perfData.performanceData || []).filter((p: any) => 
+          memberIds.includes(p.user.id)
+        );
+        filteredPerf.forEach((p: any) => {
           const rating = p.score?.rating as 'RED' | 'YELLOW' | 'GREEN' | 'BLUE';
           if (rating && counts[rating] !== undefined) {
             counts[rating]++;
@@ -337,13 +352,29 @@ export default function TeamLeaderDashboard() {
         )}
 
         {/* Dashboard Title & KPIs */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-100 pb-6">
           <div>
             <h2 className="text-2xl font-extrabold text-brand-navy font-heading">
               {team ? team.name : 'Team Leader Board'}
             </h2>
             <p className="text-sm text-gray-500 mt-1">Manage attendance, log reviews, and track deliverables.</p>
           </div>
+          {allTeams.length > 0 && (
+            <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-sm self-start md:self-center">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inspect Team:</span>
+              <select
+                value={selectedTeamId}
+                onChange={(e) => {
+                  setSelectedTeamId(e.target.value);
+                }}
+                className="rounded-lg border-0 py-1.5 px-3 text-xs text-brand-navy font-bold bg-gray-50 ring-1 ring-inset ring-gray-200 outline-none focus:ring-brand-cta focus:ring-2 cursor-pointer"
+              >
+                {allTeams.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* KPI Tiles */}
