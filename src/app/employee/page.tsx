@@ -4,8 +4,6 @@ import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
 import { 
   Clock, 
-  MapPin, 
-  Globe, 
   Plus, 
   History, 
   CheckSquare, 
@@ -472,12 +470,6 @@ export default function EmployeeDashboard() {
                 </div>
               </div>
 
-              {todayRecord && (
-                <div className="text-xs text-gray-400 flex flex-col gap-1 px-1 mt-2">
-                  <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> IP: {todayRecord.ip}</span>
-                  <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> Timezone: {todayRecord.tz}</span>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-3">
