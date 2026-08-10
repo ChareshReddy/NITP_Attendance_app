@@ -24,13 +24,13 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
   const activeColor = colorMap[rating] || colorMap.GREEN;
 
   return (
-    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden h-full">
+    <div className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden w-full h-full min-h-[175px]">
       {/* Speedometer Gauge Arc */}
-      <div className="relative" style={{ width: size, height: size * 0.65 }}>
+      <div className="relative" style={{ width: size, height: size * 0.7 }}>
         <svg
           width={size}
-          height={size}
-          viewBox="0 0 200 200"
+          height={size * 0.9}
+          viewBox="0 0 200 180"
           className="overflow-visible"
         >
           <defs>
@@ -50,71 +50,75 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
             </filter>
           </defs>
 
-          {/* Background track (light gray) */}
+          {/* Background track (light gray) - radius 65, center (100, 135) */}
           <path
-            d="M 20 110 A 80 80 0 0 1 180 110"
+            d="M 35 135 A 65 65 0 0 1 165 135"
             fill="none"
             stroke="#F3F4F6"
-            strokeWidth="16"
+            strokeWidth="12"
             strokeLinecap="round"
           />
 
           {/* Color Gradient Track */}
           <path
-            d="M 20 110 A 80 80 0 0 1 180 110"
+            d="M 35 135 A 65 65 0 0 1 165 135"
             fill="none"
             stroke="url(#speedometer-grad)"
-            strokeWidth="16"
+            strokeWidth="12"
             strokeLinecap="round"
-            opacity="0.85"
+            opacity="0.9"
           />
 
-          {/* Ticks & Labels */}
-          {/* 0% Tick */}
-          <line x1="20" y1="110" x2="30" y2="110" stroke="#9CA3AF" strokeWidth="2" />
-          <text x="12" y="125" fill="#9CA3AF" fontSize="9" fontWeight="bold" textAnchor="middle">0</text>
-
-          {/* 50% Tick */}
-          <line x1="100" y1="30" x2="100" y2="40" stroke="#9CA3AF" strokeWidth="2" />
-          <text x="100" y="24" fill="#9CA3AF" fontSize="9" fontWeight="bold" textAnchor="middle">50</text>
-
-          {/* 100% Tick */}
-          <line x1="180" y1="110" x2="170" y2="110" stroke="#9CA3AF" strokeWidth="2" />
-          <text x="188" y="125" fill="#9CA3AF" fontSize="9" fontWeight="bold" textAnchor="middle">100</text>
-
-          {/* Active value arc representation (dashed indicator) */}
+          {/* Dash Overlay for clean segmentation */}
           <path
-            d="M 20 110 A 80 80 0 0 1 180 110"
+            d="M 35 135 A 65 65 0 0 1 165 135"
             fill="none"
             stroke="#FFFFFF"
-            strokeWidth="18"
+            strokeWidth="14"
             strokeDasharray="2, 6"
-            opacity="0.3"
+            opacity="0.25"
           />
 
+          {/* Ticks and Labels (positioned cleanly outside the arc) */}
+          {/* 0 label */}
+          <line x1="27" y1="135" x2="35" y2="135" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="12" y="139" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">0</text>
+
+          {/* 25 label */}
+          <line x1="43" y1="78" x2="49" y2="84" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="32" y="72" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">25</text>
+
+          {/* 50 label */}
+          <line x1="100" y1="55" x2="100" y2="65" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="100" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">50</text>
+
+          {/* 75 label */}
+          <line x1="157" y1="78" x2="151" y2="84" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="168" y="72" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">75</text>
+
+          {/* 100 label */}
+          <line x1="173" y1="135" x2="165" y2="135" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="188" y="139" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">100</text>
+
           {/* Needle Pointer */}
-          <g transform={`rotate(${needleRotation}, 100, 110)`} className="transition-transform duration-1000 ease-out">
-            {/* Sleek triangle needle */}
+          <g transform={`rotate(${needleRotation}, 100, 135)`} className="transition-transform duration-1000 ease-out">
             <polygon
-              points="96,110 100,20 104,110"
+              points="97,135 100,68 103,135"
               fill="#1F2937"
               filter="url(#shadow)"
             />
-            {/* Colored tip */}
-            <circle cx="100" cy="22" r="3" fill={activeColor.hex} />
+            {/* Pointer colored tip */}
+            <circle cx="100" cy="70" r="2.5" fill={activeColor.hex} />
           </g>
 
           {/* Center Hub */}
-          <circle cx="100" cy="110" r="10" fill="#1F2937" />
-          <circle cx="100" cy="110" r="4" fill="#FFFFFF" />
+          <circle cx="100" cy="135" r="8" fill="#1F2937" />
+          <circle cx="100" cy="135" r="3.5" fill="#FFFFFF" />
         </svg>
 
-        {/* Text values absolutely centered at the bottom of the semi-circle */}
-        <div className="absolute bottom-0 inset-x-0 flex flex-col items-center">
-          <span className="text-3xl font-black text-brand-navy leading-none tracking-tight">
-            {Math.round(val)}%
-          </span>
-          <span className={`mt-2 px-2.5 py-0.5 text-[9px] font-extrabold rounded-full border ${activeColor.bg} ${activeColor.text} tracking-wider uppercase`}>
+        {/* Centered Rating Badge */}
+        <div className="absolute bottom-2 inset-x-0 flex flex-col items-center">
+          <span className={`px-3 py-1 text-xs font-black rounded-full border ${activeColor.bg} ${activeColor.text} tracking-wider uppercase shadow-sm`}>
             {rating}
           </span>
         </div>
