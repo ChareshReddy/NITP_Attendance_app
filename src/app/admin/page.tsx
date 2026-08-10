@@ -20,6 +20,7 @@ import {
   FileCheck,
   Calendar
 } from 'lucide-react';
+import Speedometer from '@/components/Speedometer';
 
 // Dynamic import of Recharts to prevent SSR window issues
 import {
@@ -1455,6 +1456,22 @@ export default function AdminDashboard() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Override Performance Rating</h3>
+            
+            {(() => {
+              const uObj = performanceData.find((p) => p.user.id === overrideUserId);
+              if (uObj) {
+                return (
+                  <div className="mb-4 text-center border-b border-gray-100 pb-4">
+                    <p className="text-xs text-gray-400 font-semibold mb-2">Current Rating for {uObj.user.name}</p>
+                    <div className="flex justify-center">
+                      <Speedometer score={uObj.score.autoScore} rating={uObj.score.rating} size={150} />
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+
             <form onSubmit={handleSaveOverride} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-brand-navy uppercase mb-1">New Performance Rating</label>

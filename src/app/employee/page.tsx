@@ -15,8 +15,10 @@ import {
   Trash2,
   Bell,
   Check,
-  Calendar
+  Calendar,
+  TrendingUp
 } from 'lucide-react';
+import Speedometer from '@/components/Speedometer';
 
 interface AttendanceRecord {
   id: string;
@@ -445,6 +447,24 @@ export default function EmployeeDashboard() {
               )}
             </div>
           </div>
+
+          {performanceScore && (
+            <div className="bg-white premium-card p-6 border border-gray-100 relative">
+              <h3 className="text-sm font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-brand-cta shrink-0" />
+                Performance Indicator
+              </h3>
+              <div className="flex justify-center">
+                <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={190} />
+              </div>
+              {performanceScore.manualOverride && (
+                <div className="mt-4 p-2.5 bg-purple-50 border border-purple-100 rounded-lg text-[10px] text-purple-700">
+                  <span className="font-bold block mb-0.5">HR Override Justification:</span>
+                  {performanceScore.overrideReason}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Personal KPI Tiles */}
           <div className="grid grid-cols-2 gap-4">
