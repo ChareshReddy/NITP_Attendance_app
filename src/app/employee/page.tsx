@@ -14,7 +14,8 @@ import {
   FileText,
   Trash2,
   Bell,
-  Check
+  Check,
+  Calendar
 } from 'lucide-react';
 
 interface AttendanceRecord {
@@ -64,6 +65,18 @@ export default function EmployeeDashboard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Leave Request States
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [leaveBalances, setLeaveBalances] = useState<any[]>([]);
+  const [leaveTypeId, setLeaveTypeId] = useState('');
+  const [leaveStartDate, setLeaveStartDate] = useState('');
+  const [leaveEndDate, setLeaveEndDate] = useState('');
+  const [leaveReason, setLeaveReason] = useState('');
+  const [submittingLeave, setSubmittingLeave] = useState(false);
+
+  // Performance Score States
+  const [performanceScore, setPerformanceScore] = useState<any>(null);
+
   // Form States
   const [project, setProject] = useState('');
   const [taskDescription, setTaskDescription] = useState('');
@@ -111,6 +124,23 @@ export default function EmployeeDashboard() {
         const notifData = await notifRes.json();
         setNotifications(notifData.notifications || []);
         setUnreadCount(notifData.unreadCount || 0);
+      }
+
+      // 5. Fetch Leave requests
+      const leaveRes = await fetch('/api/leave-requests');
+      if (leaveRes.ok) {
+        const leaveData = await leaveRes.json();
+        setLeaveRequests(leaveData.requests || []);
+        setLeaveBalances(leaveData.leaveBalances || []);
+      }
+
+      // 6. Fetch Performance score
+      const perfRes = await fetch('/api/admin/performance');
+      if (perfRes.ok) {
+        const perfData = await perfRes.json();
+        if (perfData.performanceData && perfData.performanceData.length > 0) {
+          setPerformanceScore(perfData.performanceData[0].score);
+        }
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -213,6 +243,45 @@ export default function EmployeeDashboard() {
     }
   };
 
+  const handleSubmitLeaveRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leaveTypeId || !leaveStartDate || !leaveEndDate || !leaveReason.trim()) {
+      setErrorMsg('Please fill in all leave request fields.');
+      return;
+    }
+
+    setSubmittingLeave(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/leave-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leaveTypeId,
+          startDate: leaveStartDate,
+          endDate: leaveEndDate,
+          reason: leaveReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit leave request');
+
+      setSuccessMsg('Leave request submitted successfully!');
+      setLeaveStartDate('');
+      setLeaveEndDate('');
+      setLeaveReason('');
+      setLeaveTypeId('');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error submitting leave request');
+    } finally {
+      setSubmittingLeave(false);
+    }
+  };
+
   const handleUpdateTaskStatus = async (id: string, currentStatus: string) => {
     let nextStatus = 'TODO';
     if (currentStatus === 'TODO') nextStatus = 'IN_PROGRESS';
@@ -261,7 +330,33 @@ export default function EmployeeDashboard() {
 
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* Alerts Center & Personal Info */}
+        {/* Profile Info & Performance Rating */}
+        <div className="lg:col-span-3 flex flex-col md:flex-row md:items-center justify-between bg-white premium-card p-6 border border-gray-100 gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-brand-navy font-heading">Welcome back!</h2>
+            <p className="text-xs text-gray-500 mt-1">Here is your attendance overview and task track sheets for today.</p>
+          </div>
+          {performanceScore && (
+            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2.5 rounded-xl border border-gray-100">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Your Rating:</span>
+              <span className={`px-3 py-1 text-xs font-extrabold rounded-full tracking-wide shadow-sm border ${
+                performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                'bg-red-100 text-brand-red border-red-200'
+              }`}>
+                {performanceScore.rating} ({Math.round(performanceScore.autoScore)}%)
+              </span>
+              {performanceScore.manualOverride && (
+                <span className="text-[9px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-bold" title={`Reason: ${performanceScore.overrideReason}`}>
+                  Override
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Alerts Center */}
         <div className="lg:col-span-3">
           {errorMsg && (
             <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-brand-red flex items-start gap-2.5 border border-red-100">
@@ -596,6 +691,156 @@ export default function EmployeeDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+          {/* Leave Requests & Balances Card */}
+          <div className="bg-white premium-card p-6 border border-gray-100">
+            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-brand-cta" />
+              Request Leave & Leave Balance
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Balances */}
+              <div className="md:col-span-2 space-y-4">
+                <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Your Balances ({new Date().getFullYear()})</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {leaveBalances.map((bal) => (
+                    <div key={bal.id} className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/50">
+                      <p className="text-xs font-bold text-brand-navy">{bal.name}</p>
+                      <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-gray-500 font-semibold text-center">
+                        <div className="bg-white p-1 rounded border border-gray-100">
+                          <span className="block text-xs font-extrabold text-brand-navy">{bal.daysAllowed}</span>
+                          Allotted
+                        </div>
+                        <div className="bg-white p-1 rounded border border-gray-100">
+                          <span className="block text-xs font-extrabold text-brand-red">{bal.daysUsed}</span>
+                          Used
+                        </div>
+                        <div className="bg-white p-1 rounded border border-gray-100">
+                          <span className="block text-xs font-extrabold text-emerald-600">{bal.daysRemaining}</span>
+                          Remaining
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Form */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3">
+                <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
+                <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Type</label>
+                    <select
+                      required
+                      value={leaveTypeId}
+                      onChange={(e) => setLeaveTypeId(e.target.value)}
+                      className="block w-full rounded-lg border-0 py-2 px-2.5 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta text-xs bg-white outline-none"
+                    >
+                      <option value="">Select leave type</option>
+                      {leaveBalances.map((bal) => (
+                        <option key={bal.id} value={bal.id} disabled={bal.daysRemaining <= 0}>
+                          {bal.name} ({bal.daysRemaining} left)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={leaveStartDate}
+                        onChange={(e) => setLeaveStartDate(e.target.value)}
+                        className="block w-full rounded-lg border-0 py-1.5 px-2 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta text-xs bg-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={leaveEndDate}
+                        onChange={(e) => setLeaveEndDate(e.target.value)}
+                        className="block w-full rounded-lg border-0 py-1.5 px-2 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta text-xs bg-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
+                    <textarea
+                      required
+                      rows={2}
+                      value={leaveReason}
+                      onChange={(e) => setLeaveReason(e.target.value)}
+                      placeholder="Why do you need leave?"
+                      className="block w-full rounded-lg border-0 py-1.5 px-2 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta text-xs bg-white outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submittingLeave}
+                    className="w-full bg-brand-cta text-white font-bold text-xs py-2 px-3 rounded-lg hover:bg-blue-700 transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                  >
+                    {submittingLeave ? 'Submitting...' : 'Request Leave'}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Leave History List */}
+            <div className="mt-6 border-t border-gray-100 pt-6">
+              <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Leave Request History</h4>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                      <th className="py-2.5 px-2">Leave Type</th>
+                      <th className="py-2.5 px-2">Duration</th>
+                      <th className="py-2.5 px-2">Reason</th>
+                      <th className="py-2.5 px-2 text-center">Status</th>
+                      <th className="py-2.5 px-2">Reviewed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {leaveRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center py-4 text-gray-400">No leave requests found.</td>
+                      </tr>
+                    ) : (
+                      leaveRequests.map((req) => (
+                        <tr key={req.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                          <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                            {req.startDate} to {req.endDate}
+                          </td>
+                          <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                            {req.reason}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                              req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-gray-500">
+                            {req.reviewedBy ? req.reviewedBy.name : '-'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

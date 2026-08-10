@@ -74,7 +74,7 @@ interface TeamReport {
 }
 
 export default function TeamLeaderDashboard() {
-  const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves'>('attendance');
   
   // Data States
   const [team, setTeam] = useState<{ id: string; name: string } | null>(null);
@@ -82,6 +82,13 @@ export default function TeamLeaderDashboard() {
   const [trackSheets, setTrackSheets] = useState<TeamTrackSheet[]>([]);
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [reports, setReports] = useState<TeamReport[]>([]);
+  
+  // Leave Request States
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+
+  // Performance Rating States
+  const [performanceScores, setPerformanceScores] = useState<any[]>([]);
+  const [performanceCounts, setPerformanceCounts] = useState({ RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 });
 
   // Task Assignment States
   const [taskTitle, setTaskTitle] = useState('');
@@ -131,13 +138,6 @@ export default function TeamLeaderDashboard() {
       // Fetch Team Track Sheets
       if (activeTab === 'tracksheets') {
         const tsRes = await fetch('/api/tracksheets');
-        // Wait, standard employee endpoint returns only their own. But TL route can fetch team track sheets.
-        // Let's make sure the backend allows TLs to view all sheets or we query them.
-        // Actually, we configured /api/tracksheets to allow TLs to view team track sheets if they specify no userId,
-        // wait! In the GET endpoint of /api/tracksheets/route.ts, we fetched for:
-        // `const userId = searchParams.get('userId') || user.userId;`
-        // If we query `/api/tracksheets?userId=all` or fetch all members individually:
-        // Let's implement fetching sheets for all members of the team.
         const sheetsDataList: TeamTrackSheet[] = [];
         const memberRes = await fetch('/api/tl/team');
         if (memberRes.ok) {
@@ -154,7 +154,6 @@ export default function TeamLeaderDashboard() {
             }
           }
         }
-        // Sort by date desc
         sheetsDataList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setTrackSheets(sheetsDataList);
       }
@@ -166,6 +165,29 @@ export default function TeamLeaderDashboard() {
           const reportsData = await reportsRes.json();
           setReports(reportsData.reports || []);
         }
+      }
+
+      // Fetch Leave Requests
+      const leaveRes = await fetch('/api/leave-requests');
+      if (leaveRes.ok) {
+        const leaveData = await leaveRes.json();
+        setLeaveRequests(leaveData.requests || []);
+      }
+
+      // Fetch Performance Scores
+      const perfRes = await fetch('/api/admin/performance?recompute=true');
+      if (perfRes.ok) {
+        const perfData = await perfRes.json();
+        setPerformanceScores(perfData.performanceData || []);
+        
+        const counts = { RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 };
+        (perfData.performanceData || []).forEach((p: any) => {
+          const rating = p.score?.rating as 'RED' | 'YELLOW' | 'GREEN' | 'BLUE';
+          if (rating && counts[rating] !== undefined) {
+            counts[rating]++;
+          }
+        });
+        setPerformanceCounts(counts);
       }
 
     } catch (e) {
@@ -225,6 +247,27 @@ export default function TeamLeaderDashboard() {
       fetchTeamData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error reviewing track sheet');
+    }
+  };
+
+  const handleReviewLeaveRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/leave-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update leave request status');
+
+      setSuccessMsg(`Leave request has been ${status.toLowerCase()} successfully.`);
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating leave request');
     }
   };
 
@@ -304,22 +347,43 @@ export default function TeamLeaderDashboard() {
         </div>
 
         {/* KPI Tiles */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-navy font-heading">{activeMembersCount}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Team Members</span>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-navy font-heading">{activeMembersCount}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Team Members</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-emerald-600 font-heading">{presentTodayCount}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Present Today</span>
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-emerald-600 font-heading">{presentTodayCount}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Present Today</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-red font-heading">{lateTodayCount}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Late Arrivals</span>
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-red font-heading">{lateTodayCount}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Late Arrivals</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-cta font-heading">{pendingTrackSheetsCount}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Pending Reviews</span>
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-cta font-heading">{pendingTrackSheetsCount}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Pending Reviews</span>
+          </div>
+          <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1.5 text-center">Team Performance</span>
+            <div className="flex justify-around items-center gap-1">
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Blue</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Green</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Yellow</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Red</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -350,6 +414,14 @@ export default function TeamLeaderDashboard() {
             Task Assignment
           </button>
           <button
+            onClick={() => setActiveTab('leaves')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'leaves' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Leave Requests
+          </button>
+          <button
             onClick={() => setActiveTab('reports')}
             className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'reports' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -375,6 +447,29 @@ export default function TeamLeaderDashboard() {
                       <div>
                         <h4 className="text-base font-bold text-brand-navy">{member.name}</h4>
                         <p className="text-xs text-gray-400">{member.email}</p>
+                        {(() => {
+                          const mScoreObj = performanceScores.find((p) => p.user.id === member.id);
+                          if (mScoreObj) {
+                            return (
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-extrabold border ${
+                                  mScoreObj.score.rating === 'BLUE' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                  mScoreObj.score.rating === 'GREEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                  mScoreObj.score.rating === 'YELLOW' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                  'bg-red-50 text-brand-red border-red-100'
+                                }`}>
+                                  {mScoreObj.score.rating} ({Math.round(mScoreObj.score.autoScore)}%)
+                                </span>
+                                {mScoreObj.score.manualOverride && (
+                                  <span className="text-[8px] bg-purple-50 text-purple-600 px-1 py-0.5 rounded font-bold" title={`Reason: ${mScoreObj.score.overrideReason}`}>
+                                    override
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       
                       {member.todayAttendance ? (
@@ -396,7 +491,7 @@ export default function TeamLeaderDashboard() {
                       <div className="flex justify-between">
                         <span>Check In:</span>
                         <span className="font-semibold text-brand-navy">
-                          {member.todayAttendance ? new Date(member.todayAttendance.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                          {member.todayAttendance && member.todayAttendance.checkInTime ? new Date(member.todayAttendance.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -747,6 +842,114 @@ export default function TeamLeaderDashboard() {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 5: Leave Requests Review */}
+        {activeTab === 'leaves' && (
+          <div className="bg-white premium-card p-6 border border-gray-100">
+            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2">Employee</th>
+                    <th className="py-3 px-2">Leave Type</th>
+                    <th className="py-3 px-2">Duration</th>
+                    <th className="py-3 px-2">Reason</th>
+                    <th className="py-3 px-2 text-center">Status</th>
+                    <th className="py-3 px-2 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leaveRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-6 text-gray-400">No pending leave requests from your team.</td>
+                    </tr>
+                  ) : (
+                    leaveRequests.filter(r => r.status === 'PENDING').map((req) => (
+                      <tr key={req.id} className="hover:bg-gray-50/50">
+                        <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                        <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                        <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                          {req.startDate} to {req.endDate}
+                        </td>
+                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                          {req.reason}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
+                          <button
+                            onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReviewLeaveRequest(req.id, 'REJECTED')}
+                            className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Resolved Leave History */}
+            <div className="mt-8 border-t border-gray-100 pt-6">
+              <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Leave Review History</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-2">Employee</th>
+                      <th className="py-3 px-2">Leave Type</th>
+                      <th className="py-3 px-2">Duration</th>
+                      <th className="py-3 px-2">Reason</th>
+                      <th className="py-3 px-2 text-center">Status</th>
+                      <th className="py-3 px-2">Reviewed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {leaveRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-6 text-gray-400">No review history found.</td>
+                      </tr>
+                    ) : (
+                      leaveRequests.filter(r => r.status !== 'PENDING').map((req) => (
+                        <tr key={req.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                          <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                          <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                            {req.startDate} to {req.endDate}
+                          </td>
+                          <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                            {req.reason}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
+                            }`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || 'System'}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

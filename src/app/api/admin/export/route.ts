@@ -76,7 +76,7 @@ export async function GET(request: Request) {
           name: r.user.name,
           email: r.user.email,
           role: r.user.role,
-          checkInTime: r.checkInTime.toISOString(),
+          checkInTime: r.checkInTime ? r.checkInTime.toISOString() : '-',
           checkOutTime: r.checkOutTime ? r.checkOutTime.toISOString() : '-',
           status: r.status,
           ip: r.ip,

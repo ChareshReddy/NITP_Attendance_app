@@ -71,6 +71,11 @@ model User {
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
 
+  performanceScore      PerformanceScore?  @relation("UserPerformance")
+  performanceUpdates    PerformanceScore[] @relation("PerformanceUpdatedBy")
+  leaveRequests         LeaveRequest[]     @relation("UserLeaveRequests")
+  reviewedLeaveRequests LeaveRequest[]     @relation("LeaveReviewer")
+
   @@map("users")
 }
 
@@ -91,7 +96,7 @@ model Attendance {
   userId       String           @map("user_id")
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   date         String           // YYYY-MM-DD
-  checkInTime  DateTime         @map("check_in_time")
+  checkInTime  DateTime?        @map("check_in_time")
   checkOutTime DateTime?        @map("check_out_time")
   status       AttendanceStatus
   ip           String
@@ -156,9 +161,10 @@ model Report {
 }
 
 model LeaveType {
-  id          String @id @default(uuid())
-  name        String @unique
-  daysAllowed Int    @map("days_allowed")
+  id          String         @id @default(uuid())
+  name        String         @unique
+  daysAllowed Int            @map("days_allowed")
+  requests    LeaveRequest[] @relation("TypeRequests")
 
   @@map("leave_types")
 }
@@ -202,4 +208,51 @@ model PasswordReset {
   expiresAt DateTime @map("expires_at")
 
   @@map("password_resets")
+}
+
+enum PerformanceRating {
+  RED
+  YELLOW
+  GREEN
+  BLUE
+}
+
+model PerformanceScore {
+  id             String            @id @default(uuid())
+  userId         String            @unique @map("user_id")
+  user           User              @relation("UserPerformance", fields: [userId], references: [id], onDelete: Cascade)
+  rating         PerformanceRating @default(GREEN)
+  autoScore      Float             @map("auto_score")
+  manualOverride Boolean           @default(false) @map("manual_override")
+  overrideReason String?           @map("override_reason")
+  updatedById    String?           @map("updated_by_id")
+  updatedBy      User?             @relation("PerformanceUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@map("performance_scores")
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id           String             @id @default(uuid())
+  userId       String             @map("user_id")
+  user         User               @relation("UserLeaveRequests", fields: [userId], references: [id], onDelete: Cascade)
+  leaveTypeId  String             @map("leave_type_id")
+  leaveType    LeaveType          @relation("TypeRequests", fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  startDate    String             @map("start_date") // YYYY-MM-DD
+  endDate      String             @map("end_date") // YYYY-MM-DD
+  reason       String
+  status       LeaveRequestStatus @default(PENDING)
+  reviewedById String?            @map("reviewed_by_id")
+  reviewedBy   User?              @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?          @map("reviewed_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  @@index([userId, status])
+  @@map("leave_requests")
 }

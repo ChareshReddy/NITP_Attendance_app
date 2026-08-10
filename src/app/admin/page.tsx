@@ -17,7 +17,8 @@ import {
   Search,
   UserPlus,
   TrendingUp,
-  FileCheck
+  FileCheck,
+  Calendar
 } from 'lucide-react';
 
 // Dynamic import of Recharts to prevent SSR window issues
@@ -99,7 +100,7 @@ interface AuditLog {
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'reports' | 'policies' | 'audit'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves'>('analytics');
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -108,6 +109,17 @@ export default function AdminDashboard() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
+  // Performance Rating States
+  const [performanceData, setPerformanceData] = useState<any[]>([]);
+  const [overrideUserId, setOverrideUserId] = useState('');
+  const [overrideRating, setOverrideRating] = useState('GREEN');
+  const [overrideReason, setOverrideReason] = useState('');
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [performanceCounts, setPerformanceCounts] = useState({ RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 });
+
+  // Leave Request States
+  const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
 
   // User Form States
   const [userName, setUserName] = useState('');
@@ -137,6 +149,7 @@ export default function AdminDashboard() {
   // Status message states
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [roleLoading, setRoleLoading] = useState(false); // Refactored to avoid generic loading collision
   const [loading, setLoading] = useState(false);
 
   // User search/filter
@@ -152,7 +165,7 @@ export default function AdminDashboard() {
       // 1. Fetch Users & Teams
       const usersRes = await fetch('/api/admin/users');
       if (usersRes.ok) {
-        const uData = await usersRes.ok ? await usersRes.json() : { users: [], teams: [] };
+        const uData = await usersRes.json();
         setUsers(uData.users || []);
         setTeams(uData.teams || []);
       }
@@ -173,6 +186,29 @@ export default function AdminDashboard() {
           setLeaveTypes(policyData.leaveTypes || []);
           setAuditLogs(policyData.auditLogs || []);
         }
+      }
+
+      // 4. Fetch Performance Scores
+      const perfRes = await fetch('/api/admin/performance?recompute=true');
+      if (perfRes.ok) {
+        const perfData = await perfRes.json();
+        setPerformanceData(perfData.performanceData || []);
+        
+        const counts = { RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 };
+        (perfData.performanceData || []).forEach((p: any) => {
+          const rating = p.score?.rating as 'RED' | 'YELLOW' | 'GREEN' | 'BLUE';
+          if (rating && counts[rating] !== undefined) {
+            counts[rating]++;
+          }
+        });
+        setPerformanceCounts(counts);
+      }
+
+      // 5. Fetch Leave Requests
+      const leaveRes = await fetch('/api/leave-requests');
+      if (leaveRes.ok) {
+        const leaveData = await leaveRes.json();
+        setLeaveRequests(leaveData.requests || []);
       }
     } catch (e) {
       console.error('Error fetching admin data:', e);
@@ -285,6 +321,82 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error reviewing report');
+    }
+  };
+
+  const handleOpenOverrideModal = (userId: string, currentRating: string) => {
+    setOverrideUserId(userId);
+    setOverrideRating(currentRating);
+    setOverrideReason('');
+    setIsOverrideModalOpen(true);
+  };
+
+  const handleSaveOverride = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!overrideReason.trim()) {
+      setErrorMsg('Override reason is required.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/performance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: overrideUserId,
+          rating: overrideRating,
+          reason: overrideReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to apply override');
+
+      setSuccessMsg('Performance rating override saved successfully.');
+      setIsOverrideModalOpen(false);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error occurred');
+    }
+  };
+
+  const handleClearOverride = async (userId: string) => {
+    if (!confirm('Are you sure you want to clear this manual override and restore automatic scoring?')) return;
+    try {
+      const res = await fetch('/api/admin/performance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          clearOverride: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to clear override');
+
+      setSuccessMsg('Manual override cleared and score recalculated.');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error clearing override');
+    }
+  };
+
+  const handleReviewLeaveRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const res = await fetch('/api/leave-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to review leave request');
+
+      setSuccessMsg(`Leave request has been ${status.toLowerCase()} successfully.`);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error reviewing leave request');
     }
   };
 
@@ -431,24 +543,45 @@ export default function AdminDashboard() {
         </div>
 
         {/* HR KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-navy font-heading">{users.length}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Active Accounts</span>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-navy font-heading">{users.length}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Active Accounts</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-emerald-600 font-heading">
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
               {users.length > 0 ? '92%' : '0%'}
             </span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Avg Attendance Rate</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Avg Attendance</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-red font-heading">{holidays.length}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Company Holidays</span>
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-red font-heading">{holidays.length}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Company Holidays</span>
           </div>
-          <div className="bg-white premium-card p-5 border border-gray-100 text-center">
-            <span className="block text-4xl font-extrabold text-brand-cta font-heading">{pendingReportsCount}</span>
-            <span className="text-xs font-semibold text-gray-400 mt-1 block">Pending TL Reports</span>
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
+            <span className="block text-3xl font-extrabold text-brand-cta font-heading">{reports.filter(r => r.status === 'PENDING').length}</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Pending TL Reports</span>
+          </div>
+          <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center">Performance Overview</span>
+            <div className="flex justify-around items-center gap-1">
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Blue</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Green</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Yellow</span>
+              </div>
+              <div className="text-center">
+                <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5">Red</span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -469,6 +602,22 @@ export default function AdminDashboard() {
             }`}
           >
             Account Management
+          </button>
+          <button
+            onClick={() => setActiveTab('performance')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'performance' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Performance Ratings
+          </button>
+          <button
+            onClick={() => setActiveTab('leaves')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'leaves' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Leave Requests
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -1129,7 +1278,230 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB 6: Performance Score Ratings */}
+        {activeTab === 'performance' && (
+          <div className="bg-white premium-card p-6 border border-gray-100">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h3>
+                <p className="text-xs text-gray-400 mt-1">Automatic nightly auto-scoring with manual override capability for HR Admins.</p>
+              </div>
+              <button
+                onClick={() => fetchAdminData()}
+                className="bg-brand-bg hover:bg-gray-100 text-brand-navy border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Recompute Auto-Scores
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2">Employee</th>
+                    <th className="py-3 px-2">Team</th>
+                    <th className="py-3 px-2 text-center">Score Type</th>
+                    <th className="py-3 px-2 text-center">Auto Score</th>
+                    <th className="py-3 px-2 text-center">Rating Badge</th>
+                    <th className="py-3 px-2">Override Reason</th>
+                    <th className="py-3 px-2 text-center">Last Updated</th>
+                    <th className="py-3 px-2 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {performanceData.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-6 text-gray-400">No performance records retrieved.</td>
+                    </tr>
+                  ) : (
+                    performanceData.map((p: any) => (
+                      <tr key={p.user.id} className="hover:bg-gray-50/50">
+                        <td className="py-3 px-2 font-bold text-brand-navy">
+                          <div>{p.user.name}</div>
+                          <div className="text-[10px] text-gray-400 font-semibold">{p.user.email}</div>
+                        </td>
+                        <td className="py-3 px-2 text-gray-500 font-semibold">{p.user.team?.name || 'Unassigned'}</td>
+                        <td className="py-3 px-2 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            p.score.manualOverride ? 'bg-purple-100 text-purple-800' : 'bg-blue-50 text-blue-800'
+                          }`}>
+                            {p.score.manualOverride ? 'Manual' : 'Auto'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{Math.round(p.score.autoScore)}%</td>
+                        <td className="py-3 px-2 text-center">
+                          <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold border ${
+                            p.score.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                            p.score.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                            p.score.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                            'bg-red-100 text-brand-red border-red-200'
+                          }`}>
+                            {p.score.rating}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={p.score.overrideReason || ''}>
+                          {p.score.overrideReason || '-'}
+                        </td>
+                        <td className="py-3 px-2 text-center text-gray-400">
+                          {new Date(p.score.updatedAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                          <button
+                            onClick={() => handleOpenOverrideModal(p.user.id, p.score.rating)}
+                            className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                          >
+                            Override
+                          </button>
+                          {p.score.manualOverride && (
+                            <button
+                              onClick={() => handleClearOverride(p.user.id)}
+                              className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 7: Leave Requests System */}
+        {activeTab === 'leaves' && (
+          <div className="bg-white premium-card p-6 border border-gray-100">
+            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2">Employee</th>
+                    <th className="py-3 px-2">Team</th>
+                    <th className="py-3 px-2">Leave Type</th>
+                    <th className="py-3 px-2">Duration</th>
+                    <th className="py-3 px-2">Reason</th>
+                    <th className="py-3 px-2 text-center">Status</th>
+                    <th className="py-3 px-2">Reviewed By</th>
+                    <th className="py-3 px-2 text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {leaveRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-6 text-gray-400">No leave requests logged in system.</td>
+                    </tr>
+                  ) : (
+                    leaveRequests.map((req) => (
+                      <tr key={req.id} className="hover:bg-gray-50/50">
+                        <td className="py-3 px-2 font-bold text-brand-navy">
+                          <div>{req.user.name}</div>
+                          <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                        </td>
+                        <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
+                        <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                        <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                          {req.startDate} to {req.endDate}
+                        </td>
+                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                          {req.reason}
+                        </td>
+                        <td className="py-3 px-2 text-center">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                            req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                            req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || '-'}</td>
+                        <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                          {req.status === 'PENDING' ? (
+                            <>
+                              <button
+                                onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleReviewLeaveRequest(req.id, 'REJECTED')}
+                                className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 font-semibold text-[10px]">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
       </main>
+
+      {/* Override Modal */}
+      {isOverrideModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
+            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Override Performance Rating</h3>
+            <form onSubmit={handleSaveOverride} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">New Performance Rating</label>
+                <select
+                  required
+                  value={overrideRating}
+                  onChange={(e) => setOverrideRating(e.target.value)}
+                  className="block w-full rounded-lg border-0 py-2.5 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                >
+                  <option value="RED">RED (Poor)</option>
+                  <option value="YELLOW">YELLOW (Needs Improvement)</option>
+                  <option value="GREEN">GREEN (Good)</option>
+                  <option value="BLUE">BLUE (Excellent)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Override Reason</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Enter justification for overriding automatic score calculation..."
+                  className="block w-full rounded-lg border-0 py-2 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsOverrideModalOpen(false)}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Save Override
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
