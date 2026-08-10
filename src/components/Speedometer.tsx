@@ -26,7 +26,7 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
   return (
     <div className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden w-full h-full min-h-[175px]">
       {/* Speedometer Gauge Arc */}
-      <div className="relative" style={{ width: size, height: size * 0.7 }}>
+      <div className="relative" style={{ width: size, height: size * 0.55 }}>
         <svg
           width={size}
           height={size * 0.9}
@@ -115,13 +115,13 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
           <circle cx="100" cy="135" r="8" fill="#1F2937" />
           <circle cx="100" cy="135" r="3.5" fill="#FFFFFF" />
         </svg>
+      </div>
 
-        {/* Centered Rating Badge */}
-        <div className="absolute bottom-2 inset-x-0 flex flex-col items-center">
-          <span className={`px-3 py-1 text-xs font-black rounded-full border ${activeColor.bg} ${activeColor.text} tracking-wider uppercase shadow-sm`}>
-            {rating}
-          </span>
-        </div>
+      {/* Centered Rating Badge - Placed outside wrapper to prevent overlaying the needle center hub */}
+      <div className="mt-3 flex flex-col items-center">
+        <span className={`px-3 py-1 text-xs font-black rounded-full border ${activeColor.bg} ${activeColor.text} tracking-wider uppercase shadow-sm`}>
+          {rating}
+        </span>
       </div>
     </div>
   );
