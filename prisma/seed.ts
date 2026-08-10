@@ -1,5 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
@@ -158,11 +160,98 @@ async function main() {
     },
   });
 
-  console.log('Database seeded successfully with clean HR Users and demo accounts:');
-  console.log(' - HR 1: rohini.hr@nextitpoint.com');
-  console.log(' - HR 2: rohini@nextitpoint.com');
-  console.log(' - TL: tl@nextitpoint.com');
-  console.log(' - Employee: employee@nextitpoint.com');
+  // 8. Seed Real Team Data from Excel exports JSON file
+  const realSeedPath = path.join(__dirname, 'real_seed_data.json');
+  if (fs.existsSync(realSeedPath)) {
+    const rawData = fs.readFileSync(realSeedPath, 'utf8');
+    const { users: realUsers, trackSheets: realTrackSheets } = JSON.parse(rawData);
+
+    console.log(`Seeding ${realUsers.length} real team users and ${realTrackSheets.length} track sheet logs...`);
+
+    const teamMap: { [key: string]: string } = {}; // team name to team id map
+    const tlMap: { [key: string]: string } = {}; // team name to TL user id map
+    const createdUsers: { [email: string]: any } = {};
+
+    for (const u of realUsers) {
+      let teamId = teamMap[u.team];
+      if (!teamId) {
+        const existingTeam = await prisma.team.findFirst({ where: { name: u.team } });
+        if (existingTeam) {
+          teamId = existingTeam.id;
+        } else {
+          const newTeam = await prisma.team.create({
+            data: { name: u.team }
+          });
+          teamId = newTeam.id;
+        }
+        teamMap[u.team] = teamId;
+      }
+
+      const createdUser = await prisma.user.create({
+        data: {
+          name: u.name,
+          email: u.email,
+          passwordHash: u.passwordHash,
+          role: u.role,
+          isActive: true,
+          teamId: teamId,
+        }
+      });
+      createdUsers[u.email] = createdUser;
+
+      if (u.role === 'TL') {
+        tlMap[u.team] = createdUser.id;
+        await prisma.team.update({
+          where: { id: teamId },
+          data: { teamLeaderId: createdUser.id }
+        });
+      }
+
+      await prisma.performanceScore.create({
+        data: {
+          userId: createdUser.id,
+          rating: u.role === 'TL' ? 'BLUE' : 'GREEN',
+          autoScore: u.role === 'TL' ? 95.0 : 80.0,
+          manualOverride: false
+        }
+      });
+    }
+
+    for (const u of realUsers) {
+      const createdUser = createdUsers[u.email];
+      const teamTLId = tlMap[u.team];
+      if (teamTLId && u.role === 'EMPLOYEE') {
+        await prisma.user.update({
+          where: { id: createdUser.id },
+          data: { managerId: teamTLId }
+        });
+      }
+    }
+
+    console.log('Inserting track sheet records in batch...');
+    const trackSheetsData = realTrackSheets.map((ts: any) => {
+      const matchedUser = createdUsers[ts.email];
+      return {
+        userId: matchedUser.id,
+        date: ts.date,
+        project: ts.project,
+        taskDescription: ts.taskDescription,
+        hours: ts.hours,
+        status: ts.status,
+        notes: ts.notes
+      };
+    });
+
+    if (trackSheetsData.length > 0) {
+      await prisma.trackSheet.createMany({
+        data: trackSheetsData
+      });
+    }
+
+    console.log(`Successfully seeded ${realUsers.length} users and ${trackSheetsData.length} track sheets!`);
+  }
+
+  console.log('Database seeded successfully with clean HR Users, demo accounts, and real team data!');
 }
 
 main()
