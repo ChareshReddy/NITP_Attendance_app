@@ -88,8 +88,47 @@ export default function EmployeeDashboard() {
   // Status handlers
   const [loadingAttendance, setLoadingAttendance] = useState(false);
   const [submittingTrack, setSubmittingTrack] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsgState] = useState('');
+  const [successMsg, setSuccessMsgState] = useState('');
+  const [fadeSuccess, setFadeSuccess] = useState(false);
+  const [fadeError, setFadeError] = useState(false);
+
+  const successTimeoutRef = React.useRef<any>(null);
+  const errorTimeoutRef = React.useRef<any>(null);
+
+  const setSuccessMsg = (msg: string) => {
+    if (successTimeoutRef.current) {
+      clearTimeout(successTimeoutRef.current.fade);
+      clearTimeout(successTimeoutRef.current.dismiss);
+    }
+    setSuccessMsgState(msg);
+    setFadeSuccess(false);
+    if (msg) {
+      const fadeId = setTimeout(() => setFadeSuccess(true), 4000);
+      const dismissId = setTimeout(() => {
+        setSuccessMsgState('');
+        setFadeSuccess(false);
+      }, 4500);
+      successTimeoutRef.current = { fade: fadeId, dismiss: dismissId };
+    }
+  };
+
+  const setErrorMsg = (msg: string) => {
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current.fade);
+      clearTimeout(errorTimeoutRef.current.dismiss);
+    }
+    setErrorMsgState(msg);
+    setFadeError(false);
+    if (msg) {
+      const fadeId = setTimeout(() => setFadeError(true), 4000);
+      const dismissId = setTimeout(() => {
+        setErrorMsgState('');
+        setFadeError(false);
+      }, 4500);
+      errorTimeoutRef.current = { fade: fadeId, dismiss: dismissId };
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -361,15 +400,33 @@ export default function EmployeeDashboard() {
         {/* Alerts Center */}
         <div className="lg:col-span-3">
           {errorMsg && (
-            <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-brand-red flex items-start gap-2.5 border border-red-100">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{errorMsg}</span>
+            <div className={`mb-4 rounded-lg bg-red-50 p-4 text-sm text-brand-red flex items-start justify-between gap-2.5 border border-red-100 transition-all duration-500 ease-in-out ${fadeError ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+              <button 
+                onClick={() => setErrorMsg('')} 
+                className="text-brand-red hover:text-red-800 font-extrabold text-base ml-2 outline-none cursor-pointer leading-none"
+                aria-label="Dismiss error alert"
+              >
+                &times;
+              </button>
             </div>
           )}
           {successMsg && (
-            <div className="mb-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800 flex items-start gap-2.5 border border-emerald-100">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
-              <span>{successMsg}</span>
+            <div className={`mb-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800 flex items-start justify-between gap-2.5 border border-emerald-100 transition-all duration-500 ease-in-out ${fadeSuccess ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+                <span>{successMsg}</span>
+              </div>
+              <button 
+                onClick={() => setSuccessMsg('')} 
+                className="text-emerald-800 hover:text-emerald-950 font-extrabold text-base ml-2 outline-none cursor-pointer leading-none"
+                aria-label="Dismiss success alert"
+              >
+                &times;
+              </button>
             </div>
           )}
         </div>
