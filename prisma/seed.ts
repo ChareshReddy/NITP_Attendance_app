@@ -61,9 +61,19 @@ async function main() {
     },
   });
 
-  console.log('Database seeded successfully with clean HR User:');
+  await prisma.user.create({
+    data: {
+      name: 'Rohini HR',
+      email: 'rohini@nextitpoint.com',
+      passwordHash: hrPasswordHash,
+      role: 'HR_ADMIN',
+      isActive: true,
+    },
+  });
+
+  console.log('Database seeded successfully with clean HR Users:');
   console.log(' - Name: Rohini HR');
-  console.log(' - Email: rohini.hr@nextitpoint.com');
+  console.log(' - Emails: rohini.hr@nextitpoint.com / rohini@nextitpoint.com');
   console.log(' - Role: HR_ADMIN');
 }
 
