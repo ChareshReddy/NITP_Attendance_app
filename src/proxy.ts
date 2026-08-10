@@ -33,8 +33,9 @@ export const proxy = auth((req) => {
       return NextResponse.redirect(new URL('/employee', req.url));
     }
 
-    if (pathname.startsWith('/employee') && user.role !== 'EMPLOYEE' && user.role !== 'TL' && user.role !== 'HR_ADMIN') {
-      return NextResponse.redirect(new URL('/', req.url));
+    if (pathname.startsWith('/employee') && user.role !== 'EMPLOYEE' && user.role !== 'TL') {
+      const target = user.role === 'HR_ADMIN' ? '/admin' : '/';
+      return NextResponse.redirect(new URL(target, req.url));
     }
   } else {
     const protectedPaths = ['/employee', '/tl', '/admin'];

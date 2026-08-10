@@ -99,14 +99,16 @@ export default function Header() {
             </Link>
           )}
 
-          <Link
-            href="/employee"
-            className={`hover:text-brand-navy transition-colors ${
-              pathname.startsWith('/employee') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            My Portal
-          </Link>
+          {user.role !== 'HR_ADMIN' && (
+            <Link
+              href="/employee"
+              className={`hover:text-brand-navy transition-colors ${
+                pathname.startsWith('/employee') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              My Portal
+            </Link>
+          )}
         </nav>
       )}
 
