@@ -716,15 +716,15 @@ export default function EmployeeDashboard() {
             </h3>
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-              <table className="min-w-full text-left text-xs relative border-collapse">
+              <table className="w-full table-fixed text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
                   <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                    <th className="py-3 px-2 bg-white">Date</th>
-                    <th className="py-3 px-2 bg-white">Task</th>
+                    <th className="py-3 px-2 bg-white w-[110px]">Date</th>
+                    <th className="py-3 px-2 bg-white w-[160px]">Task</th>
                     <th className="py-3 px-2 bg-white">Description</th>
-                    <th className="py-3 px-2 text-center bg-white">Hours</th>
-                    <th className="py-3 px-2 text-center bg-white">Status</th>
-                    <th className="py-3 px-2 text-center bg-white">Action</th>
+                    <th className="py-3 px-2 text-center bg-white w-[70px]">Hours</th>
+                    <th className="py-3 px-2 text-center bg-white w-[100px]">Status</th>
+                    <th className="py-3 px-2 text-center bg-white w-[70px]">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -735,11 +735,9 @@ export default function EmployeeDashboard() {
                   ) : (
                     trackSheets.map((item) => (
                       <tr key={item.id} className="hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">{item.date}</td>
-                        <td className="py-3 px-2 font-medium text-brand-navy whitespace-nowrap">{item.project}</td>
-                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={item.taskDescription}>
-                          {item.taskDescription}
-                        </td>
+                        <td className="py-3 px-2 font-semibold text-brand-navy truncate" title={item.date}>{item.date}</td>
+                        <td className="py-3 px-2 font-medium text-brand-navy break-words" title={item.project}>{item.project}</td>
+                        <td className="py-3 px-2 text-gray-500 break-words whitespace-normal">{item.taskDescription}</td>
                         <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
                         <td className="py-3 px-2 text-center">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
