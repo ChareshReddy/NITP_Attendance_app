@@ -10,8 +10,8 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
   // Bounded score 0-100
   const val = Math.max(0, Math.min(100, score));
   
-  // Angle: 0 score is -180deg (left), 100 score is 0deg (right)
-  const needleRotation = (val * 1.8) - 180;
+  // Angle: 0 score is -90deg (left), 50 is 0deg (straight up), 100 is 90deg (right)
+  const needleRotation = (val - 50) * 1.8;
 
   // Determine active colors based on rating
   const colorMap = {
