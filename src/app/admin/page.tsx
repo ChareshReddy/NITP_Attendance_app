@@ -269,7 +269,12 @@ export default function AdminDashboard() {
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await fetch('/api/attendance', { method: 'POST' });
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check_in', tz: userTz }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to check in');
       setSuccessMsg('Checked in successfully!');
@@ -286,7 +291,12 @@ export default function AdminDashboard() {
     setErrorMsg('');
     setSuccessMsg('');
     try {
-      const res = await fetch('/api/attendance', { method: 'PUT' });
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'check_out', tz: userTz }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to check out');
       setSuccessMsg('Checked out successfully!');
