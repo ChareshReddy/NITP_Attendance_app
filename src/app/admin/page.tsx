@@ -110,6 +110,8 @@ export default function AdminDashboard() {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [todayRecord, setTodayRecord] = useState<any>(null);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
 
   // Performance Rating States
   const [performanceData, setPerformanceData] = useState<any[]>([]);
@@ -211,8 +213,49 @@ export default function AdminDashboard() {
         const leaveData = await leaveRes.json();
         setLeaveRequests(leaveData.requests || []);
       }
+
+      // 6. Fetch HR Self Attendance status
+      const attRes = await fetch('/api/attendance');
+      if (attRes.ok) {
+        const attData = await attRes.json();
+        setTodayRecord(attData.todayRecord || null);
+      }
     } catch (e) {
       console.error('Error fetching admin data:', e);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    setLoadingAttendance(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/attendance', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check in');
+      setSuccessMsg('Checked in successfully!');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error occurred');
+    } finally {
+      setLoadingAttendance(false);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    setLoadingAttendance(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/attendance', { method: 'PUT' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to check out');
+      setSuccessMsg('Checked out successfully!');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error occurred');
+    } finally {
+      setLoadingAttendance(false);
     }
   };
 
@@ -538,9 +581,58 @@ export default function AdminDashboard() {
         )}
 
         {/* Dashboard Title & Quick KPIs */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h2>
-          <p className="text-sm text-gray-500 mt-1">Configure company policy, verify check-ins, approve reports, and audit system actions.</p>
+        <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-gray-100 pb-6">
+          <div>
+            <h2 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h2>
+            <p className="text-sm text-gray-500 mt-1">Configure company policy, verify check-ins, approve reports, and audit system actions.</p>
+          </div>
+
+          {/* Quick Check-in/out widget for HR */}
+          <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-150 shadow-sm self-start lg:self-center min-w-[280px]">
+            <div className="bg-blue-50 p-2.5 rounded-xl text-brand-navy shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold text-gray-400 block uppercase">Daily Work Shift</span>
+              <span className="text-xs font-bold text-brand-navy block mt-0.5">
+                {todayRecord ? (
+                  <>
+                    In: <span className="font-semibold text-brand-cta">{new Date(todayRecord.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    {todayRecord.checkOutTime ? (
+                      <>
+                        {" "}• Out: <span className="font-semibold text-brand-red">{new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </>
+                    ) : ''}
+                  </>
+                ) : (
+                  'Not Checked In'
+                )}
+              </span>
+            </div>
+            <div className="shrink-0">
+              {!todayRecord ? (
+                <button
+                  onClick={handleCheckIn}
+                  disabled={loadingAttendance}
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
+                >
+                  {loadingAttendance ? '...' : 'Check In'}
+                </button>
+              ) : !todayRecord.checkOutTime ? (
+                <button
+                  onClick={handleCheckOut}
+                  disabled={loadingAttendance}
+                  className="bg-brand-red hover:bg-red-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
+                >
+                  {loadingAttendance ? '...' : 'Check Out'}
+                </button>
+              ) : (
+                <span className="text-xs font-extrabold text-gray-400 bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
+                  Completed
+                </span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* HR KPI Cards */}
