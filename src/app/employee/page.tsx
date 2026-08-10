@@ -564,7 +564,7 @@ export default function EmployeeDashboard() {
               )}
             </div>
 
-            <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-[250px] overflow-y-auto custom-scrollbar-container pr-1">
               {notifications.length === 0 ? (
                 <p className="text-xs text-gray-400 text-center py-6">No notifications found.</p>
               ) : (
@@ -666,7 +666,7 @@ export default function EmployeeDashboard() {
               Assigned Tasks
             </h3>
 
-            <div className="space-y-4">
+             <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar-container pr-1">
               {tasks.length === 0 ? (
                 <p className="text-sm text-gray-400 py-6 text-center">No tasks assigned to you.</p>
               ) : (
@@ -715,16 +715,16 @@ export default function EmployeeDashboard() {
               My Track Sheets Log
             </h3>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Date</th>
-                    <th className="py-3 px-2">Task</th>
-                    <th className="py-3 px-2">Description</th>
-                    <th className="py-3 px-2 text-center">Hours</th>
-                    <th className="py-3 px-2 text-center">Status</th>
-                    <th className="py-3 px-2 text-center">Action</th>
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Date</th>
+                    <th className="py-3 px-2 bg-white">Task</th>
+                    <th className="py-3 px-2 bg-white">Description</th>
+                    <th className="py-3 px-2 text-center bg-white">Hours</th>
+                    <th className="py-3 px-2 text-center bg-white">Status</th>
+                    <th className="py-3 px-2 text-center bg-white">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

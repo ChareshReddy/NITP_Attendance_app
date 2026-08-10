@@ -632,18 +632,18 @@ export default function TeamLeaderDashboard() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Member</th>
-                    <th className="py-3 px-2">Date</th>
-                    <th className="py-3 px-2">Task</th>
-                    <th className="py-3 px-2">Task Description</th>
-                    <th className="py-3 px-2 text-center">Hours</th>
-                    <th className="py-3 px-2">Notes</th>
-                    <th className="py-3 px-2 text-center">Status</th>
-                    <th className="py-3 px-2 text-center">Actions</th>
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Member</th>
+                    <th className="py-3 px-2 bg-white">Date</th>
+                    <th className="py-3 px-2 bg-white">Task</th>
+                    <th className="py-3 px-2 bg-white">Task Description</th>
+                    <th className="py-3 px-2 text-center bg-white">Hours</th>
+                    <th className="py-3 px-2 bg-white">Notes</th>
+                    <th className="py-3 px-2 text-center bg-white">Status</th>
+                    <th className="py-3 px-2 text-center bg-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -789,7 +789,7 @@ export default function TeamLeaderDashboard() {
             <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2">
               <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Team Task Board</h3>
               
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar-container pr-1">
                 {tasks.length === 0 ? (
                   <p className="text-sm text-gray-400 py-6 text-center">No tasks currently defined.</p>
                 ) : (
@@ -940,16 +940,16 @@ export default function TeamLeaderDashboard() {
           <div className="bg-white premium-card p-6 border border-gray-100">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h3>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Employee</th>
-                    <th className="py-3 px-2">Leave Type</th>
-                    <th className="py-3 px-2">Duration</th>
-                    <th className="py-3 px-2">Reason</th>
-                    <th className="py-3 px-2 text-center">Status</th>
-                    <th className="py-3 px-2 text-center">Actions</th>
+            <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Employee</th>
+                    <th className="py-3 px-2 bg-white">Leave Type</th>
+                    <th className="py-3 px-2 bg-white">Duration</th>
+                    <th className="py-3 px-2 bg-white">Reason</th>
+                    <th className="py-3 px-2 text-center bg-white">Status</th>
+                    <th className="py-3 px-2 text-center bg-white">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

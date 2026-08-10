@@ -52,3 +52,28 @@ body {
   transform: scale(0.97);
 }
 
+/* Thin, brand-colored custom scrollbar utility */
+.custom-scrollbar-container::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-container::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar-container::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-navy);
+}
+
+/* Firefox compatibility */
+.custom-scrollbar-container {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+

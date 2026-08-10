@@ -1127,16 +1127,16 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                      <th className="py-3 px-2">Name</th>
-                      <th className="py-3 px-2">Role</th>
-                      <th className="py-3 px-2">Team</th>
-                      <th className="py-3 px-2">Reporting Manager</th>
-                      <th className="py-3 px-2 text-center">Status</th>
-                      <th className="py-3 px-2 text-center">Actions</th>
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="min-w-full text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                      <th className="py-3 px-2 bg-white">Name</th>
+                      <th className="py-3 px-2 bg-white">Role</th>
+                      <th className="py-3 px-2 bg-white">Team</th>
+                      <th className="py-3 px-2 bg-white">Reporting Manager</th>
+                      <th className="py-3 px-2 text-center bg-white">Status</th>
+                      <th className="py-3 px-2 text-center bg-white">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -1190,7 +1190,7 @@ export default function AdminDashboard() {
           <div className="bg-white premium-card p-6 border border-gray-100">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Review Periodic Team Status Reports</h3>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
               {reports.length === 0 ? (
                 <p className="text-sm text-gray-400 py-6 text-center">No team reports submitted yet.</p>
               ) : (
@@ -1390,15 +1390,15 @@ export default function AdminDashboard() {
               Company Audit Logs (Key System Operations)
             </h3>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Timestamp</th>
-                    <th className="py-3 px-2">Operation Executed By</th>
-                    <th className="py-3 px-2">Action Type</th>
-                    <th className="py-3 px-2">Target Entity</th>
-                    <th className="py-3 px-2">Target ID</th>
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Timestamp</th>
+                    <th className="py-3 px-2 bg-white">Operation Executed By</th>
+                    <th className="py-3 px-2 bg-white">Action Type</th>
+                    <th className="py-3 px-2 bg-white">Target Entity</th>
+                    <th className="py-3 px-2 bg-white">Target ID</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium">
@@ -1454,18 +1454,18 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Employee</th>
-                    <th className="py-3 px-2">Team</th>
-                    <th className="py-3 px-2 text-center">Score Type</th>
-                    <th className="py-3 px-2 text-center">Auto Score</th>
-                    <th className="py-3 px-2 text-center">Rating Badge</th>
-                    <th className="py-3 px-2">Override Reason</th>
-                    <th className="py-3 px-2 text-center">Last Updated</th>
-                    <th className="py-3 px-2 text-center">Action</th>
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Employee</th>
+                    <th className="py-3 px-2 bg-white">Team</th>
+                    <th className="py-3 px-2 text-center bg-white">Score Type</th>
+                    <th className="py-3 px-2 text-center bg-white">Auto Score</th>
+                    <th className="py-3 px-2 text-center bg-white">Rating Badge</th>
+                    <th className="py-3 px-2 bg-white">Override Reason</th>
+                    <th className="py-3 px-2 text-center bg-white">Last Updated</th>
+                    <th className="py-3 px-2 text-center bg-white">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1535,18 +1535,18 @@ export default function AdminDashboard() {
           <div className="bg-white premium-card p-6 border border-gray-100">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
             
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-2">Employee</th>
-                    <th className="py-3 px-2">Team</th>
-                    <th className="py-3 px-2">Leave Type</th>
-                    <th className="py-3 px-2">Duration</th>
-                    <th className="py-3 px-2">Reason</th>
-                    <th className="py-3 px-2 text-center">Status</th>
-                    <th className="py-3 px-2">Reviewed By</th>
-                    <th className="py-3 px-2 text-center">Action</th>
+            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="min-w-full text-left text-xs relative border-collapse">
+                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                    <th className="py-3 px-2 bg-white">Employee</th>
+                    <th className="py-3 px-2 bg-white">Team</th>
+                    <th className="py-3 px-2 bg-white">Leave Type</th>
+                    <th className="py-3 px-2 bg-white">Duration</th>
+                    <th className="py-3 px-2 bg-white">Reason</th>
+                    <th className="py-3 px-2 text-center bg-white">Status</th>
+                    <th className="py-3 px-2 bg-white">Reviewed By</th>
+                    <th className="py-3 px-2 text-center bg-white">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
