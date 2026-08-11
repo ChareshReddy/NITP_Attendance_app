@@ -25,11 +25,13 @@ async function main() {
 
   // 1. Seed Leave Types
   const leaveTypesData = [
-    { name: 'Sick Leave', daysAllowed: 12 },
     { name: 'Casual Leave', daysAllowed: 12 },
+    { name: 'Sick Leave', daysAllowed: 12 },
     { name: 'Earned Leave', daysAllowed: 15 },
-    { name: 'Maternity Leave', daysAllowed: 90 },
-    { name: 'Paternity Leave', daysAllowed: 10 },
+    { name: 'Compensatory Off', daysAllowed: 5 },
+    { name: 'Maternity Leave', daysAllowed: 180 },
+    { name: 'Paternity Leave', daysAllowed: 15 },
+    { name: 'Loss of Pay', daysAllowed: 365 },
   ];
   const leaveTypes: any[] = [];
   for (const lt of leaveTypesData) {

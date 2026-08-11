@@ -178,7 +178,7 @@ export async function POST(request: Request) {
 
     const remaining = leaveType.daysAllowed - daysUsed;
 
-    if (requestedDays > remaining) {
+    if (leaveType.name !== 'Loss of Pay' && requestedDays > remaining) {
       return NextResponse.json({
         error: `Insufficient balance. Requested: ${requestedDays} day(s), Remaining: ${remaining} day(s).`,
       }, { status: 400 });
@@ -247,12 +247,62 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Forbidden: Request is not from your team member' }, { status: 403 });
     }
 
+    let isLossOfPay = false;
+    if (status === 'APPROVED') {
+      const leaveType = await prisma.leaveType.findUnique({
+        where: { id: existing.leaveTypeId },
+      });
+      if (leaveType) {
+        if (leaveType.name === 'Loss of Pay') {
+          isLossOfPay = true;
+        } else {
+          const currentYear = new Date().getFullYear();
+          const approvedRequests = await prisma.leaveRequest.findMany({
+            where: {
+              userId: existing.userId,
+              leaveTypeId: existing.leaveTypeId,
+              status: 'APPROVED',
+              id: { not: existing.id },
+            },
+          });
+          let daysUsed = 0;
+          approvedRequests.forEach((req) => {
+            let current = new Date(req.startDate);
+            const reqEnd = new Date(req.endDate);
+            while (current <= reqEnd) {
+              if (current.getFullYear() === currentYear) {
+                daysUsed++;
+              }
+              current.setDate(current.getDate() + 1);
+            }
+          });
+          const remaining = leaveType.daysAllowed - daysUsed;
+
+          const start = new Date(existing.startDate);
+          const end = new Date(existing.endDate);
+          let requestedDays = 0;
+          let temp = new Date(start);
+          while (temp <= end) {
+            if (temp.getFullYear() === currentYear) {
+              requestedDays++;
+            }
+            temp.setDate(temp.getDate() + 1);
+          }
+
+          if (requestedDays > remaining) {
+            isLossOfPay = true;
+          }
+        }
+      }
+    }
+
     const updated = await prisma.leaveRequest.update({
       where: { id },
       data: {
         status,
         reviewedById: user.userId,
         reviewedAt: new Date(),
+        lossOfPay: status === 'APPROVED' ? isLossOfPay : false,
       },
     });
 
