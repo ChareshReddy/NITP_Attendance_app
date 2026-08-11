@@ -121,6 +121,14 @@ export default function AdminDashboard() {
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
+  const [kpiStats, setKpiStats] = useState<any>({
+    totalEmployees: 0,
+    activeEmployees: 0,
+    newJoiners: 0,
+    onLeaveToday: 0,
+    absentToday: 0,
+    rollingAttendanceRate: 100
+  });
   const [teams, setTeams] = useState<Team[]>([]);
   const [reports, setReports] = useState<TLReport[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
@@ -314,6 +322,15 @@ export default function AdminDashboard() {
       if (reportsRes.ok) {
         const reportsData = await reportsRes.json();
         setReports(reportsData.reports || []);
+      }
+
+      // 2.5. Fetch Analytics KPI Stats
+      if (activeTab === 'analytics') {
+        const statsRes = await fetch('/api/admin/analytics');
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setKpiStats(statsData);
+        }
       }
 
       // 3. Fetch Policies & Logs
@@ -1207,6 +1224,51 @@ export default function AdminDashboard() {
         {/* TAB 1: Analytics & Excel Export */}
         {activeTab === 'analytics' && (
           <div className="space-y-8">
+
+            {/* KPI Statistics Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {/* Total Employees */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Employees</span>
+                <span className="text-2xl font-extrabold text-brand-navy mt-1 font-heading">{kpiStats.totalEmployees}</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Rostered members</span>
+              </div>
+
+              {/* Active Employees */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Status</span>
+                <span className="text-2xl font-extrabold text-emerald-600 mt-1 font-heading">{kpiStats.activeEmployees}</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Active user logins</span>
+              </div>
+
+              {/* New Joiners */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">New Joiners</span>
+                <span className="text-2xl font-extrabold text-blue-600 mt-1 font-heading">{kpiStats.newJoiners}</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Joined this month</span>
+              </div>
+
+              {/* On Leave Today */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">On Leave (Today)</span>
+                <span className="text-2xl font-extrabold text-purple-600 mt-1 font-heading">{kpiStats.onLeaveToday}</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Approved requests</span>
+              </div>
+
+              {/* Absent Today */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Absent (Today)</span>
+                <span className="text-2xl font-extrabold text-red-600 mt-1 font-heading">{kpiStats.absentToday}</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Missing punches</span>
+              </div>
+
+              {/* Rolling Attendance */}
+              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rolling Attendance</span>
+                <span className="text-2xl font-extrabold text-brand-cta mt-1 font-heading">{kpiStats.rollingAttendanceRate.toFixed(1)}%</span>
+                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Past 30 days rate</span>
+              </div>
+            </div>
             
             {/* Visual Charts */}
             {mounted && (
