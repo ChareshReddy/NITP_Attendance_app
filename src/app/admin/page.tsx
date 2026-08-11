@@ -101,7 +101,7 @@ interface AuditLog {
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings'>('analytics');
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -131,6 +131,41 @@ export default function AdminDashboard() {
   const [userRole, setUserRole] = useState('EMPLOYEE');
   const [userTeamId, setUserTeamId] = useState('');
   const [userManagerId, setUserManagerId] = useState('');
+
+  const [employeeForm, setEmployeeForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'EMPLOYEE',
+    teamId: '',
+    managerId: '',
+    dateOfBirth: '',
+    gender: 'Male',
+    maritalStatus: 'Single',
+    nationality: 'Indian',
+    personalEmail: '',
+    mobileNumber: '',
+    emergencyContact: '',
+    permanentAddress: '',
+    currentAddress: '',
+    dateOfJoining: new Date().toISOString().split('T')[0],
+    employeeType: 'Full-time',
+    department: '',
+    designation: '',
+    grade: 'A',
+    location: 'Offshore',
+    businessUnit: '',
+    hrBusinessPartner: '',
+    employmentStatus: 'Active',
+    probationPeriod: '6',
+    confirmationDate: '',
+    workShift: 'General Shift',
+    bankName: '',
+    accountNumber: '',
+    ifsc: '',
+    pan: '',
+    uan: '',
+  });
 
   // Team Form States
   const [newTeamName, setNewTeamName] = useState('');
@@ -338,6 +373,65 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error creating user');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(employeeForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create employee');
+
+      setSuccessMsg(`Employee account for ${employeeForm.name} created successfully! Generated ID: ${data.user.id}`);
+      setEmployeeForm({
+        name: '',
+        email: '',
+        password: '',
+        role: 'EMPLOYEE',
+        teamId: '',
+        managerId: '',
+        dateOfBirth: '',
+        gender: 'Male',
+        maritalStatus: 'Single',
+        nationality: 'Indian',
+        personalEmail: '',
+        mobileNumber: '',
+        emergencyContact: '',
+        permanentAddress: '',
+        currentAddress: '',
+        dateOfJoining: new Date().toISOString().split('T')[0],
+        employeeType: 'Full-time',
+        department: '',
+        designation: '',
+        grade: 'A',
+        location: 'Offshore',
+        businessUnit: '',
+        hrBusinessPartner: '',
+        employmentStatus: 'Active',
+        probationPeriod: '6',
+        confirmationDate: '',
+        workShift: 'General Shift',
+        bankName: '',
+        accountNumber: '',
+        ifsc: '',
+        pan: '',
+        uan: '',
+      });
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error creating employee');
     } finally {
       setLoading(false);
     }
@@ -764,6 +858,14 @@ export default function AdminDashboard() {
             Account Management
           </button>
           <button
+            onClick={() => setActiveTab('new-employee')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'new-employee' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Create Employee
+          </button>
+          <button
             onClick={() => setActiveTab('performance')}
             className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'performance' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -1182,6 +1284,416 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+          </div>
+        )}
+
+        {/* TAB: Create Employee */}
+        {activeTab === 'new-employee' && (
+          <div className="bg-white premium-card p-6 border border-gray-100 space-y-8">
+            <div>
+              <h3 className="text-xl font-bold text-brand-navy font-heading">Onboard & Create New Employee</h3>
+              <p className="text-xs text-gray-500 mt-1">Provide employee details to generate their system account and profile record.</p>
+            </div>
+
+            <form onSubmit={handleCreateEmployee} className="space-y-6">
+              {/* Section 1: Account Details */}
+              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={employeeForm.name}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="e.g. Rahul Kumar"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Official Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      value={employeeForm.email}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="rahul@nextitpoint.com"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Password *</label>
+                    <input
+                      type="password"
+                      required
+                      value={employeeForm.password}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, password: e.target.value }))}
+                      placeholder="••••••••"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">System Role *</label>
+                    <select
+                      value={employeeForm.role}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, role: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    >
+                      <option value="EMPLOYEE">EMPLOYEE</option>
+                      <option value="TL">TEAM LEADER</option>
+                      <option value="HR_ADMIN">HR / ADMIN</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assign Team</label>
+                    <select
+                      value={employeeForm.teamId}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, teamId: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    >
+                      <option value="">No Team Assigned</option>
+                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Report Manager (TL)</label>
+                    <select
+                      value={employeeForm.managerId}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, managerId: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    >
+                      <option value="">No Manager</option>
+                      {users.filter(u => u.role === 'TL').map(tl => (
+                        <option key={tl.id} value={tl.id}>{tl.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Employment Profile */}
+              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-600">2. Employment Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Date of Joining *</label>
+                    <input
+                      type="date"
+                      required
+                      value={employeeForm.dateOfJoining}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, dateOfJoining: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Employee Type</label>
+                    <select
+                      value={employeeForm.employeeType}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, employeeType: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="Full-time">Full-time</option>
+                      <option value="Contract">Contract</option>
+                      <option value="Intern">Intern</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Department *</label>
+                    <input
+                      type="text"
+                      required
+                      value={employeeForm.department}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, department: e.target.value }))}
+                      placeholder="e.g. Engineering"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Designation *</label>
+                    <input
+                      type="text"
+                      required
+                      value={employeeForm.designation}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, designation: e.target.value }))}
+                      placeholder="e.g. Senior Developer"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Grade</label>
+                    <input
+                      type="text"
+                      value={employeeForm.grade}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, grade: e.target.value }))}
+                      placeholder="e.g. M3"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Work Location</label>
+                    <input
+                      type="text"
+                      value={employeeForm.location}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="e.g. Offshore / Bangalore"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Business Unit</label>
+                    <input
+                      type="text"
+                      value={employeeForm.businessUnit}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, businessUnit: e.target.value }))}
+                      placeholder="e.g. Digital Delivery"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">HR Business Partner</label>
+                    <input
+                      type="text"
+                      value={employeeForm.hrBusinessPartner}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, hrBusinessPartner: e.target.value }))}
+                      placeholder="HR Specialist"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Work Shift</label>
+                    <input
+                      type="text"
+                      value={employeeForm.workShift}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, workShift: e.target.value }))}
+                      placeholder="e.g. General Shift (9:00 - 18:00)"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Probation Period (Months)</label>
+                    <input
+                      type="number"
+                      value={employeeForm.probationPeriod}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, probationPeriod: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Confirmation Date</label>
+                    <input
+                      type="date"
+                      value={employeeForm.confirmationDate}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, confirmationDate: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Employment Status</label>
+                    <select
+                      value={employeeForm.employmentStatus}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, employmentStatus: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Suspended">Suspended</option>
+                      <option value="Deactivated">Deactivated</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Personal & Contact */}
+              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-600">3. Personal & Contact Info</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Date of Birth</label>
+                    <input
+                      type="date"
+                      value={employeeForm.dateOfBirth}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Gender</label>
+                    <select
+                      value={employeeForm.gender}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, gender: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Marital Status</label>
+                    <select
+                      value={employeeForm.maritalStatus}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, maritalStatus: e.target.value }))}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="Single">Single</option>
+                      <option value="Married">Married</option>
+                      <option value="Divorced">Divorced</option>
+                      <option value="Widowed">Widowed</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Nationality</label>
+                    <input
+                      type="text"
+                      value={employeeForm.nationality}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, nationality: e.target.value }))}
+                      placeholder="e.g. Indian"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Personal Email</label>
+                    <input
+                      type="email"
+                      value={employeeForm.personalEmail}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, personalEmail: e.target.value }))}
+                      placeholder="personal@email.com"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Mobile Number</label>
+                    <input
+                      type="text"
+                      value={employeeForm.mobileNumber}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
+                      placeholder="+91 XXXXX XXXXX"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Emergency Contact Info</label>
+                    <input
+                      type="text"
+                      value={employeeForm.emergencyContact}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, emergencyContact: e.target.value }))}
+                      placeholder="Name - Relationship - Phone"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Current Address</label>
+                    <textarea
+                      value={employeeForm.currentAddress}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, currentAddress: e.target.value }))}
+                      placeholder="Current residence address..."
+                      rows={2}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Permanent Address</label>
+                    <textarea
+                      value={employeeForm.permanentAddress}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, permanentAddress: e.target.value }))}
+                      placeholder="Permanent address as per records..."
+                      rows={2}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Bank Details */}
+              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Name</label>
+                    <input
+                      type="text"
+                      value={employeeForm.bankName}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bankName: e.target.value }))}
+                      placeholder="HDFC Bank"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Account Number</label>
+                    <input
+                      type="password"
+                      value={employeeForm.accountNumber}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                      placeholder="Sensitive Field"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">IFSC Code</label>
+                    <input
+                      type="text"
+                      value={employeeForm.ifsc}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, ifsc: e.target.value }))}
+                      placeholder="HDFC0001234"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PAN Code</label>
+                    <input
+                      type="password"
+                      value={employeeForm.pan}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, pan: e.target.value }))}
+                      placeholder="Sensitive Field"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">UAN Number</label>
+                    <input
+                      type="text"
+                      value={employeeForm.uan}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, uan: e.target.value }))}
+                      placeholder="100123456789"
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Row */}
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('users')}
+                  className="px-5 py-2.5 rounded-lg text-xs font-extrabold uppercase tracking-wide bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2.5 rounded-lg text-xs font-extrabold uppercase tracking-wide bg-brand-cta text-white hover:bg-blue-700 transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
+                >
+                  {loading ? 'Onboarding...' : 'Onboard Employee'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
 
