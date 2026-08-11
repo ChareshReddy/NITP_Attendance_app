@@ -74,7 +74,21 @@ interface TeamReport {
 }
 
 export default function TeamLeaderDashboard() {
-  const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves'>('attendance');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves' | 'goals'>('attendance');
+
+  // Goals States
+  const [goals, setGoals] = useState<any[]>([]);
+  const [goalUser, setGoalUser] = useState('');
+  const [goalTitle, setGoalTitle] = useState('');
+  const [goalKPI, setGoalKPI] = useState('');
+  const [goalWeight, setGoalWeight] = useState('50');
+  const [goalTarget, setGoalTarget] = useState('');
+  const [goalPeriod, setGoalPeriod] = useState('2026-H2');
+
+  const [selectedGoal, setSelectedGoal] = useState<any>(null);
+  const [goalRatingInput, setGoalRatingInput] = useState('4.0');
+  const [goalStatusInput, setGoalStatusInput] = useState('MANAGER_APPROVED');
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   
   // Data States
   const [team, setTeam] = useState<{ id: string; name: string } | null>(null);
@@ -224,6 +238,15 @@ export default function TeamLeaderDashboard() {
         setLeaveRequests(filteredRequests);
       }
 
+      // Fetch Team Goals
+      if (activeTab === 'goals') {
+        const goalsRes = await fetch('/api/performance/goals');
+        if (goalsRes.ok) {
+          const goalsData = await goalsRes.json();
+          setGoals(goalsData.goals || []);
+        }
+      }
+
       // Fetch Performance Scores
       const perfRes = await fetch('/api/admin/performance?recompute=true');
       if (perfRes.ok) {
@@ -322,6 +345,78 @@ export default function TeamLeaderDashboard() {
       fetchTeamData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error updating leave request');
+    }
+  };
+
+  const handleCreateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!goalUser) {
+      setErrorMsg('Please select a team member.');
+      return;
+    }
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/performance/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: goalUser,
+          goalTitle,
+          kpi: goalKPI,
+          weight: parseFloat(goalWeight),
+          target: goalTarget,
+          period: goalPeriod,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create goal');
+
+      setSuccessMsg('Performance goal successfully created and assigned!');
+      setGoalTitle('');
+      setGoalKPI('');
+      setGoalWeight('50');
+      setGoalTarget('');
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error creating goal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateGoalStatusRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedGoal) return;
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/performance/goals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedGoal.id,
+          rating: parseFloat(goalRatingInput),
+          status: goalStatusInput,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update goal');
+
+      setSuccessMsg('Goal status & rating updated successfully!');
+      setIsGoalModalOpen(false);
+      setSelectedGoal(null);
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating goal');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -508,6 +603,14 @@ export default function TeamLeaderDashboard() {
             }`}
           >
             Leave Requests
+          </button>
+          <button
+            onClick={() => setActiveTab('goals')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'goals' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Team Goals & KPIs
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -1042,6 +1145,238 @@ export default function TeamLeaderDashboard() {
             </div>
           </div>
         )}
+
+        {/* TAB: Team Goals & KPIs */}
+        {activeTab === 'goals' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Create Goal Form */}
+            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1 space-y-4">
+              <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                <CheckSquare className="w-5 h-5 text-brand-cta" />
+                Assign Performance Goal
+              </h3>
+
+              <form onSubmit={handleCreateGoal} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Team Member</label>
+                  <select
+                    required
+                    value={goalUser}
+                    onChange={(e) => setGoalUser(e.target.value)}
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-2.5 text-xs text-brand-gray bg-white outline-none"
+                  >
+                    <option value="">Select team member</option>
+                    {members.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Goal Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={goalTitle}
+                    onChange={(e) => setGoalTitle(e.target.value)}
+                    placeholder="e.g. Optimize Hono APIs"
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">KPI / Metric Description</label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={goalKPI}
+                    onChange={(e) => setGoalKPI(e.target.value)}
+                    placeholder="Describe how progress will be measured..."
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Target Threshold</label>
+                  <input
+                    type="text"
+                    required
+                    value={goalTarget}
+                    onChange={(e) => setGoalTarget(e.target.value)}
+                    placeholder="e.g. bundle size < 300kb"
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Weight (%)</label>
+                    <input
+                      type="number"
+                      required
+                      min="5"
+                      max="100"
+                      value={goalWeight}
+                      onChange={(e) => setGoalWeight(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Appraisal Period</label>
+                    <select
+                      value={goalPeriod}
+                      onChange={(e) => setGoalPeriod(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-2.5 text-xs text-brand-gray bg-white outline-none"
+                    >
+                      <option value="2026-H1">2026-H1</option>
+                      <option value="2026-H2">2026-H2</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
+                >
+                  {loading ? 'Assigning...' : 'Assign Goal to User'}
+                </button>
+              </form>
+            </div>
+
+            {/* Goals review list grid */}
+            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2 space-y-4">
+              <h3 className="text-lg font-bold text-brand-navy font-heading">Team Performance Goals</h3>
+
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="min-w-full text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                      <th className="py-3 px-2 bg-white">Employee</th>
+                      <th className="py-3 px-2 bg-white">Goal Description</th>
+                      <th className="py-3 px-2 text-center bg-white">Weight</th>
+                      <th className="py-3 px-2 text-center bg-white">Period</th>
+                      <th className="py-3 px-2 text-center bg-white">Rating</th>
+                      <th className="py-3 px-2 text-center bg-white">Status</th>
+                      <th className="py-3 px-2 text-center bg-white">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {goals.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-6 text-gray-400">No active goals set for team members.</td>
+                      </tr>
+                    ) : (
+                      goals.map((g) => (
+                        <tr key={g.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-2 font-bold text-brand-navy">{g.user.name}</td>
+                          <td className="py-3 px-2 text-gray-500">
+                            <div className="font-bold text-brand-navy">{g.goalTitle}</div>
+                            <div className="text-[10px] mt-0.5">KPI: {g.kpi}</div>
+                            <div className="text-[10px] italic">Target: {g.target}</div>
+                            {g.achievement && (
+                              <div className="mt-1.5 p-1.5 bg-gray-50 rounded border border-gray-100 text-[10px]">
+                                <span className="font-bold block text-[9px] text-gray-400 uppercase">Accomplishment:</span>
+                                {g.achievement}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-2 text-center font-bold text-gray-500">{g.weight}%</td>
+                          <td className="py-3 px-2 text-center text-gray-500">{g.period}</td>
+                          <td className="py-3 px-2 text-center font-extrabold text-brand-cta">
+                            {g.rating !== null ? g.rating.toFixed(1) : '-'}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
+                              g.status === 'HR_REVIEWED' ? 'bg-purple-100 text-purple-800' :
+                              g.status === 'MANAGER_APPROVED' ? 'bg-blue-100 text-blue-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {g.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <button
+                              onClick={() => {
+                                setSelectedGoal(g);
+                                setGoalRatingInput(g.rating ? g.rating.toString() : '4.0');
+                                setGoalStatusInput(g.status);
+                                setIsGoalModalOpen(true);
+                              }}
+                              className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                            >
+                              Rate / Update
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Goal Update Modal */}
+      {isGoalModalOpen && selectedGoal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Evaluate Performance Goal</h3>
+            <p className="text-xs text-gray-500">Provide final evaluation score & rating for <strong>{selectedGoal.user.name}</strong>.</p>
+
+            <form onSubmit={handleUpdateGoalStatusRating} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Manager Rating (1.0 to 5.0)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="1.0"
+                  max="5.0"
+                  required
+                  value={goalRatingInput}
+                  onChange={(e) => setGoalRatingInput(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Status</label>
+                <select
+                  value={goalStatusInput}
+                  onChange={(e) => setGoalStatusInput(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-2.5 text-xs text-brand-gray bg-white outline-none"
+                >
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="MID_YEAR">MID_YEAR</option>
+                  <option value="YEAR_END">YEAR_END</option>
+                  <option value="MANAGER_APPROVED">MANAGER_APPROVED</option>
+                  <option value="HR_REVIEWED">HR_REVIEWED</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsGoalModalOpen(false);
+                    setSelectedGoal(null);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Save Review
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       </main>
     </div>
