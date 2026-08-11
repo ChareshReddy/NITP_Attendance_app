@@ -18,7 +18,8 @@ import {
   UserPlus,
   TrendingUp,
   FileCheck,
-  Calendar
+  Calendar,
+  Bell
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 
@@ -211,6 +212,23 @@ export default function AdminDashboard() {
   const [runIncentives, setRunIncentives] = useState('0');
   const [runLoanDeduction, setRunLoanDeduction] = useState('0');
 
+  // Trainings States
+  const [trainings, setTrainings] = useState<any[]>([]);
+  const [trainingName, setTrainingName] = useState('');
+  const [trainingTrainer, setTrainingTrainer] = useState('');
+  const [trainingPlannedDate, setTrainingPlannedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [trainingHours, setTrainingHours] = useState('8.0');
+  const [trainingDept, setTrainingDept] = useState('');
+  const [trainingAssignees, setTrainingAssignees] = useState<string[]>([]);
+
+  const [selectedTraining, setSelectedTraining] = useState<any>(null);
+  const [selectedAttendee, setSelectedAttendee] = useState<any>(null);
+  const [evalAttended, setEvalAttended] = useState(false);
+  const [evalCertified, setEvalCertified] = useState(false);
+  const [evalScore, setEvalScore] = useState('');
+  const [evalFeedback, setEvalFeedback] = useState('');
+  const [isTrainingEvalModalOpen, setIsTrainingEvalModalOpen] = useState(false);
+
   // Team Form States
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamLeaderId, setNewTeamLeaderId] = useState('');
@@ -338,6 +356,15 @@ export default function AdminDashboard() {
         if (payrollRes.ok) {
           const payrollData = await payrollRes.json();
           setPayrollRuns(payrollData.runs || []);
+        }
+      }
+
+      // 5.6. Fetch Trainings catalog & assignments
+      if (activeTab === 'trainings') {
+        const trainingRes = await fetch('/api/trainings');
+        if (trainingRes.ok) {
+          const trainingData = await trainingRes.json();
+          setTrainings(trainingData.trainings || []);
         }
       }
 
@@ -612,6 +639,80 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error updating status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTraining = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/trainings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          trainingName,
+          trainer: trainingTrainer,
+          plannedDate: trainingPlannedDate,
+          durationHours: parseFloat(trainingHours),
+          department: trainingDept,
+          userIds: trainingAssignees,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create training');
+
+      setSuccessMsg(`Training course "${trainingName}" created & employees assigned successfully!`);
+      setTrainingName('');
+      setTrainingTrainer('');
+      setTrainingHours('8.0');
+      setTrainingDept('');
+      setTrainingAssignees([]);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error creating training');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecordTrainingEval = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTraining || !selectedAttendee) return;
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/trainings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'record_attendance',
+          trainingId: selectedTraining.id,
+          userId: selectedAttendee.id,
+          attended: evalAttended,
+          certified: evalCertified,
+          assessmentScore: evalScore !== '' ? parseFloat(evalScore) : null,
+          feedback: evalFeedback,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit training evaluation');
+
+      setSuccessMsg(`Training evaluation recorded for ${selectedAttendee.name}!`);
+      setIsTrainingEvalModalOpen(false);
+      setSelectedTraining(null);
+      setSelectedAttendee(null);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error recording evaluation');
     } finally {
       setLoading(false);
     }
@@ -1068,6 +1169,14 @@ export default function AdminDashboard() {
             }`}
           >
             Run Payroll
+          </button>
+          <button
+            onClick={() => setActiveTab('trainings')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'trainings' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Training Center
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -2541,6 +2650,205 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB: Training Center */}
+        {activeTab === 'trainings' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Create Training & Assign Employees */}
+            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1 space-y-4">
+              <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                <Bell className="w-5 h-5 text-brand-cta" />
+                Schedule New Training
+              </h3>
+
+              <form onSubmit={handleCreateTraining} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Course Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={trainingName}
+                    onChange={(e) => setTrainingName(e.target.value)}
+                    placeholder="e.g. Next.js App Router Masterclass"
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Trainer Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={trainingTrainer}
+                    onChange={(e) => setTrainingTrainer(e.target.value)}
+                    placeholder="e.g. Santhosh Kumar"
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Planned Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={trainingPlannedDate}
+                      onChange={(e) => setTrainingPlannedDate(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Duration (Hours)</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      required
+                      value={trainingHours}
+                      onChange={(e) => setTrainingHours(e.target.value)}
+                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Target Department</label>
+                  <input
+                    type="text"
+                    value={trainingDept}
+                    onChange={(e) => setTrainingDept(e.target.value)}
+                    placeholder="e.g. Engineering"
+                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  />
+                </div>
+
+                {/* Checklist to assign users */}
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Assign Employees</label>
+                  <div className="max-h-[160px] overflow-y-auto border border-gray-200 p-2.5 rounded-lg bg-gray-50/50 space-y-2">
+                    {users.length === 0 ? (
+                      <p className="text-[10px] text-gray-400">No active employees found.</p>
+                    ) : (
+                      users.map((u) => (
+                        <label key={u.id} className="flex items-center gap-2 text-xs font-semibold text-brand-navy cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={trainingAssignees.includes(u.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTrainingAssignees([...trainingAssignees, u.id]);
+                              } else {
+                                setTrainingAssignees(trainingAssignees.filter((id) => id !== u.id));
+                              }
+                            }}
+                            className="rounded text-brand-cta focus:ring-brand-cta border-gray-300 cursor-pointer"
+                          />
+                          {u.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
+                >
+                  {loading ? 'Creating...' : 'Schedule & Assign Training'}
+                </button>
+              </form>
+            </div>
+
+            {/* Courses & Assignments review list */}
+            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2 space-y-6">
+              <h3 className="text-lg font-bold text-brand-navy font-heading">Scheduled Trainings & Performance Results</h3>
+
+              <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
+                {trainings.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-6 text-center">No trainings scheduled yet.</p>
+                ) : (
+                  trainings.map((t) => (
+                    <div key={t.id} className="p-4 rounded-2xl border border-gray-200 bg-gray-50/50 space-y-4 shadow-sm hover:border-gray-300 transition-all">
+                      <div className="flex justify-between items-start border-b border-gray-200/50 pb-2">
+                        <div>
+                          <h4 className="text-sm font-extrabold text-brand-navy">{t.trainingName}</h4>
+                          <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Trainer: {t.trainer} | Dept: {t.department || 'All'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-brand-navy block">{new Date(t.plannedDate).toLocaleDateString()}</span>
+                          <span className="text-[9px] text-gray-400 font-medium">{t.durationHours} hours duration</span>
+                        </div>
+                      </div>
+
+                      {/* Attendee performance evaluation list */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-brand-navy uppercase tracking-wider">Attendee Status & Assessment Scores</p>
+                        {t.attendance.length === 0 ? (
+                          <p className="text-[10px] text-gray-400 italic">No employees assigned to this course.</p>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full text-left text-[11px] bg-white rounded-lg border border-gray-100">
+                              <thead>
+                                <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase">
+                                  <th className="py-2 px-2.5">Name</th>
+                                  <th className="py-2 px-2.5 text-center">Attended</th>
+                                  <th className="py-2 px-2.5 text-center">Certified</th>
+                                  <th className="py-2 px-2.5 text-center">Score</th>
+                                  <th className="py-2 px-2.5">Feedback</th>
+                                  <th className="py-2 px-2.5 text-center">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100 font-medium text-brand-navy">
+                                {t.attendance.map((assign: any) => (
+                                  <tr key={assign.userId} className="hover:bg-gray-50/50">
+                                    <td className="py-2 px-2.5 font-bold">{assign.user.name}</td>
+                                    <td className="py-2 px-2.5 text-center">
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                        assign.attended ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
+                                      }`}>{assign.attended ? 'Yes' : 'No'}</span>
+                                    </td>
+                                    <td className="py-2 px-2.5 text-center">
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                        assign.certified ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'
+                                      }`}>{assign.certified ? 'Certified' : 'No'}</span>
+                                    </td>
+                                    <td className="py-2 px-2.5 text-center font-extrabold">
+                                      {assign.assessmentScore !== null ? `${assign.assessmentScore}%` : '-'}
+                                    </td>
+                                    <td className="py-2 px-2.5 text-gray-500 max-w-[120px] truncate" title={assign.feedback || ''}>
+                                      {assign.feedback || '-'}
+                                    </td>
+                                    <td className="py-2 px-2.5 text-center">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedTraining(t);
+                                          setSelectedAttendee(assign.user);
+                                          setEvalAttended(assign.attended);
+                                          setEvalCertified(assign.certified);
+                                          setEvalScore(assign.assessmentScore !== null ? assign.assessmentScore.toString() : '');
+                                          setEvalFeedback(assign.feedback || '');
+                                          setIsTrainingEvalModalOpen(true);
+                                        }}
+                                        className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-0.5 rounded text-[9px] cursor-pointer"
+                                      >
+                                        Evaluate
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Override Modal */}
@@ -2757,6 +3065,84 @@ export default function AdminDashboard() {
                   className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
                 >
                   Recompute & Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Training Evaluation Modal */}
+      {isTrainingEvalModalOpen && selectedTraining && selectedAttendee && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Evaluate Training Performance</h3>
+            <p className="text-xs text-gray-500">Record assessment results for <strong>{selectedAttendee.name}</strong> on course <strong>{selectedTraining.trainingName}</strong>.</p>
+
+            <form onSubmit={handleRecordTrainingEval} className="space-y-4">
+              <div className="flex gap-6 items-center">
+                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy uppercase cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={evalAttended}
+                    onChange={(e) => setEvalAttended(e.target.checked)}
+                    className="rounded text-brand-cta focus:ring-brand-cta border-gray-300 cursor-pointer w-4 h-4"
+                  />
+                  Attended Course
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy uppercase cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={evalCertified}
+                    onChange={(e) => setEvalCertified(e.target.checked)}
+                    className="rounded text-brand-cta focus:ring-brand-cta border-gray-300 cursor-pointer w-4 h-4"
+                  />
+                  Certified Pass
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assessment Score (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={evalScore}
+                  onChange={(e) => setEvalScore(e.target.value)}
+                  placeholder="e.g. 85"
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Trainer Feedback</label>
+                <textarea
+                  rows={3}
+                  value={evalFeedback}
+                  onChange={(e) => setEvalFeedback(e.target.value)}
+                  placeholder="Enter comments about performance, strengths, or actions..."
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTrainingEvalModalOpen(false);
+                    setSelectedTraining(null);
+                    setSelectedAttendee(null);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Save Results
                 </button>
               </div>
             </form>
