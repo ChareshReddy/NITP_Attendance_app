@@ -53,6 +53,21 @@ interface User {
     id: string;
     name: string;
   } | null;
+  employeeProfile?: {
+    department: string | null;
+    designation: string | null;
+    bankName: string | null;
+    accountNumber: string | null;
+    ifsc: string | null;
+    pan: string | null;
+  } | null;
+  salaryStructure?: {
+    basicSalary: number;
+    hra: number;
+    conveyance: number;
+    specialAllowance: number;
+    effectiveFrom: string | Date;
+  } | null;
 }
 
 interface Team {
@@ -166,6 +181,35 @@ export default function AdminDashboard() {
     pan: '',
     uan: '',
   });
+
+  // Payroll States
+  const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
+  const [payrollPeriodStart, setPayrollPeriodStart] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    d.setDate(1);
+    return d.toISOString().split('T')[0];
+  });
+  const [payrollPeriodEnd, setPayrollPeriodEnd] = useState(() => {
+    const d = new Date();
+    d.setDate(0); // last day of prev month
+    return d.toISOString().split('T')[0];
+  });
+  const [payrollSubTab, setPayrollSubTab] = useState<'runs' | 'structures'>('runs');
+  const [isSalaryModalOpen, setIsSalaryModalOpen] = useState(false);
+  const [selectedSalaryUser, setSelectedSalaryUser] = useState<any>(null);
+  const [salaryBasic, setSalaryBasic] = useState('30000');
+  const [salaryHRA, setSalaryHRA] = useState('12000');
+  const [salaryConveyance, setSalaryConveyance] = useState('3000');
+  const [salarySpecial, setSalarySpecial] = useState('5000');
+  const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(new Date().toISOString().split('T')[0]);
+
+  const [isPayrollEditModalOpen, setIsPayrollEditModalOpen] = useState(false);
+  const [selectedRun, setSelectedRun] = useState<any>(null);
+  const [runOvertime, setRunOvertime] = useState('0');
+  const [runBonus, setRunBonus] = useState('0');
+  const [runIncentives, setRunIncentives] = useState('0');
+  const [runLoanDeduction, setRunLoanDeduction] = useState('0');
 
   // Team Form States
   const [newTeamName, setNewTeamName] = useState('');
@@ -286,6 +330,15 @@ export default function AdminDashboard() {
       if (leaveRes.ok) {
         const leaveData = await leaveRes.json();
         setLeaveRequests(leaveData.requests || []);
+      }
+
+      // 5.5. Fetch Payroll Runs
+      if (activeTab === 'payroll') {
+        const payrollRes = await fetch('/api/payroll/runs');
+        if (payrollRes.ok) {
+          const payrollData = await payrollRes.json();
+          setPayrollRuns(payrollData.runs || []);
+        }
       }
 
       // 6. Fetch HR Self Attendance status
@@ -432,6 +485,133 @@ export default function AdminDashboard() {
       fetchAdminData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error creating employee');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGeneratePayroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/payroll/runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ periodStart: payrollPeriodStart, periodEnd: payrollPeriodEnd }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate payroll runs');
+
+      let msg = `Generated ${data.generatedRuns?.length || 0} payroll runs.`;
+      if (data.skippedUsers?.length > 0) {
+        msg += ` Skipped ${data.skippedUsers.length} users (e.g. ${data.skippedUsers.map((u: any) => u.name).join(', ')}).`;
+      }
+      setSuccessMsg(msg);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error generating payroll');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateSalaryStructure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSalaryUser) return;
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/payroll/salary-structure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedSalaryUser.id,
+          basicSalary: parseFloat(salaryBasic),
+          hra: parseFloat(salaryHRA),
+          conveyance: parseFloat(salaryConveyance),
+          specialAllowance: parseFloat(salarySpecial),
+          effectiveFrom: salaryEffectiveFrom,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update salary structure');
+
+      setSuccessMsg(`Salary structure for ${selectedSalaryUser.name} updated successfully!`);
+      setIsSalaryModalOpen(false);
+      setSelectedSalaryUser(null);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating salary structure');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdatePayrollValues = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedRun) return;
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/payroll/runs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedRun.id,
+          action: 'update_values',
+          overtime: parseFloat(runOvertime),
+          bonus: parseFloat(runBonus),
+          incentives: parseFloat(runIncentives),
+          loanDeduction: parseFloat(runLoanDeduction),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update payroll values');
+
+      setSuccessMsg(`Payroll values updated for employee!`);
+      setIsPayrollEditModalOpen(false);
+      setSelectedRun(null);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating payroll');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayrollStatusChange = async (id: string, newStatus: 'APPROVED' | 'PAID') => {
+    setLoading(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/payroll/runs', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          action: 'status_change',
+          status: newStatus,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update payroll status');
+
+      setSuccessMsg(`Payroll run status updated to ${newStatus}!`);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating status');
     } finally {
       setLoading(false);
     }
@@ -880,6 +1060,14 @@ export default function AdminDashboard() {
             }`}
           >
             Leave Requests
+          </button>
+          <button
+            onClick={() => setActiveTab('payroll')}
+            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'payroll' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Run Payroll
           </button>
           <button
             onClick={() => setActiveTab('reports')}
@@ -2120,6 +2308,239 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* TAB: Run Payroll */}
+        {activeTab === 'payroll' && (
+          <div className="bg-white premium-card p-6 border border-gray-100 space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-brand-navy font-heading">Payroll Management</h3>
+                <p className="text-xs text-gray-500 mt-1">Configure user salary structures and generate or approve periodic employee payroll runs.</p>
+              </div>
+
+              {/* Sub-tabs */}
+              <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setPayrollSubTab('runs')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    payrollSubTab === 'runs' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Payroll Runs
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayrollSubTab('structures')}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    payrollSubTab === 'structures' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Salary Structures
+                </button>
+              </div>
+            </div>
+
+            {/* SUBTAB 1: Runs */}
+            {payrollSubTab === 'runs' && (
+              <div className="space-y-6">
+                {/* Parameters block */}
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                  <form onSubmit={handleGeneratePayroll} className="flex flex-col md:flex-row md:items-end gap-4">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Period Start Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={payrollPeriodStart}
+                        onChange={(e) => setPayrollPeriodStart(e.target.value)}
+                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Period End Date</label>
+                      <input
+                        type="date"
+                        required
+                        value={payrollPeriodEnd}
+                        onChange={(e) => setPayrollPeriodEnd(e.target.value)}
+                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium text-center disabled:opacity-50"
+                    >
+                      {loading ? 'Generating...' : 'Generate Payroll Draft'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Runs list */}
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                  <table className="min-w-full text-left text-xs relative border-collapse">
+                    <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                      <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                        <th className="py-3 px-2 bg-white">Employee</th>
+                        <th className="py-3 px-2 bg-white">Period</th>
+                        <th className="py-3 px-2 text-right bg-white">Gross (INR)</th>
+                        <th className="py-3 px-2 text-right bg-white">Deductions (INR)</th>
+                        <th className="py-3 px-2 text-right bg-white">Net Pay (INR)</th>
+                        <th className="py-3 px-2 text-center bg-white">Status</th>
+                        <th className="py-3 px-2 text-center bg-white">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {payrollRuns.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-6 text-gray-400">No payroll runs found in system.</td>
+                        </tr>
+                      ) : (
+                        payrollRuns.map((run) => (
+                          <tr key={run.id} className="hover:bg-gray-50/50">
+                            <td className="py-3 px-2 font-bold text-brand-navy">
+                              {run.user.name}
+                            </td>
+                            <td className="py-3 px-2 text-gray-500">
+                              {new Date(run.periodStart).toLocaleDateString()} to {new Date(run.periodEnd).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-2 text-right font-semibold text-gray-500">
+                              {run.grossEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 px-2 text-right font-semibold text-gray-500">
+                              {run.totalDeductions.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 px-2 text-right font-extrabold text-brand-navy">
+                              {run.netSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                run.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                                run.status === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
+                                'bg-amber-100 text-amber-800'
+                              }`}>
+                                {run.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                              {run.status === 'DRAFT' && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedRun(run);
+                                      setRunOvertime(run.overtime.toString());
+                                      setRunBonus(run.bonus.toString());
+                                      setRunIncentives(run.incentives.toString());
+                                      setRunLoanDeduction(run.loanDeduction.toString());
+                                      setIsPayrollEditModalOpen(true);
+                                    }}
+                                    className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                  >
+                                    Edit Extras
+                                  </button>
+                                  <button
+                                    onClick={() => handlePayrollStatusChange(run.id, 'APPROVED')}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                  >
+                                    Approve
+                                  </button>
+                                </>
+                              )}
+                              {run.status === 'APPROVED' && (
+                                <button
+                                  onClick={() => handlePayrollStatusChange(run.id, 'PAID')}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                >
+                                  Mark Paid
+                                </button>
+                              )}
+                              {(run.status === 'APPROVED' || run.status === 'PAID') && (
+                                <a
+                                  href={`/api/payroll/runs/export?id=${run.id}`}
+                                  download
+                                  className="inline-block bg-gray-800 hover:bg-gray-950 text-white font-bold px-2 py-1 rounded text-[10px] text-center"
+                                >
+                                  Payslip
+                                </a>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 2: Salary Structures */}
+            {payrollSubTab === 'structures' && (
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="min-w-full text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                      <th className="py-3 px-2 bg-white">Employee</th>
+                      <th className="py-3 px-2 bg-white">Department</th>
+                      <th className="py-3 px-2 bg-white">Designation</th>
+                      <th className="py-3 px-2 text-right bg-white">Basic (INR)</th>
+                      <th className="py-3 px-2 text-right bg-white">HRA (INR)</th>
+                      <th className="py-3 px-2 text-right bg-white">Conveyance (INR)</th>
+                      <th className="py-3 px-2 text-right bg-white">Allowance (INR)</th>
+                      <th className="py-3 px-2 text-center bg-white">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {users.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 text-gray-400">No active employees found.</td>
+                      </tr>
+                    ) : (
+                      users.map((employee) => (
+                        <tr key={employee.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-2 font-bold text-brand-navy">
+                            {employee.name}
+                          </td>
+                          <td className="py-3 px-2 text-gray-500 font-semibold">{employee.employeeProfile?.department || 'N/A'}</td>
+                          <td className="py-3 px-2 text-gray-500">{employee.employeeProfile?.designation || 'N/A'}</td>
+                          <td className="py-3 px-2 text-right text-gray-500 font-semibold">
+                            {employee.salaryStructure?.basicSalary.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                          </td>
+                          <td className="py-3 px-2 text-right text-gray-500">
+                            {employee.salaryStructure?.hra.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                          </td>
+                          <td className="py-3 px-2 text-right text-gray-500">
+                            {employee.salaryStructure?.conveyance.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                          </td>
+                          <td className="py-3 px-2 text-right text-gray-500">
+                            {employee.salaryStructure?.specialAllowance.toLocaleString('en-IN', { minimumFractionDigits: 2 }) || '0.00'}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedSalaryUser(employee);
+                                setSalaryBasic(employee.salaryStructure?.basicSalary?.toString() || '30000');
+                                setSalaryHRA(employee.salaryStructure?.hra?.toString() || '12000');
+                                setSalaryConveyance(employee.salaryStructure?.conveyance?.toString() || '3000');
+                                setSalarySpecial(employee.salaryStructure?.specialAllowance?.toString() || '5000');
+                                setSalaryEffectiveFrom(employee.salaryStructure?.effectiveFrom ? new Date(employee.salaryStructure.effectiveFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
+                                setIsSalaryModalOpen(true);
+                              }}
+                              className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                            >
+                              Configure
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
       </main>
 
       {/* Override Modal */}
@@ -2184,6 +2605,158 @@ export default function AdminDashboard() {
                   className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
                 >
                   Save Override
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Configure Salary Modal */}
+      {isSalaryModalOpen && selectedSalaryUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Configure Salary Structure</h3>
+            <p className="text-xs text-gray-500">Set base compensation values for <strong>{selectedSalaryUser.name}</strong>.</p>
+
+            <form onSubmit={handleUpdateSalaryStructure} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Basic Salary (INR/Month) *</label>
+                <input
+                  type="number"
+                  required
+                  value={salaryBasic}
+                  onChange={(e) => setSalaryBasic(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">HRA (INR/Month) *</label>
+                <input
+                  type="number"
+                  required
+                  value={salaryHRA}
+                  onChange={(e) => setSalaryHRA(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Conveyance (INR/Month) *</label>
+                <input
+                  type="number"
+                  required
+                  value={salaryConveyance}
+                  onChange={(e) => setSalaryConveyance(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Special Allowance (INR/Month) *</label>
+                <input
+                  type="number"
+                  required
+                  value={salarySpecial}
+                  onChange={(e) => setSalarySpecial(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Effective From *</label>
+                <input
+                  type="date"
+                  required
+                  value={salaryEffectiveFrom}
+                  onChange={(e) => setSalaryEffectiveFrom(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSalaryModalOpen(false);
+                    setSelectedSalaryUser(null);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Save Structure
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Payroll Run Modal */}
+      {isPayrollEditModalOpen && selectedRun && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Edit Payroll Extras</h3>
+            <p className="text-xs text-gray-500">Adjust monthly variables for <strong>{selectedRun.user.name}</strong>.</p>
+
+            <form onSubmit={handleUpdatePayrollValues} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Overtime Pay (INR)</label>
+                <input
+                  type="number"
+                  value={runOvertime}
+                  onChange={(e) => setRunOvertime(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Performance Bonus (INR)</label>
+                <input
+                  type="number"
+                  value={runBonus}
+                  onChange={(e) => setRunBonus(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Sales/Team Incentives (INR)</label>
+                <input
+                  type="number"
+                  value={runIncentives}
+                  onChange={(e) => setRunIncentives(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Loan Deduction (INR)</label>
+                <input
+                  type="number"
+                  value={runLoanDeduction}
+                  onChange={(e) => setRunLoanDeduction(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPayrollEditModalOpen(false);
+                    setSelectedRun(null);
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Recompute & Save
                 </button>
               </div>
             </form>

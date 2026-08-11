@@ -251,6 +251,91 @@ async function main() {
     }
 
     console.log(`Successfully seeded ${realUsers.length} users and ${trackSheetsData.length} track sheets!`);
+
+    // 9. Seed structures, payroll, goals, and training for demo users
+    console.log('Seeding salary structures...');
+    await prisma.salaryStructure.createMany({
+      data: [
+        {
+          userId: employee.id,
+          basicSalary: 30000,
+          hra: 12000,
+          conveyance: 3000,
+          specialAllowance: 5000,
+          effectiveFrom: new Date('2026-01-01'),
+        },
+        {
+          userId: tl.id,
+          basicSalary: 45000,
+          hra: 18000,
+          conveyance: 4000,
+          specialAllowance: 8000,
+          effectiveFrom: new Date('2026-01-01'),
+        },
+      ],
+      skipDuplicates: true,
+    });
+
+    console.log('Seeding payroll runs...');
+    await prisma.payrollRun.create({
+      data: {
+        userId: employee.id,
+        periodStart: new Date('2026-07-01'),
+        periodEnd: new Date('2026-07-31'),
+        basicSalary: 30000,
+        hra: 12000,
+        conveyance: 3000,
+        specialAllowance: 5000,
+        grossEarnings: 50000,
+        pf: 3600,
+        esi: 375,
+        professionalTax: 200,
+        tds: 2500,
+        lopDeduction: 0,
+        totalDeductions: 6675,
+        netSalary: 43325,
+        status: 'PAID',
+      },
+    });
+
+    console.log('Seeding performance goals...');
+    await prisma.performanceGoal.create({
+      data: {
+        userId: employee.id,
+        managerId: tl.id,
+        goalTitle: 'Optimize Attendance App Performance',
+        kpi: 'Reduce Next.js bundle size by 20% & response time < 300ms',
+        weight: 50,
+        target: 'Lighthouse Performance score >= 90',
+        achievement: 'Bundle size reduced by 22% using dynamic imports',
+        rating: 4.5,
+        period: '2026-H1',
+        status: 'HR_REVIEWED',
+      },
+    });
+
+    console.log('Seeding training catalog and attendance...');
+    const trainingObj = await prisma.training.create({
+      data: {
+        trainingName: 'SAP UI5 Developer Bootcamp',
+        trainer: 'Santhosh Kumar',
+        plannedDate: new Date('2026-08-20'),
+        actualDate: new Date('2026-08-22'),
+        durationHours: 16,
+        department: 'Engineering',
+      },
+    });
+
+    await prisma.trainingAttendance.create({
+      data: {
+        trainingId: trainingObj.id,
+        userId: employee.id,
+        attended: true,
+        assessmentScore: 88,
+        certified: true,
+        feedback: 'Excellent interactive training sessions',
+      },
+    });
   }
 
   console.log('Database seeded successfully with clean HR Users, demo accounts, and real team data!');
