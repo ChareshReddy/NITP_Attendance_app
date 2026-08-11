@@ -28,22 +28,100 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 1. Sweep missing punches from past days
+    const pastUnclosedRecords = await prisma.attendance.findMany({
+      where: {
+        userId,
+        date: { lt: todayStr },
+        checkInTime: { not: null },
+        checkOutTime: null,
+        status: { not: 'MISSING_PUNCH' },
+      },
+    });
+
+    if (pastUnclosedRecords.length > 0) {
+      await prisma.attendance.updateMany({
+        where: { id: { in: pastUnclosedRecords.map(r => r.id) } },
+        data: { status: 'MISSING_PUNCH' },
+      });
+    }
+
+    // 2. Auto-populate past missing days with HOLIDAY, WEEK_OFF, or ABSENT
+    // We will scan the last 30 days up to yesterday
+    const holidays = await prisma.holiday.findMany();
+    const holidayDates = new Set(holidays.map(h => h.date));
+    
+    const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']; // Mon-Fri default
+
+    const dateCursor = new Date();
+    dateCursor.setDate(dateCursor.getDate() - 30); // scan last 30 days
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const existingDates = new Set(
+      (await prisma.attendance.findMany({
+        where: { userId, date: { lt: todayStr } },
+        select: { date: true },
+      })).map(r => r.date)
+    );
+
+    const backfillData = [];
+
+    while (dateCursor <= yesterday) {
+      const dateStr = dateCursor.toISOString().split('T')[0];
+      
+      if (!existingDates.has(dateStr)) {
+        // Determine day of week
+        const dayName = dateCursor.toLocaleDateString('en-US', { weekday: 'long' });
+        const isWeekOff = !workWeek.includes(dayName);
+        const isHoliday = holidayDates.has(dateStr);
+
+        let status: 'HOLIDAY' | 'WEEK_OFF' | 'ABSENT' = 'ABSENT';
+        if (isHoliday) status = 'HOLIDAY';
+        else if (isWeekOff) status = 'WEEK_OFF';
+
+        backfillData.push({
+          userId,
+          date: dateStr,
+          status,
+          ip: 'SYSTEM',
+          tz: 'Asia/Kolkata',
+        });
+      }
+      dateCursor.setDate(dateCursor.getDate() + 1);
+    }
+
+    if (backfillData.length > 0) {
+      await prisma.attendance.createMany({
+        data: backfillData,
+        skipDuplicates: true,
+      });
+    }
+
     const attendanceRecords = await prisma.attendance.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
     });
 
-    const presentCount = attendanceRecords.filter(r => r.status === 'PRESENT').length;
-    const lateCount = attendanceRecords.filter(r => r.status === 'LATE').length;
+    const presentCount = attendanceRecords.filter(r => ['PRESENT', 'OVERTIME'].includes(r.status)).length;
+    const lateCount = attendanceRecords.filter(r => r.status === 'LATE_COMING').length;
+    const absentCount = attendanceRecords.filter(r => r.status === 'ABSENT').length;
+    const leaveCount = attendanceRecords.filter(r => r.status === 'LEAVE').length;
+    const missingCount = attendanceRecords.filter(r => r.status === 'MISSING_PUNCH').length;
+    const earlyLeavingCount = attendanceRecords.filter(r => r.status === 'EARLY_LEAVING').length;
     
     const stats = {
       present: presentCount,
       late: lateCount,
-      absent: 0,
-      leave: 0,
+      absent: absentCount,
+      leave: leaveCount,
+      missing: missingCount,
+      earlyLeaving: earlyLeavingCount,
     };
 
-    const todayStr = new Date().toISOString().split('T')[0];
     const todayRecord = attendanceRecords.find(r => r.date === todayStr) || null;
 
     return NextResponse.json({
@@ -93,7 +171,7 @@ export async function POST(request: Request) {
         
         // Late arrival threshold: after 9:30 AM
         if (hour > 9 || (hour === 9 && minute > 30)) {
-          status = 'LATE';
+          status = 'LATE_COMING';
         }
       } catch (err) {
         console.error('Timezone parsing error, defaulting status to PRESENT:', err);
@@ -128,10 +206,25 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Already checked out today' }, { status: 400 });
       }
 
+      // Calculate working hours
+      const checkInTime = new Date(existing.checkInTime!);
+      const workingHours = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+      
+      let newStatus = existing.status;
+      
+      if (workingHours < 8) {
+        newStatus = 'EARLY_LEAVING';
+      } else if (workingHours >= 9.5) {
+        newStatus = 'OVERTIME';
+      } else if (existing.status === 'LATE') {
+        newStatus = 'LATE_COMING'; // normalize legacy status
+      }
+
       const record = await prisma.attendance.update({
         where: { id: existing.id },
         data: {
           checkOutTime: now,
+          status: newStatus as any,
         },
       });
 
