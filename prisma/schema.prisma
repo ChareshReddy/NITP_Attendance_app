@@ -19,6 +19,12 @@ enum AttendanceStatus {
   LATE
   ABSENT
   LEAVE
+  HOLIDAY
+  WEEK_OFF
+  LATE_COMING
+  EARLY_LEAVING
+  OVERTIME
+  MISSING_PUNCH
 }
 
 enum TrackSheetStatus {
@@ -75,6 +81,12 @@ model User {
   performanceUpdates    PerformanceScore[] @relation("PerformanceUpdatedBy")
   leaveRequests         LeaveRequest[]     @relation("UserLeaveRequests")
   reviewedLeaveRequests LeaveRequest[]     @relation("LeaveReviewer")
+  employeeProfile       EmployeeProfile?
+  salaryStructure       SalaryStructure?
+  payrollRuns           PayrollRun[]
+  goals                 PerformanceGoal[]  @relation("UserGoals")
+  managedGoals          PerformanceGoal[]  @relation("GoalManager")
+  trainingAttendance    TrainingAttendance[]
 
   @@map("users")
 }
@@ -251,8 +263,129 @@ model LeaveRequest {
   reviewedById String?            @map("reviewed_by_id")
   reviewedBy   User?              @relation("LeaveReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
   reviewedAt   DateTime?          @map("reviewed_at")
+  lossOfPay    Boolean            @default(false) @map("loss_of_pay")
   createdAt    DateTime           @default(now()) @map("created_at")
 
   @@index([userId, status])
   @@map("leave_requests")
+}
+
+model EmployeeProfile {
+  id                String   @id @default(uuid())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth       DateTime? @map("date_of_birth")
+  gender            String?
+  maritalStatus     String?  @map("marital_status")
+  nationality       String?
+  personalEmail     String?  @map("personal_email")
+  mobileNumber      String?  @map("mobile_number")
+  emergencyContact  String?  @map("emergency_contact")
+  permanentAddress  String?  @map("permanent_address")
+  currentAddress    String?  @map("current_address")
+  dateOfJoining     DateTime? @map("date_of_joining")
+  employeeType      String?  @map("employee_type") // Full-time, Contract, Intern
+  department        String?
+  designation       String?
+  grade             String?
+  location          String?
+  businessUnit      String?  @map("business_unit")
+  hrBusinessPartner String?  @map("hr_business_partner")
+  employmentStatus  String?  @default("Active") @map("employment_status")
+  probationPeriod   Int?     @map("probation_period_months")
+  confirmationDate  DateTime? @map("confirmation_date")
+  workShift         String?  @map("work_shift")
+  bankName          String?  @map("bank_name")
+  accountNumber     String?  @map("account_number")
+  ifsc              String?
+  pan               String?
+  panEncrypted      Boolean  @default(false)
+  uan               String?
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  @@map("employee_profiles")
+}
+
+model SalaryStructure {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  basicSalary     Float    @map("basic_salary")
+  hra             Float
+  conveyance      Float
+  specialAllowance Float   @map("special_allowance")
+  effectiveFrom   DateTime @map("effective_from")
+  @@map("salary_structures")
+}
+
+model PayrollRun {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodStart     DateTime @map("period_start")
+  periodEnd       DateTime @map("period_end")
+  basicSalary     Float    @map("basic_salary")
+  hra             Float
+  conveyance      Float
+  specialAllowance Float   @map("special_allowance")
+  bonus           Float    @default(0)
+  incentives      Float    @default(0)
+  overtime        Float    @default(0)
+  grossEarnings   Float    @map("gross_earnings")
+  pf              Float
+  esi             Float
+  professionalTax Float    @map("professional_tax")
+  tds             Float
+  loanDeduction   Float    @default(0) @map("loan_deduction")
+  lopDeduction    Float    @default(0) @map("lop_deduction")
+  totalDeductions Float    @map("total_deductions")
+  netSalary       Float    @map("net_salary")
+  status          String   @default("DRAFT") // DRAFT, APPROVED, PAID
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  @@unique([userId, periodStart, periodEnd])
+  @@map("payroll_runs")
+}
+
+model PerformanceGoal {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation("UserGoals", fields: [userId], references: [id], onDelete: Cascade)
+  managerId    String   @map("manager_id")
+  manager      User     @relation("GoalManager", fields: [managerId], references: [id])
+  goalTitle    String   @map("goal_title")
+  kpi          String
+  weight       Float
+  target       String
+  achievement  String?
+  rating       Float?
+  period       String
+  status       String   @default("DRAFT") // DRAFT, MANAGER_APPROVED, MID_YEAR, YEAR_END, HR_REVIEWED
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  @@map("performance_goals")
+}
+
+model Training {
+  id              String   @id @default(uuid())
+  trainingName    String   @map("training_name")
+  trainer         String
+  plannedDate     DateTime @map("planned_date")
+  actualDate      DateTime? @map("actual_date")
+  durationHours   Float    @map("duration_hours")
+  department      String?
+  attendance      TrainingAttendance[]
+  @@map("trainings")
+}
+
+model TrainingAttendance {
+  id             String    @id @default(uuid())
+  trainingId     String    @map("training_id")
+  training       Training  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  userId         String    @map("user_id")
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attended       Boolean   @default(false)
+  assessmentScore Float?   @map("assessment_score")
+  certified      Boolean   @default(false)
+  feedback       String?
+  @@unique([trainingId, userId])
+  @@map("training_attendance")
 }

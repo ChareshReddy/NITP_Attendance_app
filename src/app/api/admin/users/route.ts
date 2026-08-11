@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import { encrypt, decrypt } from '@/lib/encryption';
 
 export async function GET() {
   try {
@@ -16,8 +17,23 @@ export async function GET() {
         manager: {
           select: { id: true, name: true },
         },
+        employeeProfile: true,
       },
       orderBy: { name: 'asc' },
+    });
+
+    const decryptedUsers = users.map((u) => {
+      if (u.employeeProfile) {
+        return {
+          ...u,
+          employeeProfile: {
+            ...u.employeeProfile,
+            accountNumber: decrypt(u.employeeProfile.accountNumber),
+            pan: decrypt(u.employeeProfile.pan),
+          },
+        };
+      }
+      return u;
     });
 
     const teams = await prisma.team.findMany({
@@ -26,7 +42,7 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ users, teams });
+    return NextResponse.json({ users: decryptedUsers, teams });
   } catch (error) {
     console.error('Admin Users GET error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -40,10 +56,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { name, email, password, role, teamId, managerId } = await request.json();
+    const body = await request.json();
+    const {
+      name, email, password, role, teamId, managerId,
+      dateOfBirth, gender, maritalStatus, nationality, personalEmail, mobileNumber,
+      emergencyContact, permanentAddress, currentAddress, dateOfJoining, employeeType,
+      department, designation, grade, location, businessUnit, hrBusinessPartner,
+      employmentStatus, probationPeriod, confirmationDate, workShift, bankName,
+      accountNumber, ifsc, pan, uan
+    } = body;
 
-    if (!name || !email || !password || !role) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Validate mandatory fields
+    if (!name || !email || !password || !role || !dateOfJoining || !department || !designation) {
+      return NextResponse.json({ error: 'Missing required fields (Name, Email, Password, Role, Date of Joining, Department, Designation)' }, { status: 400 });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({
@@ -64,6 +95,37 @@ export async function POST(request: Request) {
         role,
         teamId: teamId || null,
         managerId: managerId || null,
+        employeeProfile: {
+          create: {
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+            gender: gender || null,
+            maritalStatus: maritalStatus || null,
+            nationality: nationality || null,
+            personalEmail: personalEmail || null,
+            mobileNumber: mobileNumber || null,
+            emergencyContact: emergencyContact || null,
+            permanentAddress: permanentAddress || null,
+            currentAddress: currentAddress || null,
+            dateOfJoining: new Date(dateOfJoining),
+            employeeType: employeeType || 'Full-time',
+            department,
+            designation,
+            grade: grade || null,
+            location: location || null,
+            businessUnit: businessUnit || null,
+            hrBusinessPartner: hrBusinessPartner || null,
+            employmentStatus: employmentStatus || 'Active',
+            probationPeriod: probationPeriod ? parseInt(probationPeriod) : null,
+            confirmationDate: confirmationDate ? new Date(confirmationDate) : null,
+            workShift: workShift || null,
+            bankName: bankName || null,
+            accountNumber: accountNumber ? encrypt(accountNumber) : null,
+            ifsc: ifsc || null,
+            pan: pan ? encrypt(pan) : null,
+            panEncrypted: !!pan,
+            uan: uan || null,
+          }
+        }
       },
     });
 
