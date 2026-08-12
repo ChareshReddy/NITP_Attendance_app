@@ -93,8 +93,9 @@ export async function GET(request: Request) {
         { header: 'Name', key: 'name', width: 25 },
         { header: 'Email', key: 'email', width: 30 },
         { header: 'Task', key: 'project', width: 25 },
+        { header: 'Assigned By', key: 'assignedByName', width: 20 },
         { header: 'Task Description', key: 'taskDescription', width: 40 },
-        { header: 'Hours Logged', key: 'hours', width: 15 },
+        { header: 'Hours Worked', key: 'hours', width: 15 },
         { header: 'Approval Status', key: 'status', width: 15 },
         { header: 'Notes', key: 'notes', width: 30 },
       ];
@@ -125,6 +126,7 @@ export async function GET(request: Request) {
           name: r.user.name,
           email: r.user.email,
           project: r.project,
+          assignedByName: r.assignedByName || '-',
           taskDescription: r.taskDescription,
           hours: r.hours,
           status: r.status,

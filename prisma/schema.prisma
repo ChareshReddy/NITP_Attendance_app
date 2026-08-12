@@ -128,6 +128,7 @@ model TrackSheet {
   hours           Float
   status          TrackSheetStatus @default(PENDING)
   notes           String?
+  assignedByName  String?          @map("assigned_by_name")
   
   @@index([userId, date])
   @@index([project])

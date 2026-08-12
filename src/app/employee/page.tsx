@@ -41,6 +41,7 @@ interface TrackSheet {
   hours: number;
   status: string;
   notes: string | null;
+  assignedByName: string | null;
 }
 
 interface EmployeeProfile {
@@ -198,6 +199,7 @@ export default function EmployeeDashboard() {
   const [taskDescription, setTaskDescription] = useState('');
   const [hours, setHours] = useState('8.0');
   const [notes, setNotes] = useState('');
+  const [assignedByName, setAssignedByName] = useState('');
 
   // Status handlers
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -402,6 +404,7 @@ export default function EmployeeDashboard() {
           taskDescription,
           hours,
           notes,
+          assignedByName,
         }),
       });
 
@@ -412,6 +415,7 @@ export default function EmployeeDashboard() {
       setProject('');
       setTaskDescription('');
       setNotes('');
+      setAssignedByName('');
       fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error saving track sheet');
@@ -852,7 +856,7 @@ export default function EmployeeDashboard() {
                     </h3>
                   </div>
                   <form onSubmit={handleSubmitTrackSheet} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
                         <input
@@ -865,7 +869,7 @@ export default function EmployeeDashboard() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Logged</label>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
                         <input
                           type="number"
                           step="0.5"
@@ -874,6 +878,17 @@ export default function EmployeeDashboard() {
                           required
                           value={hours}
                           onChange={(e) => setHours(e.target.value)}
+                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
+                        <input
+                          type="text"
+                          required
+                          value={assignedByName}
+                          onChange={(e) => setAssignedByName(e.target.value)}
+                          placeholder="e.g. TL Likith"
                           className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
                         />
                       </div>
@@ -974,7 +989,8 @@ export default function EmployeeDashboard() {
                   <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
                     <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
                       <th className="py-3 px-2 bg-white w-[100px]">Date</th>
-                      <th className="py-3 px-2 bg-white w-[180px]">Task / Project</th>
+                      <th className="py-3 px-2 bg-white w-[160px]">Task / Project</th>
+                      <th className="py-3 px-2 bg-white w-[120px]">Assigned By</th>
                       <th className="py-3 px-2 bg-white">Description</th>
                       <th className="py-3 px-2 text-center bg-white w-[80px]">Hours</th>
                       <th className="py-3 px-2 text-center bg-white w-[100px]">Status</th>
@@ -984,7 +1000,7 @@ export default function EmployeeDashboard() {
                   <tbody className="divide-y divide-gray-100">
                     {trackSheets.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="text-center py-12 text-gray-400">
+                        <td colSpan={7} className="text-center py-12 text-gray-400">
                           <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                           No work logged yet. Use the Dashboard form to log work hours.
                         </td>
@@ -994,6 +1010,9 @@ export default function EmployeeDashboard() {
                         <tr key={item.id} className="hover:bg-gray-50/50">
                           <td className="py-3 px-2 font-semibold text-brand-navy truncate">{item.date}</td>
                           <td className="py-3 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
+                          <td className="py-3 px-2 text-brand-navy font-medium truncate" title={item.assignedByName || 'N/A'}>
+                            {item.assignedByName || '-'}
+                          </td>
                           <td className="py-3 px-2 text-gray-500 break-words whitespace-normal leading-normal">{item.taskDescription}</td>
                           <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
                           <td className="py-3 px-2 text-center">

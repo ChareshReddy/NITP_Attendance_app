@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { date, project, taskDescription, hours, notes } = await request.json();
+    const { date, project, taskDescription, hours, notes, assignedByName } = await request.json();
 
     if (!date || !project || !taskDescription || !hours) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -82,6 +82,7 @@ export async function POST(request: Request) {
         hours: hoursFloat,
         notes,
         status: 'PENDING',
+        assignedByName: assignedByName || null,
       },
     });
 
