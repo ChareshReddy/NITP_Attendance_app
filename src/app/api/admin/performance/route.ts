@@ -202,7 +202,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { userId, rating, reason, clearOverride } = await request.json();
+    const { userId, rating, reason, overrideScore, clearOverride } = await request.json();
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -219,6 +219,7 @@ export async function PUT(request: Request) {
           overrideReason: null,
           rating: autoRating,
           autoScore,
+          overrideScore: null,
           updatedById: user.userId,
         },
         create: {
@@ -226,6 +227,7 @@ export async function PUT(request: Request) {
           manualOverride: false,
           rating: autoRating,
           autoScore,
+          overrideScore: null,
           updatedById: user.userId,
         },
       });
@@ -246,12 +248,21 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Rating and override reason are required' }, { status: 400 });
     }
 
+    let overrideScoreFloat: number | null = null;
+    if (overrideScore !== undefined && overrideScore !== null && overrideScore !== '') {
+      overrideScoreFloat = parseFloat(overrideScore);
+      if (isNaN(overrideScoreFloat) || overrideScoreFloat < 0 || overrideScoreFloat > 100) {
+        return NextResponse.json({ error: 'Override score must be a number between 0 and 100' }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.performanceScore.upsert({
       where: { userId },
       update: {
         manualOverride: true,
         overrideReason: reason,
         rating,
+        overrideScore: overrideScoreFloat,
         updatedById: user.userId,
       },
       create: {
@@ -260,6 +271,7 @@ export async function PUT(request: Request) {
         overrideReason: reason,
         rating,
         autoScore: 100,
+        overrideScore: overrideScoreFloat,
         updatedById: user.userId,
       },
     });

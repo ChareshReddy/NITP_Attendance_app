@@ -147,6 +147,7 @@ export default function AdminDashboard() {
   const [overrideUserId, setOverrideUserId] = useState('');
   const [overrideRating, setOverrideRating] = useState('GREEN');
   const [overrideReason, setOverrideReason] = useState('');
+  const [overrideScore, setOverrideScore] = useState('');
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [performanceCounts, setPerformanceCounts] = useState({ RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 });
 
@@ -814,10 +815,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleOpenOverrideModal = (userId: string, currentRating: string) => {
+  const handleOpenOverrideModal = (userId: string, scoreRecord: any) => {
     setOverrideUserId(userId);
-    setOverrideRating(currentRating);
-    setOverrideReason('');
+    setOverrideRating(scoreRecord.rating || 'GREEN');
+    setOverrideReason(scoreRecord.overrideReason || '');
+    setOverrideScore(scoreRecord.overrideScore !== null && scoreRecord.overrideScore !== undefined ? String(scoreRecord.overrideScore) : '');
     setIsOverrideModalOpen(true);
   };
 
@@ -836,6 +838,7 @@ export default function AdminDashboard() {
           userId: overrideUserId,
           rating: overrideRating,
           reason: overrideReason,
+          overrideScore: overrideScore.trim() !== '' ? parseFloat(overrideScore) : null,
         }),
       });
 
@@ -2354,7 +2357,7 @@ export default function AdminDashboard() {
                     <th className="py-3 px-2 bg-white">Employee</th>
                     <th className="py-3 px-2 bg-white">Team</th>
                     <th className="py-3 px-2 text-center bg-white">Score Type</th>
-                    <th className="py-3 px-2 text-center bg-white">Auto Score</th>
+                    <th className="py-3 px-2 text-center bg-white">Score</th>
                     <th className="py-3 px-2 text-center bg-white">Rating Badge</th>
                     <th className="py-3 px-2 bg-white">Override Reason</th>
                     <th className="py-3 px-2 text-center bg-white">Last Updated</th>
@@ -2381,7 +2384,17 @@ export default function AdminDashboard() {
                             {p.score.manualOverride ? 'Manual' : 'Auto'}
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{Math.round(p.score.autoScore)}%</td>
+                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy">
+                          {(() => {
+                            let score = p.score.autoScore;
+                            if (p.score.manualOverride) {
+                              score = p.score.overrideScore !== null && p.score.overrideScore !== undefined
+                                ? p.score.overrideScore
+                                : (p.score.rating === 'RED' ? 20 : p.score.rating === 'YELLOW' ? 53 : p.score.rating === 'GREEN' ? 75 : 93);
+                            }
+                            return `${Math.round(score)}%`;
+                          })()}
+                        </td>
                         <td className="py-3 px-2 text-center">
                           <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold border ${
                             p.score.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
@@ -2400,7 +2413,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
                           <button
-                            onClick={() => handleOpenOverrideModal(p.user.id, p.score.rating)}
+                            onClick={() => handleOpenOverrideModal(p.user.id, p.score)}
                             className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
                           >
                             Override
@@ -2949,7 +2962,16 @@ export default function AdminDashboard() {
                   <div className="mb-4 text-center border-b border-gray-100 pb-4">
                     <p className="text-xs text-gray-400 font-semibold mb-2">Current Rating for {uObj.user.name}</p>
                     <div className="flex justify-center">
-                      <Speedometer score={uObj.score.autoScore} rating={uObj.score.rating} size={150} />
+                      {(() => {
+                        const displayRating = uObj.score.rating;
+                        let displayScore = uObj.score.autoScore;
+                        if (uObj.score.manualOverride) {
+                          displayScore = uObj.score.overrideScore !== null && uObj.score.overrideScore !== undefined
+                            ? uObj.score.overrideScore
+                            : (displayRating === 'RED' ? 20 : displayRating === 'YELLOW' ? 53 : displayRating === 'GREEN' ? 75 : 93);
+                        }
+                        return <Speedometer score={displayScore} rating={displayRating} size={150} />;
+                      })()}
                     </div>
                   </div>
                 );
@@ -2971,6 +2993,21 @@ export default function AdminDashboard() {
                   <option value="GREEN">GREEN (Good)</option>
                   <option value="BLUE">BLUE (Excellent)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Override Score (0-100) (Optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={overrideScore}
+                  onChange={(e) => setOverrideScore(e.target.value)}
+                  placeholder="e.g. 53"
+                  className="block w-full rounded-lg border-0 py-2.5 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">If blank, defaults to midpoint of chosen rating band (RED=20, YELLOW=53, GREEN=75, BLUE=93).</p>
               </div>
 
               <div>

@@ -236,6 +236,7 @@ model PerformanceScore {
   user           User              @relation("UserPerformance", fields: [userId], references: [id], onDelete: Cascade)
   rating         PerformanceRating @default(GREEN)
   autoScore      Float             @map("auto_score")
+  overrideScore  Float?            @map("override_score")
   manualOverride Boolean           @default(false) @map("manual_override")
   overrideReason String?           @map("override_reason")
   updatedById    String?           @map("updated_by_id")

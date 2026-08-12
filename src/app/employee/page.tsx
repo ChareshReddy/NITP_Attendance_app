@@ -819,29 +819,42 @@ export default function EmployeeDashboard() {
 
                 {/* Right Column: Performance Health Gauge Card (Decreased to col-span-1) */}
                 <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[240px] rounded-2xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-1.5">
-                      <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
-                      Performance
-                    </h3>
-                    {performanceScore && (
-                      <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-sm ${
-                        performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                        performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                        performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                        'bg-red-100 text-brand-red border-red-200'
-                      }`}>
-                        {performanceScore.rating} ({performanceScore.autoScore})
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex justify-center flex-1 items-center pt-2">
-                    {performanceScore ? (
-                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={210} />
-                    ) : (
-                      <p className="text-xs text-gray-400">No score logged.</p>
-                    )}
-                  </div>
+                  {(() => {
+                    const displayRating = performanceScore?.rating || 'GREEN';
+                    let displayScore = performanceScore?.autoScore ?? 100;
+                    if (performanceScore?.manualOverride) {
+                      displayScore = performanceScore.overrideScore !== null && performanceScore.overrideScore !== undefined
+                        ? performanceScore.overrideScore
+                        : (displayRating === 'RED' ? 20 : displayRating === 'YELLOW' ? 53 : displayRating === 'GREEN' ? 75 : 93);
+                    }
+                    return (
+                      <>
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-1.5">
+                            <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
+                            Performance
+                          </h3>
+                          {performanceScore && (
+                            <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-sm ${
+                              displayRating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                              displayRating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                              displayRating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                              'bg-red-100 text-brand-red border-red-200'
+                            }`}>
+                              {displayRating} ({displayScore})
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-center flex-1 items-center pt-2">
+                          {performanceScore ? (
+                            <Speedometer score={displayScore} rating={displayRating} size={210} />
+                          ) : (
+                            <p className="text-xs text-gray-400">No score logged.</p>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 
