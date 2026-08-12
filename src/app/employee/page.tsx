@@ -16,7 +16,9 @@ import {
   Bell,
   Check,
   Calendar,
-  TrendingUp
+  TrendingUp,
+  Menu,
+  X
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 
@@ -173,6 +175,7 @@ export default function EmployeeDashboard() {
 
   // Self-Service States
   const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings'>('dashboard');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
   const [profileForm, setProfileForm] = useState({
     mobileNumber: '',
@@ -570,100 +573,106 @@ export default function EmployeeDashboard() {
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const employeeNavItems: {
+    id: 'dashboard' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings';
+    label: string;
+    icon: any;
+  }[] = [
+    { id: 'dashboard', label: 'My Dashboard', icon: Clock },
+    { id: 'profile', label: 'My Profile', icon: FileText },
+    { id: 'leaves', label: 'My Leaves & Requests', icon: Calendar },
+    { id: 'payroll', label: 'My Payroll & Payslips', icon: TrendingUp },
+    { id: 'goals', label: 'My Goals & KPIs', icon: CheckSquare },
+    { id: 'trainings', label: 'My Trainings Catalog', icon: Bell },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg pb-12">
+    <div className="flex flex-col min-h-screen bg-brand-bg">
       <Header />
 
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8 flex flex-col md:flex-row gap-8">
-        
-        {/* Sidebar Panel */}
-        <div className="w-full md:w-64 shrink-0 space-y-2.5">
-          {/* Welcome profile tag widget */}
-          <div className="bg-white premium-card p-4 border border-gray-100 mb-4 rounded-2xl">
-            <p className="text-xs text-gray-400 font-semibold">Logged in as</p>
-            <p className="text-sm font-bold text-brand-navy mt-0.5 truncate">{employeeProfile?.userId || 'Employee User'}</p>
-            {performanceScore && (
-              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-1.5 justify-between">
-                <span className="text-[10px] text-gray-400 font-bold uppercase">Rating:</span>
-                <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border ${
-                  performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                  performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                  performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                  'bg-red-100 text-brand-red border-red-200'
-                }`}>
-                  {performanceScore.rating}
-                </span>
-              </div>
-            )}
-          </div>
-
+      {/* Mobile Nav Toggle Bar */}
+      <div className="md:hidden bg-white border-b border-gray-150 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'dashboard'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-gray-50 text-brand-navy border border-gray-200"
+            aria-label="Open navigation menu"
           >
-            <Clock className="w-4 h-4" />
-            My Dashboard
+            <Menu className="w-5 h-5" />
           </button>
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            My Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('leaves')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'leaves'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            My Leaves & Requests
-          </button>
-          <button
-            onClick={() => setActiveTab('payroll')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'payroll'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            My Payroll & Payslips
-          </button>
-          <button
-            onClick={() => setActiveTab('goals')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'goals'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
-          >
-            <CheckSquare className="w-4 h-4" />
-            My Goals & KPIs
-          </button>
-          <button
-            onClick={() => setActiveTab('trainings')}
-            className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold flex items-center gap-3 transition-all cursor-pointer ${
-              activeTab === 'trainings'
-                ? 'bg-brand-navy text-white shadow-md'
-                : 'bg-white text-gray-500 hover:text-gray-900 border border-gray-100 hover:border-gray-200 shadow-sm'
-            }`}
-          >
-            <Bell className="w-4 h-4" />
-            My Trainings Catalog
-          </button>
+          <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">
+            {employeeNavItems.find(item => item.id === activeTab)?.label}
+          </span>
         </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Persistent Left Sidebar - Desktop */}
+        <aside className="hidden md:flex w-60 bg-white border-r border-gray-150 flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto">
+          <div className="px-4 mb-4">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Employee Portal</span>
+          </div>
+          <nav className="flex-1 space-y-1">
+            {employeeNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                  activeTab === item.id 
+                    ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                    : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                }`}
+              >
+                <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                <span className="text-xs tracking-wide">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Mobile Slide-over Drawer */}
+        {isMobileSidebarOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            
+            <aside className="relative flex w-full max-w-xs flex-col bg-white py-4 shadow-xl border-r border-gray-100 h-full animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100 mb-4">
+                <span className="text-sm font-extrabold text-brand-navy font-heading">Employee Portal</span>
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="text-gray-500 hover:text-brand-navy p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <nav className="flex-1 overflow-y-auto space-y-1">
+                {employeeNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                      activeTab === item.id 
+                        ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                        : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                    <span className="text-xs tracking-wide">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </aside>
+          </div>
+        )}
+
+        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
 
         {/* Tab Content Panels */}
         <div className="flex-1 space-y-6">
@@ -705,47 +714,57 @@ export default function EmployeeDashboard() {
           {activeTab === 'dashboard' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Daily Shift Logging Card */}
-              <div className="bg-white premium-card p-6 border border-gray-100 relative overflow-hidden lg:col-span-1">
-                <div className="absolute top-4 right-4 w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-brand-navy">
-                  <Clock className="w-5 h-5" />
-                </div>
-                <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Daily Work Shift</h3>
-                <div className="space-y-4 mb-6">
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Today's Date</p>
-                    <p className="text-sm font-bold text-brand-navy mt-0.5">
-                      {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <p className="text-xs text-gray-400 font-semibold uppercase">Check In</p>
-                      <p className="text-base font-extrabold text-brand-navy mt-0.5">
-                        {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
-                      </p>
-                      {todayRecord && (
-                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          todayRecord.status.includes('LATE') ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {todayRecord.status}
-                        </span>
-                      )}
+              <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-base font-bold text-brand-navy font-heading">Daily Work Shift</h3>
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-brand-navy">
+                      <Clock className="w-4 h-4" />
                     </div>
-                    <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                      <p className="text-xs text-gray-400 font-semibold uppercase">Check Out</p>
-                      <p className="text-base font-extrabold text-brand-navy mt-0.5">
-                        {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
+                  </div>
+                  <div className="space-y-3 mb-4">
+                    <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Today's Date</p>
+                      <p className="text-xs font-extrabold text-brand-navy mt-0.5">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase">Check In</p>
+                          <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                            {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
+                          </p>
+                        </div>
+                        {todayRecord && (
+                          <div className="mt-1">
+                            <span className={`text-[8px] font-extrabold px-1 py-0.25 rounded uppercase ${
+                              todayRecord.status.includes('LATE') ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {todayRecord.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase">Check Out</p>
+                          <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                            {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="w-full">
                   {!todayRecord ? (
                     <button
                       onClick={handleCheckIn}
                       disabled={loadingAttendance}
-                      className="flex-1 bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md"
+                      className="w-full bg-brand-cta hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md uppercase tracking-wider"
                     >
                       {loadingAttendance ? 'Processing...' : 'Check In Now'}
                     </button>
@@ -753,54 +772,61 @@ export default function EmployeeDashboard() {
                     <button
                       onClick={handleCheckOut}
                       disabled={loadingAttendance}
-                      className="flex-1 bg-brand-red text-white font-bold py-2.5 px-4 rounded-lg hover:bg-red-700 transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md"
+                      className="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md uppercase tracking-wider"
                     >
                       {loadingAttendance ? 'Processing...' : 'Check Out Now'}
                     </button>
                   ) : (
-                    <div className="flex-1 text-center bg-gray-100 text-gray-500 font-bold py-2.5 px-4 rounded-lg text-xs border border-gray-200">
+                    <div className="w-full text-center bg-gray-100 text-gray-500 font-bold py-3 px-4 rounded-xl text-xs border border-gray-200 uppercase tracking-wider">
                       Shift Completed
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Speedy Gauge Widget */}
-              <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1 flex flex-col justify-between">
-                <h3 className="text-sm font-bold text-brand-navy font-heading mb-2 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
-                  Performance Health
-                </h3>
-                <div className="flex justify-center flex-1 items-center">
-                  {performanceScore ? (
-                    <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={150} />
-                  ) : (
-                    <p className="text-xs text-gray-400">No score logged.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Stats panel widgets */}
+              {/* Center Column: Stats panel widgets */}
               <div className="lg:col-span-1 grid grid-cols-2 gap-4">
-                <div className="bg-white premium-card p-4 border border-gray-100 text-center shadow-sm">
-                  <span className="block text-2xl font-extrabold text-brand-navy font-heading">{stats.present}</span>
-                  <span className="text-xs font-semibold text-gray-400 mt-1 block">Presents</span>
+                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
+                  <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">{stats.present}</span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
                 </div>
-                <div className="bg-white premium-card p-4 border border-gray-100 text-center shadow-sm">
-                  <span className="block text-2xl font-extrabold text-brand-red font-heading">{stats.late}</span>
-                  <span className="text-xs font-semibold text-gray-400 mt-1 block">Lates</span>
+                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
+                  <span className="block text-2xl font-extrabold text-brand-red font-heading leading-tight">{stats.late}</span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
                 </div>
-                <div className="bg-white premium-card p-4 border border-gray-100 text-center shadow-sm">
-                  <span className="block text-2xl font-extrabold text-brand-maroon font-heading">{stats.leave}</span>
-                  <span className="text-xs font-semibold text-gray-400 mt-1 block">Leaves</span>
+                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
+                  <span className="block text-2xl font-extrabold text-brand-maroon font-heading leading-tight">{stats.leave}</span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
                 </div>
-                <div className="bg-white premium-card p-4 border border-gray-100 text-center shadow-sm">
-                  <span className="block text-2xl font-extrabold text-brand-cta font-heading">
+                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
+                  <span className="block text-2xl font-extrabold text-brand-cta font-heading leading-tight">
                     {trackSheets.length > 0 
                       ? (trackSheets.reduce((sum, item) => sum + item.hours, 0) / trackSheets.length).toFixed(1)
                       : '0.0'}h
                   </span>
-                  <span className="text-xs font-semibold text-gray-400 mt-1 block">Avg Hours</span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                </div>
+              </div>
+
+              {/* Right Column: Speedy Gauge Widget */}
+              <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-1 shadow-md flex flex-col justify-between min-h-[220px]">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
+                    Performance Health
+                  </h3>
+                  {performanceScore && (
+                    <span className="text-[10px] font-extrabold text-brand-navy bg-blue-50 px-2 py-0.5 rounded-full">
+                      Score: {performanceScore.autoScore}
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-center flex-1 items-center pt-2">
+                  {performanceScore ? (
+                    <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={140} />
+                  ) : (
+                    <p className="text-xs text-gray-400">No score logged.</p>
+                  )}
                 </div>
               </div>
 
@@ -923,24 +949,7 @@ export default function EmployeeDashboard() {
 
               {/* Right Column: Alerts & Tasks */}
               <div className="lg:col-span-1 space-y-6">
-                {/* Alerts/Notifications widget */}
-                <div className="bg-white premium-card p-6 border border-gray-100">
-                  <h3 className="text-sm font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                    <Bell className="w-4 h-4 text-brand-cta" />
-                    Alerts Center
-                  </h3>
-                  <div className="space-y-3 max-h-[220px] overflow-y-auto custom-scrollbar-container pr-1">
-                    {notifications.length === 0 ? (
-                      <p className="text-xs text-gray-400 text-center py-6">No notifications.</p>
-                    ) : (
-                      notifications.map((n) => (
-                        <div key={n.id} className="p-3 rounded-xl border border-gray-100 bg-gray-50/50 text-[11px] text-brand-navy">
-                          <p>{n.message}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
+
 
                 {/* Tasks List */}
                 <div className="bg-white premium-card p-6 border border-gray-100">
@@ -1505,6 +1514,7 @@ export default function EmployeeDashboard() {
 
         </div>
       </main>
+    </div>
 
       {/* Goal Accomplishment Submission Modal */}
       {isGoalModalOpen && selectedGoal && (

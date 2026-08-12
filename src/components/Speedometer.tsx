@@ -24,9 +24,9 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
   const activeColor = colorMap[rating] || colorMap.GREEN;
 
   return (
-    <div className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden w-full h-full min-h-[175px]">
+    <div className="flex flex-col items-center justify-center relative w-full">
       {/* Speedometer Gauge Arc */}
-      <div className="relative" style={{ width: size, height: size * 0.55 }}>
+      <div className="relative" style={{ width: size, height: size * 0.75 }}>
         <svg
           width={size}
           height={size * 0.9}

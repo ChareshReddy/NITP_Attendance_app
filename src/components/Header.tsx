@@ -3,10 +3,11 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User as UserIcon } from 'lucide-react';
+import { LogOut, User as UserIcon, Bell, Check } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface UserSession {
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -16,6 +17,10 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<UserSession | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [userRating, setUserRating] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchSession() {
@@ -33,6 +38,94 @@ export default function Header() {
     }
     fetchSession();
   }, [pathname]);
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+      fetchPerformance();
+      
+      // Setup interval for notifications polling (every 30s is fine)
+      const interval = setInterval(fetchNotifications, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (e) {
+      console.error('Notifications fetch failed:', e);
+    }
+  };
+
+  const fetchPerformance = async () => {
+    try {
+      const res = await fetch('/api/admin/performance');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.performanceData && data.performanceData.length > 0) {
+          const personalData = data.performanceData.find((p: any) => p.user.id === user?.id);
+          if (personalData?.score?.rating) {
+            setUserRating(personalData.score.rating);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Performance fetch failed:', e);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        setUnreadCount(0);
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const getRatingBadgeClass = (rating: string) => {
+    switch (rating) {
+      case 'BLUE':
+        return 'bg-blue-100 text-blue-800 border border-blue-200';
+      case 'GREEN':
+        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+      case 'YELLOW':
+        return 'bg-amber-100 text-amber-800 border border-amber-200';
+      case 'RED':
+        return 'bg-red-100 text-brand-red border border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -98,17 +191,6 @@ export default function Header() {
               Team Leader Board
             </Link>
           )}
-
-          {user.role !== 'HR_ADMIN' && (
-            <Link
-              href="/employee"
-              className={`hover:text-brand-navy transition-colors ${
-                pathname.startsWith('/employee') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              My Portal
-            </Link>
-          )}
         </nav>
       )}
 
@@ -116,11 +198,78 @@ export default function Header() {
       <div className="flex items-center gap-4">
         {user ? (
           <>
+            {/* Notification Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="relative p-2 text-gray-500 hover:text-brand-navy hover:bg-gray-50 rounded-lg transition-colors cursor-pointer outline-none border border-gray-100"
+                aria-label="Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] bg-brand-red text-white text-[8px] font-extrabold flex items-center justify-center rounded-full px-0.5 animate-pulse">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {isNotifOpen && (
+                <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl border border-gray-150 shadow-xl z-50 overflow-hidden py-1">
+                  <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+                    <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-[10px] font-bold text-brand-cta hover:underline cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-72 overflow-y-auto divide-y divide-gray-50 custom-scrollbar-container">
+                    {notifications.length === 0 ? (
+                      <div className="px-4 py-6 text-center text-xs text-gray-400">
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div 
+                          key={n.id} 
+                          className={`p-3 text-left transition-colors flex flex-col gap-1 relative ${!n.read ? 'bg-blue-50/30' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-1.5">
+                            <p className="text-[11px] text-brand-navy leading-normal font-medium">{n.message}</p>
+                            {!n.read && (
+                              <button 
+                                onClick={() => handleMarkRead(n.id)}
+                                className="text-[9px] font-bold text-brand-cta hover:text-blue-700 shrink-0 cursor-pointer"
+                                title="Mark read"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[8px] text-gray-400">{new Date(n.createdAt).toLocaleString()}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex flex-col text-right items-end hidden sm:flex">
-              <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
-                <UserIcon className="w-3.5 h-3.5 text-brand-navy" />
-                {user.name}
-              </span>
+              <div className="flex items-center gap-1.5">
+                {userRating && (
+                  <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${getRatingBadgeClass(userRating)}`}>
+                    {userRating}
+                  </span>
+                )}
+                <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
+                  <UserIcon className="w-3.5 h-3.5 text-brand-navy" />
+                  {user.name}
+                </span>
+              </div>
               <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
                 {user.role.replace('_', ' ')}
               </span>
