@@ -259,17 +259,10 @@ export default function Header() {
             </div>
 
             <div className="flex flex-col text-right items-end hidden sm:flex">
-              <div className="flex items-center gap-1.5">
-                {userRating && (
-                  <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider ${getRatingBadgeClass(userRating)}`}>
-                    {userRating}
-                  </span>
-                )}
-                <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
-                  <UserIcon className="w-3.5 h-3.5 text-brand-navy" />
-                  {user.name}
-                </span>
-              </div>
+              <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
+                <UserIcon className="w-3.5 h-3.5 text-brand-navy" />
+                {user.name}
+              </span>
               <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
                 {user.role.replace('_', ' ')}
               </span>

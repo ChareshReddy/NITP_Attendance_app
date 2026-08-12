@@ -18,7 +18,8 @@ import {
   Calendar,
   TrendingUp,
   Menu,
-  X
+  X,
+  User
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 
@@ -174,7 +175,7 @@ export default function EmployeeDashboard() {
   const [performanceScore, setPerformanceScore] = useState<any>(null);
 
   // Self-Service States
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
   const [profileForm, setProfileForm] = useState({
@@ -574,12 +575,14 @@ export default function EmployeeDashboard() {
   };
 
   const employeeNavItems: {
-    id: 'dashboard' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings';
+    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings';
     label: string;
     icon: any;
   }[] = [
     { id: 'dashboard', label: 'My Dashboard', icon: Clock },
-    { id: 'profile', label: 'My Profile', icon: FileText },
+    { id: 'tasks', label: 'My Tasks', icon: CheckSquare },
+    { id: 'tracksheets', label: 'My Track Sheets', icon: FileText },
+    { id: 'profile', label: 'My Profile', icon: User },
     { id: 'leaves', label: 'My Leaves & Requests', icon: Calendar },
     { id: 'payroll', label: 'My Payroll & Payslips', icon: TrendingUp },
     { id: 'goals', label: 'My Goals & KPIs', icon: CheckSquare },
@@ -712,132 +715,142 @@ export default function EmployeeDashboard() {
 
           {/* TAB 1: Dashboard */}
           {activeTab === 'dashboard' && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Daily Shift Logging Card */}
-              <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-base font-bold text-brand-navy font-heading">Daily Work Shift</h3>
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-brand-navy">
-                      <Clock className="w-4 h-4" />
+            <div className="space-y-6">
+              {/* Row 1 */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Daily Shift Logging Card */}
+                <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
+                  <div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-base font-bold text-brand-navy font-heading">Daily Work Shift</h3>
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-brand-navy">
+                        <Clock className="w-4 h-4" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-3 mb-4">
-                    <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Today's Date</p>
-                      <p className="text-xs font-extrabold text-brand-navy mt-0.5">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
-                        <div>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase">Check In</p>
-                          <p className="text-sm font-extrabold text-brand-navy mt-0.5">
-                            {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
-                          </p>
-                        </div>
-                        {todayRecord && (
-                          <div className="mt-1">
-                            <span className={`text-[8px] font-extrabold px-1 py-0.25 rounded uppercase ${
-                              todayRecord.status.includes('LATE') ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {todayRecord.status.replace('_', ' ')}
-                            </span>
+                    <div className="space-y-3 mb-4">
+                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Today's Date</p>
+                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
+                          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">Check In</p>
+                            <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                              {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
+                            </p>
                           </div>
-                        )}
-                      </div>
-                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
-                        <div>
-                          <p className="text-[10px] text-gray-400 font-bold uppercase">Check Out</p>
-                          <p className="text-sm font-extrabold text-brand-navy mt-0.5">
-                            {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
-                          </p>
+                          {todayRecord && (
+                            <div className="mt-1">
+                              <span className={`text-[8px] font-extrabold px-1 py-0.25 rounded uppercase ${
+                                todayRecord.status.includes('LATE') ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {todayRecord.status.replace('_', ' ')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase">Check Out</p>
+                            <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                              {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
+
+                  <div className="w-full">
+                    {!todayRecord ? (
+                      <button
+                        onClick={handleCheckIn}
+                        disabled={loadingAttendance}
+                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-md text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider"
+                      >
+                        {loadingAttendance ? 'Processing...' : 'Check In Now'}
+                      </button>
+                    ) : !todayRecord.checkOutTime ? (
+                      <button
+                        onClick={handleCheckOut}
+                        disabled={loadingAttendance}
+                        className="w-full bg-brand-red hover:bg-red-700 hover:shadow-md text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider"
+                      >
+                        {loadingAttendance ? 'Processing...' : 'Check Out Now'}
+                      </button>
+                    ) : (
+                      <div className="w-full text-center bg-gray-100 text-gray-500 font-bold py-3 px-4 rounded-xl text-xs border border-gray-200 uppercase tracking-wider">
+                        Shift Completed
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="w-full">
-                  {!todayRecord ? (
-                    <button
-                      onClick={handleCheckIn}
-                      disabled={loadingAttendance}
-                      className="w-full bg-brand-cta hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md uppercase tracking-wider"
-                    >
-                      {loadingAttendance ? 'Processing...' : 'Check In Now'}
-                    </button>
-                  ) : !todayRecord.checkOutTime ? (
-                    <button
-                      onClick={handleCheckOut}
-                      disabled={loadingAttendance}
-                      className="w-full bg-brand-red hover:bg-red-700 text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium shadow-md uppercase tracking-wider"
-                    >
-                      {loadingAttendance ? 'Processing...' : 'Check Out Now'}
-                    </button>
-                  ) : (
-                    <div className="w-full text-center bg-gray-100 text-gray-500 font-bold py-3 px-4 rounded-xl text-xs border border-gray-200 uppercase tracking-wider">
-                      Shift Completed
-                    </div>
-                  )}
+                {/* Performance Health Gauge Card */}
+                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-2 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[240px] rounded-2xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-brand-cta shrink-0" />
+                      Performance Health
+                    </h3>
+                    {performanceScore && (
+                      <span className={`px-2.5 py-0.5 text-xs font-extrabold rounded-full border shadow-sm ${
+                        performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                        'bg-red-100 text-brand-red border-red-200'
+                      }`}>
+                        Rating: {performanceScore.rating} (Score: {performanceScore.autoScore})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-center flex-1 items-center py-4">
+                    {performanceScore ? (
+                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={250} />
+                    ) : (
+                      <p className="text-xs text-gray-400">No score logged.</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Center Column: Stats panel widgets */}
-              <div className="lg:col-span-1 grid grid-cols-2 gap-4">
-                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
-                  <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">{stats.present}</span>
-                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
-                </div>
-                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
-                  <span className="block text-2xl font-extrabold text-brand-red font-heading leading-tight">{stats.late}</span>
-                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
-                </div>
-                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
-                  <span className="block text-2xl font-extrabold text-brand-maroon font-heading leading-tight">{stats.leave}</span>
-                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
-                </div>
-                <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px]">
-                  <span className="block text-2xl font-extrabold text-brand-cta font-heading leading-tight">
-                    {trackSheets.length > 0 
-                      ? (trackSheets.reduce((sum, item) => sum + item.hours, 0) / trackSheets.length).toFixed(1)
-                      : '0.0'}h
-                  </span>
-                  <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
-                </div>
-              </div>
-
-              {/* Right Column: Speedy Gauge Widget */}
-              <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-1 shadow-md flex flex-col justify-between min-h-[220px]">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
-                    Performance Health
-                  </h3>
-                  {performanceScore && (
-                    <span className="text-[10px] font-extrabold text-brand-navy bg-blue-50 px-2 py-0.5 rounded-full">
-                      Score: {performanceScore.autoScore}
+              {/* Row 2 */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Stats panel widgets */}
+                <div className="lg:col-span-1 grid grid-cols-2 gap-4">
+                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
+                    <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">{stats.present}</span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
+                  </div>
+                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
+                    <span className="block text-2xl font-extrabold text-brand-red font-heading leading-tight">{stats.late}</span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
+                  </div>
+                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
+                    <span className="block text-2xl font-extrabold text-brand-maroon font-heading leading-tight">{stats.leave}</span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
+                  </div>
+                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
+                    <span className="block text-2xl font-extrabold text-brand-cta font-heading leading-tight">
+                      {trackSheets.length > 0 
+                        ? (trackSheets.reduce((sum, item) => sum + item.hours, 0) / trackSheets.length).toFixed(1)
+                        : '0.0'}h
                     </span>
-                  )}
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                  </div>
                 </div>
-                <div className="flex justify-center flex-1 items-center pt-2">
-                  {performanceScore ? (
-                    <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={140} />
-                  ) : (
-                    <p className="text-xs text-gray-400">No score logged.</p>
-                  )}
-                </div>
-              </div>
 
-              {/* Left Column: Clock hours logger & tasks */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* Log Hours */}
-                <div className="bg-white premium-card p-6 border border-gray-100">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-brand-cta" />
-                    Log Daily Work Hours
-                  </h3>
+                {/* Log Daily Work Hours form */}
+                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-2 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
+                  <div className="mb-4">
+                    <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-brand-cta" />
+                      Log Daily Work Hours
+                    </h3>
+                  </div>
                   <form onSubmit={handleSubmitTrackSheet} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -848,7 +861,7 @@ export default function EmployeeDashboard() {
                           value={project}
                           onChange={(e) => setProject(e.target.value)}
                           placeholder="e.g. API Integration"
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
                         />
                       </div>
                       <div>
@@ -861,7 +874,7 @@ export default function EmployeeDashboard() {
                           required
                           value={hours}
                           onChange={(e) => setHours(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
                         />
                       </div>
                     </div>
@@ -873,14 +886,14 @@ export default function EmployeeDashboard() {
                         value={taskDescription}
                         onChange={(e) => setTaskDescription(e.target.value)}
                         placeholder="Explain task details..."
-                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
                       />
                     </div>
                     <div className="flex justify-end">
                       <button
                         type="submit"
                         disabled={submittingTrack}
-                        className="bg-brand-cta text-white font-bold text-xs px-4 py-2 rounded-lg hover:bg-blue-700 transition-all flex items-center gap-2 cursor-pointer btn-premium"
+                        className="bg-brand-cta hover:bg-blue-700 hover:shadow-md text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all flex items-center gap-2 cursor-pointer btn-premium"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         {submittingTrack ? 'Saving...' : 'Submit Entry'}
@@ -888,103 +901,126 @@ export default function EmployeeDashboard() {
                     </div>
                   </form>
                 </div>
+              </div>
+            </div>
+          )}
 
-                {/* Log history list */}
-                <div className="bg-white premium-card p-6 border border-gray-100">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                    <History className="w-5 h-5 text-brand-cta" />
-                    My Track Sheets Log
-                  </h3>
-                  <div className="max-h-[300px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                    <table className="w-full table-fixed text-left text-xs relative border-collapse">
-                      <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                        <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                          <th className="py-2 px-2 bg-white w-[100px]">Date</th>
-                          <th className="py-2 px-2 bg-white w-[140px]">Task</th>
-                          <th className="py-2 px-2 bg-white">Description</th>
-                          <th className="py-2 px-2 text-center bg-white w-[60px]">Hours</th>
-                          <th className="py-2 px-2 text-center bg-white w-[90px]">Status</th>
-                          <th className="py-2 px-2 text-center bg-white w-[60px]">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {trackSheets.length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-6 text-gray-400">No work logged yet.</td>
-                          </tr>
-                        ) : (
-                          trackSheets.map((item) => (
-                            <tr key={item.id} className="hover:bg-gray-50/50">
-                              <td className="py-2.5 px-2 font-semibold text-brand-navy truncate">{item.date}</td>
-                              <td className="py-2.5 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
-                              <td className="py-2.5 px-2 text-gray-500 break-words whitespace-normal">{item.taskDescription}</td>
-                              <td className="py-2.5 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
-                              <td className="py-2.5 px-2 text-center">
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
-                                  item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                                  item.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                                  'bg-amber-100 text-amber-800'
-                                }`}>
-                                  {item.status}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-2 text-center">
-                                {item.status === 'PENDING' ? (
-                                  <button
-                                    onClick={() => handleDeleteTrackSheet(item.id)}
-                                    className="text-brand-red hover:text-red-700 transition-colors p-1 cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 inline" />
-                                  </button>
-                                ) : '-'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+          {/* TAB 1.1: My Tasks Page */}
+          {activeTab === 'tasks' && (
+            <div className="bg-white premium-card p-6 border border-gray-150 shadow-md rounded-2xl space-y-6">
+              <div className="border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-brand-cta" />
+                  My Assigned Tasks
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">View and complete tasks assigned to you by your Team Leader.</p>
               </div>
 
-              {/* Right Column: Alerts & Tasks */}
-              <div className="lg:col-span-1 space-y-6">
-
-
-                {/* Tasks List */}
-                <div className="bg-white premium-card p-6 border border-gray-100">
-                  <h3 className="text-sm font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-brand-cta" />
-                    Assigned Tasks
-                  </h3>
-                  <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar-container pr-1">
-                    {tasks.length === 0 ? (
-                      <p className="text-xs text-gray-400 text-center py-6">No tasks assigned.</p>
-                    ) : (
-                      tasks.map((task) => (
-                        <div key={task.id} className="p-3 rounded-xl border border-gray-100 bg-gray-50/50 space-y-2">
-                          <div className="flex justify-between items-start">
-                            <h4 className="text-xs font-bold text-brand-navy truncate max-w-[120px]">{task.title}</h4>
-                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
-                              task.priority === 'HIGH' ? 'bg-red-100 text-brand-red' : 'bg-slate-100 text-slate-700'
-                            }`}>{task.priority}</span>
-                          </div>
-                          <p className="text-[11px] text-gray-500 line-clamp-2">{task.description}</p>
-                          <div className="flex justify-between items-center pt-2 border-t border-gray-100 text-[10px] text-gray-400">
-                            <span>Due: {task.dueDate}</span>
-                            <button
-                              onClick={() => handleUpdateTaskStatus(task.id, task.status)}
-                              disabled={task.status === 'COMPLETED'}
-                              className="text-brand-cta font-bold hover:underline cursor-pointer"
-                            >
-                              {task.status === 'COMPLETED' ? 'Done' : 'Start'}
-                            </button>
-                          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-1">
+                {tasks.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-gray-400">
+                    <CheckSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                    No tasks assigned to you currently.
+                  </div>
+                ) : (
+                  tasks.map((task) => (
+                    <div 
+                      key={task.id} 
+                      className="p-4 rounded-xl border border-gray-150 bg-gray-50/50 hover:bg-white hover:shadow-md hover:border-gray-250 transition-all flex flex-col justify-between min-h-[160px]"
+                    >
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <h4 className="text-sm font-bold text-brand-navy line-clamp-2">{task.title}</h4>
+                          <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded shrink-0 uppercase tracking-wider ${
+                            task.priority === 'HIGH' ? 'bg-red-100 text-brand-red border border-red-200' : 'bg-slate-100 text-slate-700'
+                          }`}>{task.priority}</span>
                         </div>
+                        <p className="text-xs text-gray-500 line-clamp-3 leading-normal mb-4">{task.description}</p>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-400 mt-auto">
+                        <span className="font-medium">Due: {task.dueDate}</span>
+                        <button
+                          onClick={() => handleUpdateTaskStatus(task.id, task.status)}
+                          disabled={task.status === 'COMPLETED'}
+                          className={`font-bold text-xs px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                            task.status === 'COMPLETED' 
+                              ? 'bg-emerald-50 text-emerald-700 cursor-default' 
+                              : 'bg-brand-cta text-white hover:bg-blue-700 shadow-sm'
+                          }`}
+                        >
+                          {task.status === 'COMPLETED' ? 'Completed' : 'Start Task'}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 1.2: My Track Sheets Page */}
+          {activeTab === 'tracksheets' && (
+            <div className="bg-white premium-card p-6 border border-gray-150 shadow-md rounded-2xl space-y-6">
+              <div className="border-b border-gray-100 pb-4">
+                <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-brand-cta" />
+                  My Track Sheets Log
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">Review your submitted work hours logs and their current approval status.</p>
+              </div>
+
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="w-full table-fixed text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
+                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
+                      <th className="py-3 px-2 bg-white w-[100px]">Date</th>
+                      <th className="py-3 px-2 bg-white w-[180px]">Task / Project</th>
+                      <th className="py-3 px-2 bg-white">Description</th>
+                      <th className="py-3 px-2 text-center bg-white w-[80px]">Hours</th>
+                      <th className="py-3 px-2 text-center bg-white w-[100px]">Status</th>
+                      <th className="py-3 px-2 text-center bg-white w-[80px]">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {trackSheets.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-12 text-gray-400">
+                          <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                          No work logged yet. Use the Dashboard form to log work hours.
+                        </td>
+                      </tr>
+                    ) : (
+                      trackSheets.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50/50">
+                          <td className="py-3 px-2 font-semibold text-brand-navy truncate">{item.date}</td>
+                          <td className="py-3 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
+                          <td className="py-3 px-2 text-gray-500 break-words whitespace-normal leading-normal">{item.taskDescription}</td>
+                          <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                              item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                              item.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                              'bg-amber-100 text-amber-800 border-amber-250'
+                            }`}>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            {item.status === 'PENDING' ? (
+                              <button
+                                onClick={() => handleDeleteTrackSheet(item.id)}
+                                className="text-brand-red hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-red-100"
+                                title="Delete Log"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 inline" />
+                              </button>
+                            ) : '-'}
+                          </td>
+                        </tr>
                       ))
                     )}
-                  </div>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
