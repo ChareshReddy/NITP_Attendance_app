@@ -787,14 +787,14 @@ export default function TeamLeaderDashboard() {
               <table className="min-w-full text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
                   <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                    <th className="py-3 px-2 bg-white">Member</th>
-                    <th className="py-3 px-2 bg-white">Date</th>
-                    <th className="py-3 px-2 bg-white">Task</th>
-                    <th className="py-3 px-2 bg-white">Task Description</th>
-                    <th className="py-3 px-2 text-center bg-white">Hours</th>
-                    <th className="py-3 px-2 bg-white">Notes</th>
-                    <th className="py-3 px-2 text-center bg-white">Status</th>
-                    <th className="py-3 px-2 text-center bg-white">Actions</th>
+                    <th className="py-3 px-2 bg-white w-[15%]">Member</th>
+                    <th className="py-3 px-2 bg-white w-[10%]">Date</th>
+                    <th className="py-3 px-2 bg-white w-[15%]">Task</th>
+                    <th className="py-3 px-2 bg-white w-[30%]">Task Description</th>
+                    <th className="py-3 px-2 text-center bg-white w-[8%]">Hours</th>
+                    <th className="py-3 px-2 bg-white w-[10%]">Notes</th>
+                    <th className="py-3 px-2 text-center bg-white w-[6%]">Status</th>
+                    <th className="py-3 px-2 text-center bg-white w-[6%]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -805,17 +805,17 @@ export default function TeamLeaderDashboard() {
                   ) : (
                     filteredTrackSheets.map((sheet) => (
                       <tr key={sheet.id} className="hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-bold text-brand-navy">{sheet.user.name}</td>
-                        <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">{sheet.date}</td>
-                        <td className="py-3 px-2 font-medium text-brand-navy whitespace-nowrap">{sheet.project}</td>
-                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={sheet.taskDescription}>
+                        <td className="py-3 px-2 font-bold text-brand-navy w-[15%]">{sheet.user.name}</td>
+                        <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap w-[10%]">{sheet.date}</td>
+                        <td className="py-3 px-2 font-medium text-brand-navy whitespace-nowrap w-[15%]">{sheet.project}</td>
+                        <td className="py-3 px-2 text-gray-500 break-words w-[30%]" title={sheet.taskDescription}>
                           {sheet.taskDescription}
                         </td>
-                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{sheet.hours}h</td>
-                        <td className="py-3 px-2 text-gray-400 italic max-w-xs truncate" title={sheet.notes || ''}>
+                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy w-[8%]">{sheet.hours}h</td>
+                        <td className="py-3 px-2 text-gray-400 italic break-words w-[10%]" title={sheet.notes || ''}>
                           {sheet.notes || '-'}
                         </td>
-                        <td className="py-3 px-2 text-center">
+                        <td className="py-3 px-2 text-center w-[6%]">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                             sheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
                             sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
@@ -824,7 +824,7 @@ export default function TeamLeaderDashboard() {
                             {sheet.status}
                           </span>
                         </td>
-                        <td className="py-3 px-2 text-center">
+                        <td className="py-3 px-2 text-center w-[6%]">
                           {sheet.status === 'PENDING' ? (
                             <div className="flex justify-center gap-1.5">
                               <button
