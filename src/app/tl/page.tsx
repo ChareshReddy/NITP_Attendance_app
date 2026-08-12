@@ -17,7 +17,9 @@ import {
   X,
   Send,
   UserCheck,
-  Filter
+  Filter,
+  Menu,
+  TrendingUp
 } from 'lucide-react';
 
 interface TeamMember {
@@ -75,6 +77,7 @@ interface TeamReport {
 
 export default function TeamLeaderDashboard() {
   const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves' | 'goals'>('attendance');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Goals States
   const [goals, setGoals] = useState<any[]>([]);
@@ -465,11 +468,106 @@ export default function TeamLeaderDashboard() {
     return matchesMember && matchesProject;
   });
 
+  const tlNavItems: {
+    id: 'attendance' | 'tracksheets' | 'tasks' | 'leaves' | 'goals' | 'reports';
+    label: string;
+    icon: any;
+  }[] = [
+    { id: 'attendance', label: 'Team Attendance', icon: UserCheck },
+    { id: 'tracksheets', label: 'Track Sheets Review', icon: FileText },
+    { id: 'tasks', label: 'Task Assignment', icon: CheckSquare },
+    { id: 'leaves', label: 'Leave Requests', icon: Calendar },
+    { id: 'goals', label: 'Team Goals & KPIs', icon: TrendingUp },
+    { id: 'reports', label: 'Team Reports to HR', icon: Send },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg pb-12">
+    <div className="flex flex-col min-h-screen bg-brand-bg">
       <Header />
 
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      {/* Mobile Nav Toggle Bar */}
+      <div className="md:hidden bg-white border-b border-gray-150 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-gray-50 text-brand-navy border border-gray-200"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">
+            {tlNavItems.find(item => item.id === activeTab)?.label}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Persistent Left Sidebar - Desktop */}
+        <aside className="hidden md:flex w-60 bg-white border-r border-gray-150 flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto">
+          <div className="px-4 mb-4">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">TL Board</span>
+          </div>
+          <nav className="flex-1 space-y-1">
+            {tlNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                  activeTab === item.id 
+                    ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                    : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                }`}
+              >
+                <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                <span className="text-xs tracking-wide">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Mobile Slide-over Drawer */}
+        {isMobileSidebarOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            
+            <aside className="relative flex w-full max-w-xs flex-col bg-white py-4 shadow-xl border-r border-gray-100 h-full animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100 mb-4">
+                <span className="text-sm font-extrabold text-brand-navy font-heading">TL Board</span>
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="text-gray-500 hover:text-brand-navy p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <nav className="flex-1 overflow-y-auto space-y-1">
+                {tlNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                      activeTab === item.id 
+                        ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                        : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                    <span className="text-xs tracking-wide">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </aside>
+          </div>
+        )}
+
+        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
         
         {/* Alerts Center */}
         {errorMsg && (
@@ -570,57 +668,7 @@ export default function TeamLeaderDashboard() {
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('attendance')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'attendance' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Real-time Attendance
-          </button>
-          <button
-            onClick={() => setActiveTab('tracksheets')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'tracksheets' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Track Sheets Review
-          </button>
-          <button
-            onClick={() => setActiveTab('tasks')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'tasks' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Task Assignment
-          </button>
-          <button
-            onClick={() => setActiveTab('leaves')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'leaves' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Leave Requests
-          </button>
-          <button
-            onClick={() => setActiveTab('goals')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'goals' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Team Goals & KPIs
-          </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'reports' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Team Reports to HR
-          </button>
-        </div>
+
 
         {/* Tab Contents */}
 
@@ -1379,6 +1427,7 @@ export default function TeamLeaderDashboard() {
       )}
 
       </main>
+    </div>
     </div>
   );
 }

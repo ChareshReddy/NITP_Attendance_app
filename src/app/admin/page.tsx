@@ -19,7 +19,11 @@ import {
   TrendingUp,
   FileCheck,
   Calendar,
-  Bell
+  Bell,
+  BookOpen,
+  CreditCard,
+  Menu,
+  X
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 
@@ -118,6 +122,7 @@ interface AuditLog {
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings'>('analytics');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Data States
   const [users, setUsers] = useState<User[]>([]);
@@ -1001,11 +1006,110 @@ export default function AdminDashboard() {
            user.role.toLowerCase().includes(userSearch.toLowerCase());
   });
 
+  const adminNavItems: {
+    id: 'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings';
+    label: string;
+    icon: any;
+  }[] = [
+    { id: 'analytics', label: 'Analytics & Export', icon: TrendingUp },
+    { id: 'users', label: 'Account Management', icon: Users },
+    { id: 'new-employee', label: 'Create Employee', icon: UserPlus },
+    { id: 'performance', label: 'Performance Ratings', icon: FileCheck },
+    { id: 'leaves', label: 'Leave Requests', icon: Calendar },
+    { id: 'payroll', label: 'Run Payroll', icon: CreditCard },
+    { id: 'trainings', label: 'Training Center', icon: BookOpen },
+    { id: 'reports', label: 'Review TL Reports', icon: FileText },
+    { id: 'policies', label: 'Policies & Holidays', icon: Settings },
+    { id: 'audit', label: 'System Audit Log', icon: ShieldAlert },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg pb-12">
+    <div className="flex flex-col min-h-screen bg-brand-bg">
       <Header />
 
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      {/* Mobile Nav Toggle Bar */}
+      <div className="md:hidden bg-white border-b border-gray-150 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="p-1.5 rounded-lg hover:bg-gray-50 text-brand-navy border border-gray-200"
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">
+            {adminNavItems.find(item => item.id === activeTab)?.label}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row flex-1">
+        {/* Persistent Left Sidebar - Desktop */}
+        <aside className="hidden md:flex w-60 bg-white border-r border-gray-150 flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto">
+          <div className="px-4 mb-4">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Admin Panel</span>
+          </div>
+          <nav className="flex-1 space-y-1">
+            {adminNavItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                  activeTab === item.id 
+                    ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                    : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                }`}
+              >
+                <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                <span className="text-xs tracking-wide">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Mobile Slide-over Drawer */}
+        {isMobileSidebarOpen && (
+          <div className="fixed inset-0 z-50 flex md:hidden">
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            />
+            
+            <aside className="relative flex w-full max-w-xs flex-col bg-white py-4 shadow-xl border-r border-gray-100 h-full animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100 mb-4">
+                <span className="text-sm font-extrabold text-brand-navy font-heading">Admin Panel</span>
+                <button 
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="text-gray-500 hover:text-brand-navy p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <nav className="flex-1 overflow-y-auto space-y-1">
+                {adminNavItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
+                      activeTab === item.id 
+                        ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                        : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                    <span className="text-xs tracking-wide">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </aside>
+          </div>
+        )}
+
+        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
         
         {/* Status Alerts */}
         {errorMsg && (
@@ -1137,89 +1241,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="flex border-b border-gray-200 mb-8 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'analytics' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Analytics & Export
-          </button>
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'users' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Account Management
-          </button>
-          <button
-            onClick={() => setActiveTab('new-employee')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'new-employee' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Create Employee
-          </button>
-          <button
-            onClick={() => setActiveTab('performance')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'performance' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Performance Ratings
-          </button>
-          <button
-            onClick={() => setActiveTab('leaves')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'leaves' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Leave Requests
-          </button>
-          <button
-            onClick={() => setActiveTab('payroll')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'payroll' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Run Payroll
-          </button>
-          <button
-            onClick={() => setActiveTab('trainings')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'trainings' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Training Center
-          </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'reports' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Review TL Reports
-          </button>
-          <button
-            onClick={() => setActiveTab('policies')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'policies' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            Policies & Holidays
-          </button>
-          <button
-            onClick={() => setActiveTab('audit')}
-            className={`py-3 px-4 font-bold text-sm border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-              activeTab === 'audit' ? 'border-brand-navy text-brand-navy' : 'border-transparent text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            System Audit Log
-          </button>
-        </div>
+
 
         {/* TAB 1: Analytics & Excel Export */}
         {activeTab === 'analytics' && (
@@ -2912,6 +2934,7 @@ export default function AdminDashboard() {
         )}
 
       </main>
+    </div>
 
       {/* Override Modal */}
       {isOverrideModalOpen && (
