@@ -833,7 +833,7 @@ export default function EmployeeDashboard() {
                   </div>
                   <div className="flex justify-center flex-1 items-center pt-2">
                     {performanceScore ? (
-                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={150} />
+                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={210} />
                     ) : (
                       <p className="text-xs text-gray-400">No score logged.</p>
                     )}
