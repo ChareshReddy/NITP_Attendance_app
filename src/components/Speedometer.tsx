@@ -26,11 +26,11 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
   return (
     <div className="flex flex-col items-center justify-center relative w-full">
       {/* Speedometer Gauge Arc */}
-      <div className="relative" style={{ width: size, height: size * 0.75 }}>
+      <div className="relative" style={{ width: size, height: size * 0.6 }}>
         <svg
           width={size}
-          height={size * 0.9}
-          viewBox="0 0 200 180"
+          height={size * 0.6}
+          viewBox="0 0 200 120"
           className="overflow-visible"
         >
           <defs>
@@ -50,9 +50,9 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
             </filter>
           </defs>
 
-          {/* Background track (light gray) - radius 65, center (100, 135) */}
+          {/* Background track (light gray) - radius 82, center (100, 110) */}
           <path
-            d="M 35 135 A 65 65 0 0 1 165 135"
+            d="M 18 110 A 82 82 0 0 1 182 110"
             fill="none"
             stroke="#F3F4F6"
             strokeWidth="12"
@@ -61,7 +61,7 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
 
           {/* Color Gradient Track */}
           <path
-            d="M 35 135 A 65 65 0 0 1 165 135"
+            d="M 18 110 A 82 82 0 0 1 182 110"
             fill="none"
             stroke="url(#speedometer-grad)"
             strokeWidth="12"
@@ -71,7 +71,7 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
 
           {/* Dash Overlay for clean segmentation */}
           <path
-            d="M 35 135 A 65 65 0 0 1 165 135"
+            d="M 18 110 A 82 82 0 0 1 182 110"
             fill="none"
             stroke="#FFFFFF"
             strokeWidth="14"
@@ -81,39 +81,39 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
 
           {/* Ticks and Labels (positioned cleanly outside the arc) */}
           {/* 0 label */}
-          <line x1="27" y1="135" x2="35" y2="135" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="12" y="139" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">0</text>
+          <line x1="10" y1="110" x2="18" y2="110" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="2" y="114" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">0</text>
 
           {/* 25 label */}
-          <line x1="43" y1="78" x2="49" y2="84" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="32" y="72" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">25</text>
+          <line x1="36.4" y1="46.4" x2="42" y2="52" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="26" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">25</text>
 
           {/* 50 label */}
-          <line x1="100" y1="55" x2="100" y2="65" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="100" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">50</text>
+          <line x1="100" y1="28" x2="100" y2="36" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="100" y="18" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">50</text>
 
           {/* 75 label */}
-          <line x1="157" y1="78" x2="151" y2="84" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="168" y="72" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">75</text>
+          <line x1="163.6" y1="46.4" x2="158" y2="52" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="174" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">75</text>
 
           {/* 100 label */}
-          <line x1="173" y1="135" x2="165" y2="135" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="188" y="139" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">100</text>
+          <line x1="190" y1="110" x2="182" y2="110" stroke="#D1D5DB" strokeWidth="1.5" />
+          <text x="198" y="114" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">100</text>
 
           {/* Needle Pointer */}
-          <g transform={`rotate(${needleRotation}, 100, 135)`} className="transition-transform duration-1000 ease-out">
+          <g transform={`rotate(${needleRotation}, 100, 110)`} className="transition-transform duration-1000 ease-out">
             <polygon
-              points="97,135 100,68 103,135"
+              points="97,110 100,32 103,110"
               fill="#1F2937"
               filter="url(#shadow)"
             />
             {/* Pointer colored tip */}
-            <circle cx="100" cy="70" r="2.5" fill={activeColor.hex} />
+            <circle cx="100" cy="34" r="2.5" fill={activeColor.hex} />
           </g>
 
           {/* Center Hub */}
-          <circle cx="100" cy="135" r="8" fill="#1F2937" />
-          <circle cx="100" cy="135" r="3.5" fill="#FFFFFF" />
+          <circle cx="100" cy="110" r="8" fill="#1F2937" />
+          <circle cx="100" cy="110" r="3.5" fill="#FFFFFF" />
         </svg>
       </div>
     </div>
