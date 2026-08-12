@@ -716,10 +716,10 @@ export default function EmployeeDashboard() {
           {/* TAB 1: Dashboard */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              {/* Row 1 */}
+              {/* Row 1: 3 equal-width columns */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Daily Shift Logging Card */}
-                <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
+                <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl min-h-[240px]">
                   <div>
                     <div className="flex justify-between items-center mb-3">
                       <h3 className="text-base font-bold text-brand-navy font-heading">Daily Work Shift</h3>
@@ -789,37 +789,7 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
-                {/* Performance Health Gauge Card */}
-                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-2 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[240px] rounded-2xl">
-                  <div className="flex justify-between items-center mb-2">
-                    <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
-                      <TrendingUp className="w-5 h-5 text-brand-cta shrink-0" />
-                      Performance Health
-                    </h3>
-                    {performanceScore && (
-                      <span className={`px-2.5 py-0.5 text-xs font-extrabold rounded-full border shadow-sm ${
-                        performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                        performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                        performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                        'bg-red-100 text-brand-red border-red-200'
-                      }`}>
-                        Rating: {performanceScore.rating} (Score: {performanceScore.autoScore})
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex justify-center flex-1 items-center py-4">
-                    {performanceScore ? (
-                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={250} />
-                    ) : (
-                      <p className="text-xs text-gray-400">No score logged.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2 */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Stats panel widgets */}
+                {/* Center Column: Stats panel widgets */}
                 <div className="lg:col-span-1 grid grid-cols-2 gap-4">
                   <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
                     <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">{stats.present}</span>
@@ -843,8 +813,38 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
+                {/* Right Column: Performance Health Gauge Card (Decreased to col-span-1) */}
+                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[240px] rounded-2xl">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
+                      Performance
+                    </h3>
+                    {performanceScore && (
+                      <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-sm ${
+                        performanceScore.rating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                        performanceScore.rating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
+                        performanceScore.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
+                        'bg-red-100 text-brand-red border-red-200'
+                      }`}>
+                        {performanceScore.rating} ({performanceScore.autoScore})
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex justify-center flex-1 items-center pt-2">
+                    {performanceScore ? (
+                      <Speedometer score={performanceScore.autoScore} rating={performanceScore.rating} size={150} />
+                    ) : (
+                      <p className="text-xs text-gray-400">No score logged.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2: Full width form */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Log Daily Work Hours form */}
-                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-2 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
+                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-3 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
                   <div className="mb-4">
                     <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
                       <FileText className="w-5 h-5 text-brand-cta" />
