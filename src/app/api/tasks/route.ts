@@ -24,23 +24,43 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const assignedToId = searchParams.get('assignedToId');
     const teamId = searchParams.get('teamId');
+    const scope = searchParams.get('scope');
 
     const where: any = {};
 
-    if (user.role === 'EMPLOYEE') {
+    // 1. Employee Portal view / personal assigned scope check
+    if (scope === 'assigned' || assignedToId === 'me' || user.role === 'EMPLOYEE') {
       where.assignedToId = user.userId;
-    } else if (user.role === 'TL') {
+    } 
+    // 2. Team Leader scope check (assigned by them OR assigned to a member of their team)
+    else if (user.role === 'TL') {
       where.AND = [
         {
           OR: [
             { assignedById: user.userId },
-            ...(user.teamId ? [{ teamId: user.teamId }] : []),
+            ...(user.teamId ? [
+              { teamId: user.teamId },
+              {
+                assignedTo: {
+                  teamId: user.teamId,
+                },
+              },
+            ] : []),
           ],
         },
       ];
 
       if (assignedToId) {
-        where.AND.push({ assignedToId });
+        // Enforce that TL can only query their own tasks or their team members' tasks
+        const targetEmployee = await prisma.user.findUnique({
+          where: { id: assignedToId },
+          select: { teamId: true },
+        });
+        if (assignedToId === user.userId || (targetEmployee && targetEmployee.teamId === user.teamId)) {
+          where.AND.push({ assignedToId });
+        } else {
+          where.AND.push({ assignedToId: 'unauthorized_assigned_to_id' });
+        }
       }
       if (teamId) {
         if (teamId === user.teamId) {
@@ -49,9 +69,15 @@ export async function GET(request: Request) {
           where.AND.push({ teamId: 'unauthorized_team_id' });
         }
       }
-    } else if (user.role === 'HR_ADMIN') {
+    } 
+    // 3. HR/Admin scope check
+    else if (user.role === 'HR_ADMIN') {
       if (teamId) where.teamId = teamId;
       if (assignedToId) where.assignedToId = assignedToId;
+    } 
+    // 4. Safe fallback for other/undefined roles
+    else {
+      where.assignedToId = user.userId;
     }
 
     const tasks = await prisma.task.findMany({

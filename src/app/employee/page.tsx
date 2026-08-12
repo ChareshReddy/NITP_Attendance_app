@@ -263,7 +263,7 @@ export default function EmployeeDashboard() {
       }
 
       // 3. Fetch Tasks
-      const taskRes = await fetch('/api/tasks');
+      const taskRes = await fetch('/api/tasks?scope=assigned');
       if (taskRes.ok) {
         const taskData = await taskRes.json();
         setTasks(taskData.tasks || []);
