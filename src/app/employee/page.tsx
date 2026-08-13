@@ -450,7 +450,10 @@ export default function EmployeeDashboard() {
       const res = await fetch('/api/users/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profileForm),
+        body: JSON.stringify({
+          ...profileForm,
+          userId: employeeProfile?.userId,
+        }),
       });
 
       const data = await res.json();
