@@ -242,6 +242,10 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
     }
 
+    if (existing.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Conflict: Leave request has already been resolved' }, { status: 400 });
+    }
+
     // Strict server-side check: TL can only review their own team member requests
     if (user.role === 'TL') {
       if (!existing.user.teamId) {
