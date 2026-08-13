@@ -1202,123 +1202,125 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* HR KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          {/* Active Employees */}
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
-            <span className="block text-3xl font-extrabold text-brand-navy font-heading">
-              {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Active Employees</span>
-          </div>
+        {/* HR KPI Cards - Only visible on Analytics (home) tab */}
+        {activeTab === 'analytics' && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+            {/* Active Employees */}
+            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+              <span className="block text-3xl font-extrabold text-brand-navy font-heading">
+                {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Active Employees</span>
+            </div>
 
-          {/* Avg Attendance */}
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
-            <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
-              {kpiStats.rollingAttendanceRate.toFixed(1)}%
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Attendance</span>
-          </div>
+            {/* Avg Attendance */}
+            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+              <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
+                {kpiStats.rollingAttendanceRate.toFixed(1)}%
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Attendance</span>
+            </div>
 
-          {/* Present Today */}
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
-            <span className="block text-3xl font-extrabold text-brand-cta font-heading">
-              {kpiStats.checkedInToday}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present Today</span>
-          </div>
+            {/* Present Today */}
+            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+              <span className="block text-3xl font-extrabold text-brand-cta font-heading">
+                {kpiStats.checkedInToday}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present Today</span>
+            </div>
 
-          {/* Absent Today */}
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
-            <span className="block text-3xl font-extrabold text-brand-red font-heading">
-              {kpiStats.absentToday}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Absent Today</span>
-          </div>
+            {/* Absent Today */}
+            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+              <span className="block text-3xl font-extrabold text-brand-red font-heading">
+                {kpiStats.absentToday}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Absent Today</span>
+            </div>
 
-          {/* On Leave Today */}
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
-            <span className="block text-3xl font-extrabold text-purple-600 font-heading">
-              {kpiStats.onLeaveToday}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">On Leave (Today)</span>
-          </div>
+            {/* On Leave Today */}
+            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+              <span className="block text-3xl font-extrabold text-purple-600 font-heading">
+                {kpiStats.onLeaveToday}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">On Leave (Today)</span>
+            </div>
 
-          {/* Pending TL Reports */}
-          <button
-            onClick={() => setActiveTab('reports')}
-            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
-          >
-            <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
-              {reports.filter(r => r.status === 'PENDING').length}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
-          </button>
+            {/* Pending TL Reports */}
+            <button
+              onClick={() => setActiveTab('reports')}
+              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+            >
+              <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
+                {reports.filter(r => r.status === 'PENDING').length}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
+            </button>
 
-          {/* Pending Leaves */}
-          <button
-            onClick={() => setActiveTab('leaves')}
-            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
-          >
-            <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
-              {leaveRequests.filter(r => r.status === 'PENDING').length}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
-          </button>
+            {/* Pending Leaves */}
+            <button
+              onClick={() => setActiveTab('leaves')}
+              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+            >
+              <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
+                {leaveRequests.filter(r => r.status === 'PENDING').length}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
+            </button>
 
-          {/* Payroll Status */}
-          <button
-            onClick={() => setActiveTab('payroll')}
-            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
-          >
-            {payrollRuns.some(r => r.status === 'DRAFT') ? (
-              <>
-                <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
-                  Draft Active
-                </span>
-                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
-              </>
-            ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
-              <>
-                <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
-                  Pending Payout
-                </span>
-                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
-              </>
-            ) : (
-              <>
-                <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
-                  All Paid
-                </span>
-                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
-              </>
-            )}
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
-          </button>
+            {/* Payroll Status */}
+            <button
+              onClick={() => setActiveTab('payroll')}
+              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+            >
+              {payrollRuns.some(r => r.status === 'DRAFT') ? (
+                <>
+                  <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
+                    Draft Active
+                  </span>
+                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
+                </>
+              ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
+                <>
+                  <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
+                    Pending Payout
+                  </span>
+                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
+                </>
+              ) : (
+                <>
+                  <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
+                    All Paid
+                  </span>
+                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
+                </>
+              )}
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+            </button>
 
-          {/* Performance Overview (lg:col-span-2) */}
-          <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-sm hover:shadow-md transition-shadow">
-            <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center tracking-wider">Performance Overview</span>
-            <div className="flex justify-around items-center gap-1">
-              <div className="text-center">
-                <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{performanceCounts.BLUE}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Blue</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{performanceCounts.GREEN}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Green</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{performanceCounts.YELLOW}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Yellow</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1.5 py-0.5 rounded">{performanceCounts.RED}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Red</span>
+            {/* Performance Overview (lg:col-span-2) */}
+            <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-sm hover:shadow-md transition-shadow">
+              <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center tracking-wider">Performance Overview</span>
+              <div className="flex justify-around items-center gap-1">
+                <div className="text-center">
+                  <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{performanceCounts.BLUE}</span>
+                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Blue</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{performanceCounts.GREEN}</span>
+                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Green</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{performanceCounts.YELLOW}</span>
+                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Yellow</span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1.5 py-0.5 rounded">{performanceCounts.RED}</span>
+                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Red</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
 
 
@@ -2388,19 +2390,40 @@ export default function AdminDashboard() {
 
         {/* TAB 6: Performance Score Ratings */}
         {activeTab === 'performance' && (
-          <div className="bg-white premium-card p-6 border border-gray-100">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h3>
-                <p className="text-xs text-gray-400 mt-1">Automatic nightly auto-scoring with manual override capability for HR Admins.</p>
+          <div className="space-y-6">
+            {/* Performance KPI Row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-blue-700 font-heading">{performanceCounts.BLUE}</span>
+                <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block mt-1">Blue Rating</span>
               </div>
-              <button
-                onClick={() => fetchAdminData()}
-                className="bg-brand-bg hover:bg-gray-100 text-brand-navy border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
-              >
-                Recompute Auto-Scores
-              </button>
+              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-emerald-700 font-heading">{performanceCounts.GREEN}</span>
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Green Rating</span>
+              </div>
+              <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-amber-700 font-heading">{performanceCounts.YELLOW}</span>
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Yellow Rating</span>
+              </div>
+              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
+                <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block mt-1">Red Rating</span>
+              </div>
             </div>
+
+            <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h3>
+                  <p className="text-xs text-gray-400 mt-1">Automatic nightly auto-scoring with manual override capability for HR Admins.</p>
+                </div>
+                <button
+                  onClick={() => fetchAdminData()}
+                  className="bg-brand-bg hover:bg-gray-100 text-brand-navy border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                >
+                  Recompute Auto-Scores
+                </button>
+              </div>
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
@@ -2486,12 +2509,36 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+        </div>
         )}
 
         {/* TAB 7: Leave Requests System */}
         {activeTab === 'leaves' && (
-          <div className="bg-white premium-card p-6 border border-gray-100">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
+          <div className="space-y-6">
+            {/* Leave Requests KPI Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-purple-700 font-heading">
+                  {leaveRequests.filter(r => r.status === 'PENDING').length}
+                </span>
+                <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider block mt-1">Pending Leave Requests</span>
+              </div>
+              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-emerald-700 font-heading">
+                  {leaveRequests.filter(r => r.status === 'APPROVED').length}
+                </span>
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Approved Leave Requests</span>
+              </div>
+              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-sm">
+                <span className="block text-2xl font-extrabold text-brand-red font-heading">
+                  {leaveRequests.filter(r => r.status === 'REJECTED').length}
+                </span>
+                <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block mt-1">Rejected Leave Requests</span>
+              </div>
+            </div>
+
+            <div className="bg-white premium-card p-6 border border-gray-100">
+              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
             
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
@@ -2564,6 +2611,7 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+        </div>
         )}
 
         {/* TAB: Run Payroll */}
@@ -2601,6 +2649,26 @@ export default function AdminDashboard() {
             {/* SUBTAB 1: Runs */}
             {payrollSubTab === 'runs' && (
               <div className="space-y-6">
+                {/* Payroll KPI Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-200 text-center shadow-sm">
+                    <span className="block text-2xl font-extrabold text-brand-navy font-heading">{payrollRuns.length}</span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mt-1">Total Runs Logged</span>
+                  </div>
+                  <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-sm">
+                    <span className="block text-2xl font-extrabold text-amber-700 font-heading">
+                      {payrollRuns.filter(r => r.status === 'DRAFT').length}
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Draft Payrolls</span>
+                  </div>
+                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-sm">
+                    <span className="block text-2xl font-extrabold text-blue-700 font-heading">
+                      {payrollRuns.filter(r => r.status === 'APPROVED').length}
+                    </span>
+                    <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block mt-1">Approved Pending Payout</span>
+                  </div>
+                </div>
+
                 {/* Parameters block */}
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                   <form onSubmit={handleGeneratePayroll} className="flex flex-col md:flex-row md:items-end gap-4">
