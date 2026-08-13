@@ -1155,51 +1155,53 @@ export default function AdminDashboard() {
           </div>
 
           {/* Quick Check-in/out widget for HR */}
-          <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-150 shadow-sm self-start lg:self-center min-w-[280px]">
-            <div className="bg-blue-50 p-2.5 rounded-xl text-brand-navy shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-gray-400 block uppercase">Daily Work Shift</span>
-              <span className="text-xs font-bold text-brand-navy block mt-0.5">
-                {todayRecord ? (
-                  <>
-                    In: <span className="font-semibold text-brand-cta">{new Date(todayRecord.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    {todayRecord.checkOutTime ? (
-                      <>
-                        {" "}• Out: <span className="font-semibold text-brand-red">{new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                      </>
-                    ) : ''}
-                  </>
-                ) : (
-                  'Not Checked In'
-                )}
-              </span>
-            </div>
-            <div className="shrink-0">
-              {!todayRecord ? (
-                <button
-                  onClick={handleCheckIn}
-                  disabled={loadingAttendance}
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
-                >
-                  {loadingAttendance ? '...' : 'Check In'}
-                </button>
-              ) : !todayRecord.checkOutTime ? (
-                <button
-                  onClick={handleCheckOut}
-                  disabled={loadingAttendance}
-                  className="bg-brand-red hover:bg-red-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
-                >
-                  {loadingAttendance ? '...' : 'Check Out'}
-                </button>
-              ) : (
-                <span className="text-xs font-extrabold text-gray-400 bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
-                  Completed
+          {activeTab === 'analytics' && (
+            <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-150 shadow-sm self-start lg:self-center min-w-[280px]">
+              <div className="bg-blue-50 p-2.5 rounded-xl text-brand-navy shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-bold text-gray-400 block uppercase">Daily Work Shift</span>
+                <span className="text-xs font-bold text-brand-navy block mt-0.5">
+                  {todayRecord ? (
+                    <>
+                      In: <span className="font-semibold text-brand-cta">{new Date(todayRecord.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      {todayRecord.checkOutTime ? (
+                        <>
+                          {" "}• Out: <span className="font-semibold text-brand-red">{new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </>
+                      ) : ''}
+                    </>
+                  ) : (
+                    'Not Checked In'
+                  )}
                 </span>
-              )}
+              </div>
+              <div className="shrink-0">
+                {!todayRecord ? (
+                  <button
+                    onClick={handleCheckIn}
+                    disabled={loadingAttendance}
+                    className="bg-brand-cta hover:bg-blue-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
+                  >
+                    {loadingAttendance ? '...' : 'Check In'}
+                  </button>
+                ) : !todayRecord.checkOutTime ? (
+                  <button
+                    onClick={handleCheckOut}
+                    disabled={loadingAttendance}
+                    className="bg-brand-red hover:bg-red-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
+                  >
+                    {loadingAttendance ? '...' : 'Check Out'}
+                  </button>
+                ) : (
+                  <span className="text-xs font-extrabold text-gray-400 bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
+                    Completed
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* HR KPI Cards - Only visible on Analytics (home) tab */}
