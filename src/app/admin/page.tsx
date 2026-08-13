@@ -132,7 +132,8 @@ export default function AdminDashboard() {
     newJoiners: 0,
     onLeaveToday: 0,
     absentToday: 0,
-    rollingAttendanceRate: 100
+    rollingAttendanceRate: 100,
+    checkedInToday: 0,
   });
   const [teams, setTeams] = useState<Team[]>([]);
   const [reports, setReports] = useState<TLReport[]>([]);
@@ -374,7 +375,7 @@ export default function AdminDashboard() {
       }
 
       // 5.5. Fetch Payroll Runs
-      if (activeTab === 'payroll') {
+      if (activeTab === 'payroll' || activeTab === 'analytics') {
         const payrollRes = await fetch('/api/payroll/runs');
         if (payrollRes.ok) {
           const payrollData = await payrollRes.json();
@@ -1202,43 +1203,118 @@ export default function AdminDashboard() {
         </div>
 
         {/* HR KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
-            <span className="block text-3xl font-extrabold text-brand-navy font-heading">{users.length}</span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Active Accounts</span>
-          </div>
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
-            <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
-              {users.length > 0 ? '92%' : '0%'}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          {/* Active Employees */}
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <span className="block text-3xl font-extrabold text-brand-navy font-heading">
+              {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
             </span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Avg Attendance</span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Active Employees</span>
           </div>
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
-            <span className="block text-3xl font-extrabold text-brand-red font-heading">{holidays.length}</span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Company Holidays</span>
+
+          {/* Avg Attendance */}
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
+              {kpiStats.rollingAttendanceRate.toFixed(1)}%
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Attendance</span>
           </div>
-          <div className="bg-white premium-card p-4 border border-gray-100 text-center">
-            <span className="block text-3xl font-extrabold text-brand-cta font-heading">{reports.filter(r => r.status === 'PENDING').length}</span>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase">Pending TL Reports</span>
+
+          {/* Present Today */}
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <span className="block text-3xl font-extrabold text-brand-cta font-heading">
+              {kpiStats.checkedInToday}
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present Today</span>
           </div>
-          <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between">
-            <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center">Performance Overview</span>
+
+          {/* Absent Today */}
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <span className="block text-3xl font-extrabold text-brand-red font-heading">
+              {kpiStats.absentToday}
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Absent Today</span>
+          </div>
+
+          {/* On Leave Today */}
+          <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <span className="block text-3xl font-extrabold text-purple-600 font-heading">
+              {kpiStats.onLeaveToday}
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">On Leave (Today)</span>
+          </div>
+
+          {/* Pending TL Reports */}
+          <button
+            onClick={() => setActiveTab('reports')}
+            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+          >
+            <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
+              {reports.filter(r => r.status === 'PENDING').length}
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
+          </button>
+
+          {/* Pending Leaves */}
+          <button
+            onClick={() => setActiveTab('leaves')}
+            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+          >
+            <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
+              {leaveRequests.filter(r => r.status === 'PENDING').length}
+            </span>
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
+          </button>
+
+          {/* Payroll Status */}
+          <button
+            onClick={() => setActiveTab('payroll')}
+            className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+          >
+            {payrollRuns.some(r => r.status === 'DRAFT') ? (
+              <>
+                <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
+                  Draft Active
+                </span>
+                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
+              </>
+            ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
+              <>
+                <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
+                  Pending Payout
+                </span>
+                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
+              </>
+            ) : (
+              <>
+                <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
+                  All Paid
+                </span>
+                <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
+              </>
+            )}
+            <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+          </button>
+
+          {/* Performance Overview (lg:col-span-2) */}
+          <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-sm hover:shadow-md transition-shadow">
+            <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center tracking-wider">Performance Overview</span>
             <div className="flex justify-around items-center gap-1">
               <div className="text-center">
-                <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">Blue</span>
+                <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{performanceCounts.BLUE}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Blue</span>
               </div>
               <div className="text-center">
-                <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">Green</span>
+                <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{performanceCounts.GREEN}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Green</span>
               </div>
               <div className="text-center">
-                <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">Yellow</span>
+                <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{performanceCounts.YELLOW}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Yellow</span>
               </div>
               <div className="text-center">
-                <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">Red</span>
+                <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1.5 py-0.5 rounded">{performanceCounts.RED}</span>
+                <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Red</span>
               </div>
             </div>
           </div>
@@ -1250,48 +1326,24 @@ export default function AdminDashboard() {
         {activeTab === 'analytics' && (
           <div className="space-y-8">
 
-            {/* KPI Statistics Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {/* Total Employees */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Employees</span>
-                <span className="text-2xl font-extrabold text-brand-navy mt-1 font-heading">{kpiStats.totalEmployees}</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Rostered members</span>
-              </div>
-
-              {/* Active Employees */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Status</span>
-                <span className="text-2xl font-extrabold text-emerald-600 mt-1 font-heading">{kpiStats.activeEmployees}</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Active user logins</span>
+            {/* Monthly & Rostered Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Total Rostered Employees */}
+              <div className="bg-white premium-card p-6 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Rostered Employees</span>
+                  <span className="text-3xl font-extrabold text-brand-navy mt-2 block font-heading">{kpiStats.totalEmployees}</span>
+                </div>
+                <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Includes all active staff profiles</span>
               </div>
 
               {/* New Joiners */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">New Joiners</span>
-                <span className="text-2xl font-extrabold text-blue-600 mt-1 font-heading">{kpiStats.newJoiners}</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Joined this month</span>
-              </div>
-
-              {/* On Leave Today */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">On Leave (Today)</span>
-                <span className="text-2xl font-extrabold text-purple-600 mt-1 font-heading">{kpiStats.onLeaveToday}</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Approved requests</span>
-              </div>
-
-              {/* Absent Today */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Absent (Today)</span>
-                <span className="text-2xl font-extrabold text-red-600 mt-1 font-heading">{kpiStats.absentToday}</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Missing punches</span>
-              </div>
-
-              {/* Rolling Attendance */}
-              <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Rolling Attendance</span>
-                <span className="text-2xl font-extrabold text-brand-cta mt-1 font-heading">{kpiStats.rollingAttendanceRate.toFixed(1)}%</span>
-                <span className="text-[9px] text-gray-500 font-semibold mt-0.5">Past 30 days rate</span>
+              <div className="bg-white premium-card p-6 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">New Joiners (This Month)</span>
+                  <span className="text-3xl font-extrabold text-blue-600 mt-2 block font-heading">{kpiStats.newJoiners}</span>
+                </div>
+                <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Onboarded since the 1st of the month</span>
               </div>
             </div>
             

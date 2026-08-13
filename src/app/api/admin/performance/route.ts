@@ -116,11 +116,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const recompute = searchParams.get('recompute') === 'true';
 
-    // 1. Fetch relevant users to report on
+    // 1. Fetch relevant users to report on (only count EMPLOYEE & TL roles)
     let usersQuery: any = { isActive: true };
     if (user.role === 'TL') {
       usersQuery.teamId = user.teamId;
-    } else if (user.role !== 'HR_ADMIN') {
+      usersQuery.role = { in: ['EMPLOYEE', 'TL'] };
+    } else if (user.role === 'HR_ADMIN') {
+      usersQuery.role = { in: ['EMPLOYEE', 'TL'] };
+    } else {
       // Employees can only fetch their own performance score
       usersQuery.id = user.userId;
     }

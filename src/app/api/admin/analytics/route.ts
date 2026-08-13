@@ -64,8 +64,13 @@ export async function GET() {
       },
     });
 
-    // 6. Absent (today)
-    const absentToday = Math.max(0, activeEmployees - checkedInToday - onLeaveToday);
+    // 6. Absent (today) - only count users with explicit ABSENT status today
+    const absentToday = await prisma.attendance.count({
+      where: {
+        date: todayStr,
+        status: 'ABSENT',
+      },
+    });
 
     // 7. Rolling Attendance % (past 30 days)
     const thirtyDaysAgo = new Date();
@@ -75,7 +80,7 @@ export async function GET() {
     const presentLogs = await prisma.attendance.count({
       where: {
         date: { gte: thirtyDaysAgoStr, lte: todayStr },
-        status: { in: ['PRESENT', 'LATE_COMING', 'EARLY_LEAVING', 'OVERTIME'] },
+        status: { in: ['PRESENT', 'LATE', 'LATE_COMING', 'EARLY_LEAVING', 'OVERTIME', 'MISSING_PUNCH'] },
       },
     });
 
@@ -96,6 +101,7 @@ export async function GET() {
       onLeaveToday,
       absentToday,
       rollingAttendanceRate,
+      checkedInToday,
     });
   } catch (error) {
     console.error('Analytics stats calculation error:', error);
