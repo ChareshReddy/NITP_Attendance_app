@@ -106,6 +106,10 @@ export default function TeamLeaderDashboard() {
   
   // Leave Request States
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [sessionUser, setSessionUser] = useState<any>(null);
+  const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
 
   // Performance Rating States
   const [performanceScores, setPerformanceScores] = useState<any[]>([]);
@@ -170,6 +174,21 @@ export default function TeamLeaderDashboard() {
       errorTimeoutRef.current = { fade: fadeId, dismiss: dismissId };
     }
   };
+
+  useEffect(() => {
+    async function fetchSession() {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const data = await res.json();
+          setSessionUser(data.user);
+        }
+      } catch (e) {
+        console.error('Session fetch failed in TL Board:', e);
+      }
+    }
+    fetchSession();
+  }, []);
 
   useEffect(() => {
     fetchTeamData();
@@ -350,6 +369,40 @@ export default function TeamLeaderDashboard() {
       fetchTeamData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error updating leave request');
+    }
+  };
+
+  const handleOpenRejectModal = (id: string) => {
+    setRejectRequestId(id);
+    setRejectionReason('');
+    setIsRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectRequestId) return;
+
+    try {
+      const res = await fetch('/api/leave-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: rejectRequestId,
+          status: 'REJECTED',
+          rejectionReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reject leave request');
+
+      setSuccessMsg('Leave request has been rejected successfully.');
+      setIsRejectModalOpen(false);
+      setRejectRequestId(null);
+      setRejectionReason('');
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error rejecting leave request');
     }
   };
 
@@ -1137,18 +1190,25 @@ export default function TeamLeaderDashboard() {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
-                          <button
-                            onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleReviewLeaveRequest(req.id, 'REJECTED')}
-                            className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
-                          >
-                            Reject
-                          </button>
+                          {((sessionUser?.role === 'HR_ADMIN') || 
+                            (sessionUser?.role === 'TL' && req.user.teamId === sessionUser.teamId)) ? (
+                            <>
+                              <button
+                                onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleOpenRejectModal(req.id)}
+                                className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 font-semibold text-[10px]">-</span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1378,6 +1438,50 @@ export default function TeamLeaderDashboard() {
           </div>
         )}
 
+      {/* Rejection Reason Modal */}
+      {isRejectModalOpen && rejectRequestId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Reject Leave Request</h3>
+            <p className="text-xs text-gray-500">Provide a clear reason explaining why this leave request is being rejected.</p>
+
+            <form onSubmit={handleConfirmReject} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Rejection Reason *</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Project deliverable deadline conflicts with the requested dates."
+                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta min-h-[80px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectModalOpen(false);
+                    setRejectRequestId(null);
+                    setRejectionReason('');
+                  }}
+                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-brand-red hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
       {/* Goal Update Modal */}
       {isGoalModalOpen && selectedGoal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

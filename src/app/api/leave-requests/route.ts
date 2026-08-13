@@ -225,7 +225,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id, status } = await request.json();
+    const { id, status, rejectionReason } = await request.json();
 
     if (!id || !status || !['APPROVED', 'REJECTED'].includes(status)) {
       return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
@@ -242,9 +242,20 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
     }
 
-    // TL can only review their own team member requests
-    if (user.role === 'TL' && existing.user.teamId !== user.teamId) {
-      return NextResponse.json({ error: 'Forbidden: Request is not from your team member' }, { status: 403 });
+    // Strict server-side check: TL can only review their own team member requests
+    if (user.role === 'TL') {
+      if (!existing.user.teamId) {
+        return NextResponse.json({ error: 'Forbidden: Request is not from your team member' }, { status: 403 });
+      }
+      const ledTeam = await prisma.team.findFirst({
+        where: {
+          id: existing.user.teamId,
+          teamLeaderId: user.userId,
+        },
+      });
+      if (!ledTeam) {
+        return NextResponse.json({ error: 'Forbidden: You are not the Team Leader of this employee\'s team' }, { status: 403 });
+      }
     }
 
     let isLossOfPay = false;
@@ -316,11 +327,15 @@ export async function PUT(request: Request) {
       },
     });
 
-    // Send notification to the employee
+    // Send notification to the employee (including rejection reason if rejected)
+    const notifMessage = status === 'REJECTED' && rejectionReason
+      ? `Your leave request from ${existing.startDate} to ${existing.endDate} has been rejected by ${user.name}. Reason: ${rejectionReason}`
+      : `Your leave request from ${existing.startDate} to ${existing.endDate} has been ${status.toLowerCase()} by ${user.name}.`;
+
     await prisma.notification.create({
       data: {
         userId: existing.userId,
-        message: `Your leave request from ${existing.startDate} to ${existing.endDate} has been ${status.toLowerCase()} by ${user.name}.`,
+        message: notifMessage,
       },
     });
 
