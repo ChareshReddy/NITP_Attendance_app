@@ -1595,8 +1595,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* Accounts Directory */}
-            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2 lg:h-[768px] flex flex-col">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shrink-0">
                 <h3 className="text-lg font-bold text-brand-navy font-heading">User Directory</h3>
                 
                 <div className="relative w-full sm:w-64">
@@ -1613,7 +1613,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
                   <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
                     <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
