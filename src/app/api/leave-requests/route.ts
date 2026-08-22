@@ -21,6 +21,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Ensure 'On Duty' category exists in DB
+    await prisma.leaveType.upsert({
+      where: { name: 'On Duty' },
+      update: {},
+      create: { name: 'On Duty', daysAllowed: 365 }
+    });
+
     const { searchParams } = new URL(request.url);
     const userIdParam = searchParams.get('userId');
 

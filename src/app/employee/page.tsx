@@ -24,6 +24,42 @@ import {
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Helper to capitalize employee name and ensure Surname is last
+export function formatEmployeeName(nameVal: string | null | undefined): string {
+  if (!nameVal) return '-';
+  const capitalized = nameVal
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  const parts = capitalized.split(' ');
+  if (parts.length > 1 && parts[0].length === 1) {
+    const initial = parts.shift();
+    parts.push(initial!);
+    return parts.join(' ');
+  }
+  return capitalized;
+}
+
+// Timezone-safe Indian date formatting
+export function formatDateToIndian(dateVal: string | Date | null | undefined): string {
+  if (!dateVal) return '-';
+  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
+    const parts = dateVal.split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      if (parts[2].length === 4) return dateVal;
+    }
+  }
+  const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
+  if (isNaN(date.getTime())) return typeof dateVal === 'string' ? dateVal : '-';
+  const d = String(date.getUTCDate()).padStart(2, '0');
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const y = date.getUTCFullYear();
+  return `${d}-${m}-${y}`;
+}
+
 // CountUp animations for stats
 function CountUp({ value }: { value: number }) {
   const [displayValue, setDisplayValue] = useState(value);
@@ -161,6 +197,23 @@ interface EmployeeProfile {
   ifsc: string | null;
   pan: string | null;
   uan: string | null;
+  financialDocuments?: string | null;
+  professionalEmail?: string | null;
+  insuranceNumber?: string | null;
+  expectedEndDate?: string | Date | null;
+  incrementPerks?: string | null;
+  profileImage?: string | null;
+  bankBranch?: string | null;
+  bankAddress?: string | null;
+  pfNumber?: string | null;
+  bloodGroup?: string | null;
+  timezone?: string | null;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
 }
 
 interface SalaryStructure {
@@ -206,6 +259,7 @@ interface PerformanceGoal {
   period: string;
   status: string;
   manager: { name: string } | null;
+  createdAt?: string;
 }
 
 interface TrainingAssignment {
@@ -283,14 +337,28 @@ export default function EmployeeDashboard() {
   const [performanceScore, setPerformanceScore] = useState<any>(null);
 
   // Self-Service States
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history' | 'resignation'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Calendar History States
   const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
   const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth()); // 0-11
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
+  const [selectedTrackSheet, setSelectedTrackSheet] = useState<any | null>(null);
+  const [uploadingTaskDoc, setUploadingTaskDoc] = useState(false);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
+  const [resignationRequest, setResignationRequest] = useState<any>(null);
+  const [resignationDate, setResignationDate] = useState('');
+  const [lastWorkingDay, setLastWorkingDay] = useState('');
+  const [resignationReason, setResignationReason] = useState('');
+  const [submittingResignation, setSubmittingResignation] = useState(false);
+
+  const [regularisationRequests, setRegularisationRequests] = useState<any[]>([]);
+  const [regDate, setRegDate] = useState('');
+  const [regCheckIn, setRegCheckIn] = useState('');
+  const [regCheckOut, setRegCheckOut] = useState('');
+  const [regReason, setRegReason] = useState('');
+  const [submittingReg, setSubmittingReg] = useState(false);
   const [profileForm, setProfileForm] = useState({
     mobileNumber: '',
     personalEmail: '',
@@ -298,6 +366,11 @@ export default function EmployeeDashboard() {
     currentAddress: '',
     permanentAddress: '',
     maritalStatus: 'Single',
+    professionalEmail: '',
+    insuranceNumber: '',
+    bloodGroup: '',
+    timezone: 'Asia/Kolkata',
+    profileImage: '',
   });
   const [myPayrollRuns, setMyPayrollRuns] = useState<PayrollRun[]>([]);
   const [myGoals, setMyGoals] = useState<PerformanceGoal[]>([]);
@@ -307,11 +380,13 @@ export default function EmployeeDashboard() {
   const [myTrainings, setMyTrainings] = useState<TrainingAssignment[]>([]);
 
   // Form States
-  const [project, setProject] = useState('');
-  const [taskDescription, setTaskDescription] = useState('');
-  const [hours, setHours] = useState('8.0');
-  const [notes, setNotes] = useState('');
-  const [assignedByName, setAssignedByName] = useState('');
+  const [logItems, setLogItems] = useState<Array<{
+    project: string;
+    taskDescription: string;
+    hours: string;
+    notes: string;
+    assignedByName: string;
+  }>>([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }]);
 
   // Status handlers
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -426,6 +501,11 @@ export default function EmployeeDashboard() {
             currentAddress: profileData.profile.currentAddress || '',
             permanentAddress: profileData.profile.permanentAddress || '',
             maritalStatus: profileData.profile.maritalStatus || 'Single',
+            professionalEmail: profileData.profile.professionalEmail || '',
+            insuranceNumber: profileData.profile.insuranceNumber || '',
+            bloodGroup: profileData.profile.bloodGroup || '',
+            timezone: profileData.profile.timezone || 'Asia/Kolkata',
+            profileImage: profileData.profile.profileImage || '',
           });
         }
       }
@@ -449,6 +529,20 @@ export default function EmployeeDashboard() {
       if (trainingRes.ok) {
         const trainingData = await trainingRes.json();
         setMyTrainings(trainingData.assignments || []);
+      }
+
+      // 11. Fetch Resignation request
+      const resignationRes = await fetch('/api/resignation');
+      if (resignationRes.ok) {
+        const resignationData = await resignationRes.json();
+        setResignationRequest(resignationData.request || null);
+      }
+
+      // 12. Fetch Regularisation requests
+      const regularisationRes = await fetch('/api/regularisation');
+      if (regularisationRes.ok) {
+        const regularisationData = await regularisationRes.json();
+        setRegularisationRequests(regularisationData.requests || []);
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -508,27 +602,22 @@ export default function EmployeeDashboard() {
 
     try {
       const todayStr = new Date().toISOString().split('T')[0];
+      const payload = logItems.map(item => ({
+        ...item,
+        date: todayStr
+      }));
+
       const res = await fetch('/api/tracksheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: todayStr,
-          project,
-          taskDescription,
-          hours,
-          notes,
-          assignedByName,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to log hours');
 
-      setSuccessMsg('Track sheet entry created successfully!');
-      setProject('');
-      setTaskDescription('');
-      setNotes('');
-      setAssignedByName('');
+      setSuccessMsg('Track sheet entries created successfully!');
+      setLogItems([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }]);
       fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error saving track sheet');
@@ -550,6 +639,222 @@ export default function EmployeeDashboard() {
       }
     } catch (err) {
       console.error('Error deleting track sheet:', err);
+    }
+  };
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dest', 'profiles');
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProfileForm(prev => ({ ...prev, profileImage: data.url }));
+        setSuccessMsg('Profile image uploaded! Click Save to apply.');
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to upload profile image.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error uploading file.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingDoc(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dest', 'financial');
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const uploadResult = await res.json();
+        let docs = [];
+        try {
+          docs = employeeProfile?.financialDocuments ? JSON.parse(employeeProfile.financialDocuments) : [];
+          if (!Array.isArray(docs)) docs = [];
+        } catch {
+          docs = [];
+        }
+        const newDoc = {
+          name: file.name,
+          url: uploadResult.url,
+          uploadedAt: new Date().toISOString()
+        };
+        const updatedDocs = [...docs, newDoc];
+        
+        const saveRes = await fetch('/api/users/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            financialDocuments: JSON.stringify(updatedDocs),
+            userId: employeeProfile?.userId,
+          })
+        });
+        if (saveRes.ok) {
+          setSuccessMsg('Financial document uploaded successfully!');
+          fetchData();
+        } else {
+          const saveErr = await saveRes.json();
+          throw new Error(saveErr.error || 'Failed to save document metadata.');
+        }
+      } else {
+        const uploadErr = await res.json();
+        throw new Error(uploadErr.error || 'Failed to upload document file.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error uploading document.');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDocumentDelete = async (docIndex: number) => {
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      let docs = [];
+      try {
+        docs = employeeProfile?.financialDocuments ? JSON.parse(employeeProfile.financialDocuments) : [];
+        if (!Array.isArray(docs)) docs = [];
+      } catch {
+        docs = [];
+      }
+      docs.splice(docIndex, 1);
+      
+      const saveRes = await fetch('/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          financialDocuments: JSON.stringify(docs),
+          userId: employeeProfile?.userId,
+        })
+      });
+      if (saveRes.ok) {
+        setSuccessMsg('Document deleted successfully!');
+        fetchData();
+      } else {
+        const saveErr = await saveRes.json();
+        throw new Error(saveErr.error || 'Failed to delete document.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error deleting document.');
+    }
+  };
+
+  const handleTaskDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedTrackSheet) return;
+    setUploadingTaskDoc(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dest', 'tasks');
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        const uploadResult = await res.json();
+        let docs = [];
+        try {
+          docs = selectedTrackSheet.supportingDocuments ? JSON.parse(selectedTrackSheet.supportingDocuments) : [];
+          if (!Array.isArray(docs)) docs = [];
+        } catch {
+          docs = [];
+        }
+        const newDoc = {
+          name: file.name,
+          url: uploadResult.url,
+          uploadedAt: new Date().toISOString()
+        };
+        const updatedDocs = [...docs, newDoc];
+        
+        const saveRes = await fetch('/api/tracksheets', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedTrackSheet.id,
+            supportingDocuments: JSON.stringify(updatedDocs)
+          })
+        });
+        if (saveRes.ok) {
+          const saveResult = await saveRes.json();
+          setSuccessMsg('Supporting document uploaded successfully!');
+          setSelectedTrackSheet(saveResult.trackSheet);
+          fetchData();
+        } else {
+          const saveErr = await saveRes.json();
+          throw new Error(saveErr.error || 'Failed to save document metadata.');
+        }
+      } else {
+        const uploadErr = await res.json();
+        throw new Error(uploadErr.error || 'Failed to upload document file.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error uploading document.');
+    } finally {
+      setUploadingTaskDoc(false);
+    }
+  };
+
+  const handleTaskDocDelete = async (docIndex: number) => {
+    if (!selectedTrackSheet) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      let docs = [];
+      try {
+        docs = selectedTrackSheet.supportingDocuments ? JSON.parse(selectedTrackSheet.supportingDocuments) : [];
+        if (!Array.isArray(docs)) docs = [];
+      } catch {
+        docs = [];
+      }
+      docs.splice(docIndex, 1);
+      
+      const saveRes = await fetch('/api/tracksheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedTrackSheet.id,
+          supportingDocuments: JSON.stringify(docs)
+        })
+      });
+      if (saveRes.ok) {
+        const saveResult = await saveRes.json();
+        setSuccessMsg('Document deleted successfully!');
+        setSelectedTrackSheet(saveResult.trackSheet);
+        fetchData();
+      } else {
+        const saveErr = await saveRes.json();
+        throw new Error(saveErr.error || 'Failed to delete document.');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error deleting document.');
     }
   };
 
@@ -578,6 +883,64 @@ export default function EmployeeDashboard() {
       setErrorMsg(err.message || 'Error updating profile');
     } finally {
       setLoadingAttendance(false);
+    }
+  };
+
+  const handleSubmitResignation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingResignation(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/resignation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          resignationDate,
+          lastWorkingDay,
+          reason: resignationReason
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit resignation request');
+      setSuccessMsg('Your resignation request has been submitted successfully!');
+      setResignationReason('');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error submitting resignation');
+    } finally {
+      setSubmittingResignation(false);
+    }
+  };
+
+  const handleSubmitRegularisation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmittingReg(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/regularisation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: regDate,
+          checkInTime: regCheckIn || null,
+          checkOutTime: regCheckOut || null,
+          reason: regReason
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit regularisation request');
+      setSuccessMsg('Regularisation request submitted successfully!');
+      setRegDate('');
+      setRegCheckIn('');
+      setRegCheckOut('');
+      setRegReason('');
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error submitting regularisation');
+    } finally {
+      setSubmittingReg(false);
     }
   };
 
@@ -695,18 +1058,20 @@ export default function EmployeeDashboard() {
   };
 
   const employeeNavItems: {
-    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history';
+    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history' | 'resignation';
     label: string;
     icon: any;
   }[] = [
     { id: 'dashboard', label: 'My Dashboard', icon: Clock },
     { id: 'profile', label: 'My Profile', icon: User },
     { id: 'tasks', label: 'My Tasks', icon: CheckSquare },
+    { id: 'goals', label: 'My Performance Goals', icon: TrendingUp },
     { id: 'tracksheets', label: 'My Track Sheets', icon: FileText },
     { id: 'leaves', label: 'My Leaves & Requests', icon: Calendar },
     { id: 'history', label: 'My Attendance History', icon: History },
     { id: 'payroll', label: 'My Payroll & Payslip', icon: TrendingUp },
     { id: 'trainings', label: 'My Trainings', icon: Bell },
+    { id: 'resignation', label: 'Resignation', icon: Trash2 },
   ];
 
   return (
@@ -862,7 +1227,7 @@ export default function EmployeeDashboard() {
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-150/40">
                     <div>
                       <h2 className="text-2xl font-extrabold text-brand-navy font-heading tracking-tight">
-                        {greeting}, {employeeProfile ? employeeProfile.personalEmail?.split('@')[0] || 'Member' : 'Member'}!
+                        {greeting}, {employeeProfile?.user?.name || 'Member'}!
                       </h2>
                       <p className="text-xs text-gray-500 mt-1">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -909,31 +1274,40 @@ export default function EmployeeDashboard() {
                     </div>
                   </div>
 
-                  <div className="w-full">
-                    {!todayRecord ? (
-                      <button
-                        onClick={handleCheckIn}
-                        disabled={loadingAttendance}
-                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white font-bold py-3.5 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider flex items-center justify-center gap-2"
-                      >
-                        <Clock className="w-4 h-4" />
-                        {loadingAttendance ? 'Processing...' : 'Check In Now'}
-                      </button>
-                    ) : !todayRecord.checkOutTime ? (
-                      <button
-                        onClick={handleCheckOut}
-                        disabled={loadingAttendance}
-                        className="w-full bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white font-bold py-3.5 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider flex items-center justify-center gap-2"
-                      >
-                        <Clock className="w-4 h-4" />
-                        {loadingAttendance ? 'Processing...' : 'Check Out Now'}
-                      </button>
-                    ) : (
-                      <div className="w-full text-center bg-gray-100 text-gray-500 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-gray-250/60 uppercase tracking-wider flex items-center justify-center gap-2">
-                        <Check className="w-4 h-4 text-gray-400" />
+                  <div className="w-full space-y-3">
+                    {todayRecord && todayRecord.checkOutTime && (
+                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-emerald-200/50 uppercase tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
+                        <Check className="w-4 h-4 text-emerald-600" />
                         Shift Completed
                       </div>
                     )}
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleCheckIn}
+                        disabled={loadingAttendance || !!todayRecord}
+                        className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
+                          (!todayRecord && !loadingAttendance)
+                            ? 'bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white cursor-pointer btn-premium'
+                            : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <Clock className="w-4 h-4" />
+                        {loadingAttendance && !todayRecord ? 'Processing...' : 'Check In'}
+                      </button>
+
+                      <button
+                        onClick={handleCheckOut}
+                        disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
+                        className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
+                          (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
+                            ? 'bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white cursor-pointer btn-premium'
+                            : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        <Clock className="w-4 h-4" />
+                        {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? 'Processing...' : 'Check Out'}
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
 
@@ -1081,62 +1455,100 @@ export default function EmployeeDashboard() {
                       className="overflow-hidden"
                     >
                       <form onSubmit={handleSubmitTrackSheet} className="space-y-4 pt-2">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
-                            <input
-                              type="text"
-                              required
-                              value={project}
-                              onChange={(e) => setProject(e.target.value)}
-                              placeholder="e.g. API Integration"
-                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
-                            />
+                        {logItems.map((item, index) => (
+                          <div key={index} className="p-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl space-y-4 relative mb-4">
+                            {logItems.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setLogItems(logItems.filter((_, i) => i !== index))}
+                                className="absolute top-3.5 right-3.5 text-brand-red hover:text-red-700 cursor-pointer"
+                                title="Remove Task Row"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.project}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].project = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="e.g. API Integration"
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
+                                <input
+                                  type="number"
+                                  step="0.5"
+                                  min="0.5"
+                                  max="24"
+                                  required
+                                  value={item.hours}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].hours = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.assignedByName}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].assignedByName = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="e.g. TL Likith"
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                              <textarea
+                                required
+                                rows={2}
+                                value={item.taskDescription}
+                                onChange={(e) => {
+                                  const updated = [...logItems];
+                                  updated[index].taskDescription = e.target.value;
+                                  setLogItems(updated);
+                                }}
+                                placeholder="Explain task details..."
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
-                            <input
-                              type="number"
-                              step="0.5"
-                              min="0.5"
-                              max="24"
-                              required
-                              value={hours}
-                              onChange={(e) => setHours(e.target.value)}
-                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
-                            <input
-                              type="text"
-                              required
-                              value={assignedByName}
-                              onChange={(e) => setAssignedByName(e.target.value)}
-                              placeholder="e.g. TL Likith"
-                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
-                          <textarea
-                            required
-                            rows={2}
-                            value={taskDescription}
-                            onChange={(e) => setTaskDescription(e.target.value)}
-                            placeholder="Explain task details..."
-                            className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
-                          />
-                        </div>
-                        <div className="flex justify-end">
+                        ))}
+
+                        <div className="flex justify-end gap-3 items-center">
+                          <button
+                            type="button"
+                            onClick={() => setLogItems([...logItems, { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }])}
+                            className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Row
+                          </button>
                           <button
                             type="submit"
                             disabled={submittingTrack}
-                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer btn-premium shadow-sm"
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-sm"
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            {submittingTrack ? 'Saving...' : 'Submit Entry'}
+                            {submittingTrack ? 'Saving...' : 'Submit logs'}
                           </button>
                         </div>
                       </form>
@@ -1234,11 +1646,15 @@ export default function EmployeeDashboard() {
                       </tr>
                     ) : (
                       trackSheets.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50/50">
-                          <td className="py-3 px-2 font-semibold text-brand-navy truncate">{item.date}</td>
+                        <tr 
+                          key={item.id} 
+                          className="hover:bg-gray-50/50 cursor-pointer"
+                          onClick={() => setSelectedTrackSheet(item)}
+                        >
+                          <td className="py-3 px-2 font-semibold text-brand-navy truncate">{formatDateToIndian(item.date)}</td>
                           <td className="py-3 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
                           <td className="py-3 px-2 text-brand-navy font-medium truncate" title={item.assignedByName || 'N/A'}>
-                            {item.assignedByName || '-'}
+                            {formatEmployeeName(item.assignedByName)}
                           </td>
                           <td className="py-3 px-2 text-gray-500 break-words whitespace-normal leading-normal">{item.taskDescription}</td>
                           <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
@@ -1254,7 +1670,10 @@ export default function EmployeeDashboard() {
                           <td className="py-3 px-2 text-center">
                             {item.status === 'PENDING' ? (
                               <button
-                                onClick={() => handleDeleteTrackSheet(item.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteTrackSheet(item.id);
+                                }}
                                 className="text-brand-red hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-red-100"
                                 title="Delete Log"
                               >
@@ -1314,8 +1733,16 @@ export default function EmployeeDashboard() {
                     <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.gender || 'N/A'}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Grade</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.grade || 'N/A'}</span>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Insurance Number</span>
+                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.insuranceNumber || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Expected End Date</span>
+                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Increment / Perks</span>
+                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.incrementPerks || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -1328,11 +1755,36 @@ export default function EmployeeDashboard() {
                 </div>
 
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  {/* Profile Picture Upload row */}
+                  <div className="flex flex-col md:flex-row items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
+                    {profileForm.profileImage ? (
+                      <img 
+                        src={profileForm.profileImage} 
+                        alt="Avatar Preview" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-brand-navy/10"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-brand-navy/50">
+                        <User className="w-8 h-8" />
+                      </div>
+                    )}
+                    <div className="flex-1 text-center md:text-left">
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Profile Image</label>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-navy/5 file:text-brand-navy hover:file:bg-brand-navy/10 cursor-pointer"
+                      />
+                      {uploadingImage && <span className="text-[10px] text-brand-cta block mt-1">Uploading...</span>}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Mobile Number</label>
                       <input
-                        type="text"
+                        type="tel"
                         value={profileForm.mobileNumber}
                         onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
                         className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
@@ -1348,6 +1800,15 @@ export default function EmployeeDashboard() {
                       />
                     </div>
                     <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Professional/Company Email</label>
+                      <input
+                        type="email"
+                        value={profileForm.professionalEmail}
+                        onChange={(e) => setProfileForm({ ...profileForm, professionalEmail: e.target.value })}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Emergency Contact Number</label>
                       <input
                         type="text"
@@ -1359,6 +1820,7 @@ export default function EmployeeDashboard() {
                     <div>
                       <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Marital Status</label>
                       <select
+                        required
                         value={profileForm.maritalStatus}
                         onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
                         className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
@@ -1369,22 +1831,53 @@ export default function EmployeeDashboard() {
                         <option value="Widowed">Widowed</option>
                       </select>
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Blood Group</label>
+                      <select
+                        value={profileForm.bloodGroup}
+                        onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      >
+                        <option value="">Select Blood Group</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Timezone</label>
+                      <select
+                        value={profileForm.timezone}
+                        onChange={(e) => setProfileForm({ ...profileForm, timezone: e.target.value })}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      >
+                        <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                        <option value="UTC">UTC</option>
+                        <option value="Europe/London">Europe/London (GMT/BST)</option>
+                        <option value="America/New_York">America/New_York (EST/EDT)</option>
+                      </select>
+                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Current Address</label>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={2}
                         value={profileForm.currentAddress}
                         onChange={(e) => setProfileForm({ ...profileForm, currentAddress: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
                       />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Permanent Address</label>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={2}
                         value={profileForm.permanentAddress}
                         onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
                       />
                     </div>
                   </div>
@@ -1394,17 +1887,17 @@ export default function EmployeeDashboard() {
                       type="submit"
                       className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                     >
-                      Save Profile Changes
+                      Save
                     </button>
                   </div>
                 </form>
               </div>
 
-              {/* Financial/Regulatory Info (Read Only) */}
+              {/* Financial Details (Read Only + Doc Upload) */}
               <div className="premium-card p-6">
                 <div className="border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">Financial & Bank Information</h3>
-                  <p className="text-xs text-gray-500 mt-1">Details stored securely with field-level encryption. Contact HR to edit.</p>
+                  <h3 className="text-lg font-bold text-brand-navy font-heading">Financial Details</h3>
+                  <p className="text-xs text-gray-500 mt-1">Details stored securely. Contact HR to edit bank/PAN details.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -1416,21 +1909,89 @@ export default function EmployeeDashboard() {
                     <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.ifsc || 'N/A'}</span>
                   </div>
                   <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Bank Branch</span>
+                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankBranch || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Bank Address</span>
+                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankAddress || 'N/A'}</span>
+                  </div>
+                  <div>
                     <span className="block text-[10px] font-bold text-gray-400 uppercase">Permanent Account Number (PAN)</span>
                     <span className="text-sm font-bold text-brand-navy mt-0.5 block">
                       {employeeProfile.pan ? '••••••••••' : 'N/A'}
                     </span>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Universal Account Number (UAN)</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.uan || 'N/A'}</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="block text-[10px] font-bold text-gray-400 uppercase">PF Number</span>
+                      <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.pfNumber || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-bold text-gray-400 uppercase">UAN Number</span>
+                      <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.uan || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
+
+                {/* Financial Documents upload and list */}
+                <div className="mt-8 pt-6 border-t border-gray-100">
+                  <h4 className="text-sm font-bold text-brand-navy font-heading mb-3">Financial Documents</h4>
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
+                    <input 
+                      type="file" 
+                      onChange={handleDocumentUpload}
+                      className="text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-navy/5 file:text-brand-navy hover:file:bg-brand-navy/10 cursor-pointer"
+                    />
+                    {uploadingDoc && <span className="text-xs text-brand-cta">Uploading document...</span>}
+                  </div>
+
+                  {(() => {
+                    let docs = [];
+                    try {
+                      docs = employeeProfile.financialDocuments ? JSON.parse(employeeProfile.financialDocuments) : [];
+                      if (!Array.isArray(docs)) docs = [];
+                    } catch {
+                      docs = [];
+                    }
+                    return docs.length === 0 ? (
+                      <p className="text-xs text-gray-400">No financial documents uploaded yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-w-lg">
+                        {docs.map((doc: any, index: number) => (
+                          <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                            <a 
+                              href={doc.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="font-bold text-brand-cta hover:underline truncate pr-4"
+                            >
+                              {doc.name}
+                            </a>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-[10px] text-gray-400">
+                                {formatDateToIndian(doc.uploadedAt)}
+                              </span>
+                              <button
+                                onClick={() => handleDocumentDelete(index)}
+                                className="text-brand-red hover:text-red-700 cursor-pointer"
+                                title="Delete Document"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
           {/* TAB 3: My Leaves */}
+          {/* TAB 3: My Leaves & Requests */}
           {activeTab === 'leaves' && (
             <div className="space-y-6">
               <div className="premium-card p-6">
@@ -1440,145 +2001,277 @@ export default function EmployeeDashboard() {
                 </h3>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Balances grid */}
-                  <div className="lg:col-span-2 space-y-4">
-                    <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Leave Balance Status</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {leaveBalances.map((bal) => (
-                        <div key={bal.id} className="p-3.5 rounded-xl border border-gray-250 bg-gray-50/80 shadow-xs">
-                          <p className="text-xs font-bold text-brand-navy">{bal.name}</p>
-                          <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-gray-500 font-semibold text-center">
-                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                              <span className="block text-xs font-extrabold text-brand-navy">{bal.daysAllowed}</span>
-                              Allotted
-                            </div>
-                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                              <span className="block text-xs font-extrabold text-brand-red">{bal.daysUsed}</span>
-                              Used
-                            </div>
-                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                              <span className="block text-xs font-extrabold text-emerald-600">{bal.daysRemaining}</span>
-                              Remaining
+                  {/* Left Column: Balances, Holidays, History */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Balances grid */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Leave Balance Status</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {leaveBalances.map((bal) => (
+                          <div key={bal.id} className="p-3.5 rounded-xl border border-gray-250 bg-gray-50/80 shadow-xs">
+                            <p className="text-xs font-bold text-brand-navy">{bal.name}</p>
+                            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-gray-500 font-semibold text-center">
+                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
+                                <span className="block text-xs font-extrabold text-brand-navy">{bal.daysAllowed}</span>
+                                Allotted
+                              </div>
+                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
+                                <span className="block text-xs font-extrabold text-brand-red">{bal.daysUsed}</span>
+                                Used
+                              </div>
+                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
+                                <span className="block text-xs font-extrabold text-emerald-600">{bal.daysRemaining}</span>
+                                Remaining
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Upcoming Company Holidays */}
+                    <div className="pt-6 border-t border-gray-150/45">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Upcoming Company Holidays</h4>
+                      {holidays.length === 0 ? (
+                        <p className="text-xs text-gray-400">No upcoming holidays scheduled.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                          {holidays.map((h, idx) => (
+                            <div key={idx} className="p-2.5 rounded-xl border border-slate-200/60 bg-slate-50/50 flex flex-col justify-between text-xs">
+                              <span className="font-bold text-brand-navy">{h.name}</span>
+                              <span className="text-[10px] text-gray-400 font-semibold font-mono mt-1">
+                                {formatDateToIndian(h.date)}
+                              </span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
+                    </div>
+
+                    {/* Leave request history */}
+                    <div className="pt-6 border-t border-gray-150">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Leave Request History</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                              <th className="py-2.5 px-2">Leave Type</th>
+                              <th className="py-2.5 px-2">Duration</th>
+                              <th className="py-2.5 px-2">Reason</th>
+                              <th className="py-2.5 px-2 text-center">Status</th>
+                              <th className="py-2.5 px-2">Approved By</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {leaveRequests.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="text-center py-4 text-gray-400">No leave requests found.</td>
+                              </tr>
+                            ) : (
+                              leaveRequests.map((req) => (
+                                <tr key={req.id} className="hover:bg-gray-50/50">
+                                  <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                                  <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                    {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                    {req.reason}
+                                  </td>
+                                  <td className="py-3 px-2 text-center">
+                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                                      'bg-amber-100 text-amber-800'
+                                    }`}>
+                                      {req.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-500">
+                                    {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Regularisation Request History */}
+                    <div className="pt-6 border-t border-gray-150">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Attendance Regularisation History</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                              <th className="py-2.5 px-2">Date to Correct</th>
+                              <th className="py-2.5 px-2">Expected Check-in</th>
+                              <th className="py-2.5 px-2">Expected Check-out</th>
+                              <th className="py-2.5 px-2">Reason</th>
+                              <th className="py-2.5 px-2 text-center">Status</th>
+                              <th className="py-2.5 px-2">Approved By</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {regularisationRequests.length === 0 ? (
+                              <tr>
+                                <td colSpan={6} className="text-center py-4 text-gray-400">No regularisation requests found.</td>
+                              </tr>
+                            ) : (
+                              regularisationRequests.map((req) => (
+                                <tr key={req.id} className="hover:bg-gray-50/50">
+                                  <td className="py-3 px-2 font-semibold text-brand-navy">{formatDateToIndian(req.date)}</td>
+                                  <td className="py-3 px-2 text-gray-500 font-mono">{req.checkInTime ? formatTime(req.checkInTime) : '--:--'}</td>
+                                  <td className="py-3 px-2 text-gray-500 font-mono">{req.checkOutTime ? formatTime(req.checkOutTime) : '--:--'}</td>
+                                  <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                    {req.reason}
+                                  </td>
+                                  <td className="py-3 px-2 text-center">
+                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                                      'bg-amber-100 text-amber-800'
+                                    }`}>
+                                      {req.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-2 text-gray-500">
+                                    {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Apply Form */}
-                  <div className="premium-card p-4 space-y-3 lg:col-span-1 border border-gray-200/50">
-                    <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
-                    <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
-                      <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Category</label>
-                        <select
-                          required
-                          value={leaveTypeId}
-                          onChange={(e) => setLeaveTypeId(e.target.value)}
-                          className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  {/* Right Column: Time Off & Regularisation Forms */}
+                  <div className="space-y-6 lg:col-span-1">
+                    {/* Apply Form */}
+                    <div className="premium-card p-4 space-y-3 border border-gray-200/50">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
+                      <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
+                        <div>
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Category</label>
+                          <select
+                            required
+                            value={leaveTypeId}
+                            onChange={(e) => setLeaveTypeId(e.target.value)}
+                            className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          >
+                            <option value="">Select leave type</option>
+                            {leaveBalances.map((bal) => (
+                              <option key={bal.id} value={bal.id}>
+                                {bal.name} ({bal.daysRemaining} left)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={leaveStartDate}
+                              onChange={(e) => setLeaveStartDate(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={leaveEndDate}
+                              onChange={(e) => setLeaveEndDate(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
+                          <textarea
+                            required
+                            rows={2}
+                            value={leaveReason}
+                            onChange={(e) => setLeaveReason(e.target.value)}
+                            placeholder="State reason..."
+                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={submittingLeave}
+                          className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
                         >
-                          <option value="">Select leave type</option>
-                          {leaveBalances.map((bal) => (
-                            <option key={bal.id} value={bal.id}>
-                              {bal.name} ({bal.daysRemaining} left)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                          {submittingLeave ? 'Submitting...' : 'Request Leave'}
+                        </button>
+                      </form>
+                    </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                    {/* Regularisation Form */}
+                    <div className="premium-card p-4 space-y-3 border border-gray-200/50">
+                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Attendance Regularisation</h4>
+                      <p className="text-[10px] text-gray-500 leading-normal">Correct a missed check-in/out record for a specific date.</p>
+                      <form onSubmit={handleSubmitRegularisation} className="space-y-3">
                         <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Date to Regularise</label>
                           <input
                             type="date"
                             required
-                            value={leaveStartDate}
-                            onChange={(e) => setLeaveStartDate(e.target.value)}
-                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            value={regDate}
+                            onChange={(e) => setRegDate(e.target.value)}
+                            className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-in Time</label>
+                            <input
+                              type="time"
+                              required
+                              value={regCheckIn}
+                              onChange={(e) => setRegCheckIn(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-out Time</label>
+                            <input
+                              type="time"
+                              required
+                              value={regCheckOut}
+                              onChange={(e) => setRegCheckOut(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
-                          <input
-                            type="date"
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason / Explanation</label>
+                          <textarea
                             required
-                            value={leaveEndDate}
-                            onChange={(e) => setLeaveEndDate(e.target.value)}
+                            rows={2}
+                            value={regReason}
+                            onChange={(e) => setRegReason(e.target.value)}
+                            placeholder="E.g., forgot to check-in on arrival..."
                             className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
-                        <textarea
-                          required
-                          rows={2}
-                          value={leaveReason}
-                          onChange={(e) => setLeaveReason(e.target.value)}
-                          placeholder="State reason..."
-                          className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                        />
-                      </div>
-
-                      <button
-                        type="submit"
-                        disabled={submittingLeave}
-                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                      >
-                        {submittingLeave ? 'Submitting...' : 'Request Leave'}
-                      </button>
-                    </form>
-                  </div>
-                </div>
-
-                {/* History */}
-                <div className="mt-6 border-t border-gray-150 pt-6">
-                  <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Leave Request History</h4>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
-                          <th className="py-2.5 px-2">Leave Type</th>
-                          <th className="py-2.5 px-2">Duration</th>
-                          <th className="py-2.5 px-2">Reason</th>
-                          <th className="py-2.5 px-2 text-center">Status</th>
-                          <th className="py-2.5 px-2">Reviewed By</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leaveRequests.length === 0 ? (
-                          <tr>
-                            <td colSpan={5} className="text-center py-4 text-gray-400">No leave requests found.</td>
-                          </tr>
-                        ) : (
-                          leaveRequests.map((req) => (
-                            <tr key={req.id} className="hover:bg-gray-50/50">
-                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                {req.startDate} to {req.endDate}
-                              </td>
-                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                                {req.reason}
-                              </td>
-                              <td className="py-3 px-2 text-center">
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                  req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                                  req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                                  'bg-amber-100 text-amber-800'
-                                }`}>
-                                  {req.status}
-                                </span>
-                              </td>
-                              <td className="py-3 px-2 text-gray-500">
-                                {req.reviewedBy ? req.reviewedBy.name : '-'}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                        <button
+                          type="submit"
+                          disabled={submittingReg}
+                          className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                        >
+                          {submittingReg ? 'Submitting...' : 'Submit Request'}
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1684,6 +2377,123 @@ export default function EmployeeDashboard() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5.5: My Performance Goals */}
+          {activeTab === 'goals' && (
+            <div className="space-y-6">
+              {/* SAP Progress Section */}
+              <div className="premium-card p-6">
+                <div className="border-b border-gray-100 pb-4 mb-4">
+                  <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-brand-cta" />
+                    SAP Task Progress
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ratio of completed to assigned SAP/ABAP tasks.
+                  </p>
+                </div>
+
+                {(() => {
+                  const sapTasks = tasks.filter(t => 
+                    t.title.toLowerCase().includes('sap') || 
+                    t.title.toLowerCase().includes('abap') || 
+                    t.description.toLowerCase().includes('sap') || 
+                    t.description.toLowerCase().includes('abap')
+                  );
+                  const completed = sapTasks.filter(t => t.status === 'COMPLETED').length;
+                  const total = sapTasks.length;
+                  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center text-xs font-bold text-brand-navy">
+                        <span>SAP Progress</span>
+                        <span className="font-mono text-sm">{completed} / {total} Tasks Completed</span>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/60">
+                        <div 
+                          className="bg-brand-cta h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-gray-400">
+                        Task completion stats are computed dynamically from your assigned task sheet.
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Goals list */}
+              <div className="premium-card p-6">
+                <div className="border-b border-gray-100 pb-4 mb-6">
+                  <h3 className="text-lg font-bold text-brand-navy font-heading">
+                    My Goals & Performance Metrics
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Track the goals set by your Team Leader and report accomplishments.
+                  </p>
+                </div>
+
+                {myGoals.length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-6">No performance goals set for you currently.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {myGoals.map((goal) => (
+                      <div 
+                        key={goal.id} 
+                        className="p-4 rounded-2xl border border-gray-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className="text-sm font-bold text-brand-navy">{goal.goalTitle}</h4>
+                            <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded ${
+                              goal.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                              goal.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {goal.status}
+                            </span>
+                          </div>
+                          <div className="bg-slate-100/50 p-2.5 rounded-xl text-[11px] text-brand-navy space-y-1 border border-slate-100">
+                            <div>
+                              <strong className="text-gray-450 font-bold">KPI Metric:</strong>{' '}
+                              <span className="font-semibold">{goal.kpi}</span>
+                            </div>
+                            <div className="text-[10px] text-gray-400 flex flex-wrap gap-x-2">
+                              <span>Assigned By: <strong className="text-brand-navy">{formatEmployeeName(goal.manager?.name || 'Team Leader')}</strong></span>
+                              {goal.createdAt && (
+                                <>
+                                  <span>•</span>
+                                  <span>Date: <strong className="text-brand-navy">{formatDateToIndian(goal.createdAt)}</strong></span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-3 border-t border-gray-150/45 mt-4 text-xs text-gray-400">
+                          <span>Target: {goal.target}</span>
+                          {goal.status !== 'COMPLETED' && (
+                            <button
+                              onClick={() => {
+                                setSelectedGoal(goal);
+                                setAchievementInput(goal.achievement || '');
+                                setIsGoalModalOpen(true);
+                              }}
+                              className="bg-brand-cta text-white hover:bg-blue-700 font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer"
+                            >
+                              Update Progress
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1961,7 +2771,7 @@ export default function EmployeeDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3.5 h-3.5 rounded-md bg-blue-600/85 border border-blue-600/60 block" />
-                    <span className="font-semibold text-brand-gray">Company Holiday (HR)</span>
+                    <span className="font-semibold text-brand-gray">Company Holidays</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3.5 h-3.5 rounded-md bg-red-500/85 border border-red-500/60 block" />
@@ -1969,10 +2779,101 @@ export default function EmployeeDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="w-3.5 h-3.5 rounded-md bg-slate-300/85 border border-slate-300/60 block" />
-                    <span className="font-semibold text-brand-gray">Weekend (Week Off)</span>
+                    <span className="font-semibold text-brand-gray">Weekend</span>
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 8: Resignation Request */}
+          {activeTab === 'resignation' && (
+            <div className="premium-card p-6">
+              <div className="border-b border-gray-100 pb-4 mb-6">
+                <h3 className="text-lg font-bold text-brand-navy font-heading">Resignation Request</h3>
+                <p className="text-xs text-gray-500 mt-1">Submit your resignation request. Note that only one request can be active.</p>
+              </div>
+
+              {resignationRequest ? (
+                <div className="space-y-4 max-w-lg">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs text-brand-navy">
+                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                      <strong className="text-gray-400 font-medium">Status:</strong>
+                      <span className={`font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        resignationRequest.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                        resignationRequest.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                        'bg-amber-100 text-amber-800'
+                      }`}>
+                        {resignationRequest.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                      <strong className="text-gray-400 font-medium">Resignation Date:</strong>
+                      <span className="font-bold">{formatDateToIndian(resignationRequest.resignationDate)}</span>
+                    </div>
+                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                      <strong className="text-gray-400 font-medium">Requested Last Working Day:</strong>
+                      <span className="font-bold">{formatDateToIndian(resignationRequest.lastWorkingDay)}</span>
+                    </div>
+                    <div className="pb-2 border-b border-slate-200/65">
+                      <strong className="text-gray-400 font-medium block mb-1">Reason:</strong>
+                      <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.reason}</p>
+                    </div>
+                    {resignationRequest.hrNotes && (
+                      <div>
+                        <strong className="text-gray-400 font-medium block mb-1">HR Notes:</strong>
+                        <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.hrNotes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmitResignation} className="space-y-4 max-w-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Resignation Date</label>
+                      <input 
+                        type="date"
+                        required
+                        value={resignationDate}
+                        onChange={(e) => setResignationDate(e.target.value)}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Last Working Day (Expected)</label>
+                      <input 
+                        type="date"
+                        required
+                        value={lastWorkingDay}
+                        onChange={(e) => setLastWorkingDay(e.target.value)}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Reason for Resignation</label>
+                      <textarea 
+                        required
+                        rows={4}
+                        value={resignationReason}
+                        onChange={(e) => setResignationReason(e.target.value)}
+                        placeholder="Please state the reason for your resignation..."
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={submittingResignation}
+                      className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                    >
+                      {submittingResignation ? 'Submitting...' : 'Submit Resignation'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
         </div>
@@ -2124,6 +3025,129 @@ export default function EmployeeDashboard() {
               <button
                 type="button"
                 onClick={() => setSelectedCalendarDate(null)}
+                className="bg-brand-navy hover:bg-brand-navy-light text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full text-center"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Track Sheet Detail Modal */}
+      {selectedTrackSheet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-200/80 space-y-4 text-brand-navy">
+            <div className="flex justify-between items-center border-b border-gray-150 pb-3">
+              <h3 className="text-sm font-bold font-heading">
+                Work Log Details
+              </h3>
+              <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                selectedTrackSheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                selectedTrackSheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                'bg-amber-100 text-amber-800'
+              }`}>
+                {selectedTrackSheet.status}
+              </span>
+            </div>
+
+            <div className="text-xs space-y-2.5">
+              <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                <strong className="text-gray-400 font-medium">Log Date:</strong>
+                <span className="font-bold">{formatDateToIndian(selectedTrackSheet.date)}</span>
+              </p>
+              <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                <strong className="text-gray-400 font-medium">Project:</strong>
+                <span className="font-bold">{selectedTrackSheet.project}</span>
+              </p>
+              <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                <strong className="text-gray-400 font-medium">Hours:</strong>
+                <span className="font-bold font-mono">{selectedTrackSheet.hours} hours</span>
+              </p>
+              <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                <strong className="text-gray-400 font-medium">Assigned By:</strong>
+                <span className="font-bold">{formatEmployeeName(selectedTrackSheet.assignedByName)}</span>
+              </p>
+              <div className="border-b border-gray-50 pb-2 border-gray-200/50">
+                <strong className="text-gray-400 font-medium block mb-1">Task Description:</strong>
+                <p className="text-gray-650 leading-relaxed font-medium">{selectedTrackSheet.taskDescription}</p>
+              </div>
+              {selectedTrackSheet.notes && (
+                <div className="border-b border-gray-50 pb-2 border-gray-200/50">
+                  <strong className="text-gray-400 font-medium block mb-1">Employee Notes:</strong>
+                  <p className="text-gray-650 leading-relaxed font-medium">{selectedTrackSheet.notes}</p>
+                </div>
+              )}
+              {selectedTrackSheet.tlComment && (
+                <div className="p-3 bg-blue-50 border border-blue-200/60 rounded-xl space-y-1">
+                  <strong className="text-[10px] text-blue-700 uppercase font-extrabold block">TL Comment / Feedback</strong>
+                  <p className="text-blue-800 leading-normal font-medium">{selectedTrackSheet.tlComment}</p>
+                </div>
+              )}
+
+              {/* Supporting Documents Section */}
+              <div className="pt-2">
+                <strong className="text-gray-400 font-medium block mb-1.5">Supporting Documents:</strong>
+                
+                {/* Upload Doc Input */}
+                <div className="flex flex-col gap-1.5 mb-3 bg-slate-50 p-2 border border-slate-100 rounded-xl">
+                  <span className="text-[9px] text-gray-400 font-extrabold uppercase">Upload Attachment</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <input 
+                      type="file" 
+                      onChange={handleTaskDocUpload}
+                      disabled={uploadingTaskDoc}
+                      className="text-[10px] text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-brand-navy/5 file:text-brand-navy hover:file:bg-brand-navy/10 cursor-pointer"
+                    />
+                    {uploadingTaskDoc && <span className="text-[9px] text-brand-cta animate-pulse">Uploading...</span>}
+                  </div>
+                </div>
+
+                {(() => {
+                  let docs = [];
+                  try {
+                    docs = selectedTrackSheet.supportingDocuments ? JSON.parse(selectedTrackSheet.supportingDocuments) : [];
+                    if (!Array.isArray(docs)) docs = [];
+                  } catch {
+                    docs = [];
+                  }
+                  return docs.length === 0 ? (
+                    <p className="text-[10px] text-gray-450 italic">No attachments uploaded yet.</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                      {docs.map((doc: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100 text-[11px]">
+                          <a 
+                            href={doc.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-bold text-brand-cta hover:underline truncate max-w-[200px]"
+                          >
+                            {doc.name}
+                          </a>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[9px] text-gray-400">
+                              {formatDateToIndian(doc.uploadedAt)}
+                            </span>
+                            <button
+                              onClick={() => handleTaskDocDelete(idx)}
+                              className="text-brand-red hover:text-red-700 cursor-pointer"
+                              title="Delete Attachment"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedTrackSheet(null)}
                 className="bg-brand-navy hover:bg-brand-navy-light text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full text-center"
               >
                 Close

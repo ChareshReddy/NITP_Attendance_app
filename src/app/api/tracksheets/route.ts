@@ -62,40 +62,51 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { date, project, taskDescription, hours, notes, assignedByName } = await request.json();
+    const body = await request.json();
+    const logs = Array.isArray(body) ? body : [body];
 
-    if (!date || !project || !taskDescription || !hours) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Validate all logs first
+    for (const log of logs) {
+      const { date, project, taskDescription, hours, assignedByName } = log;
+      if (!date || !project || !taskDescription || !hours || !assignedByName) {
+        return NextResponse.json({ error: 'Missing required fields (Date, Project, Description, Hours, Assigned By)' }, { status: 400 });
+      }
+
+      const hoursFloat = parseFloat(hours);
+      if (isNaN(hoursFloat) || hoursFloat <= 0 || hoursFloat > 24) {
+        return NextResponse.json({ error: 'Hours must be a positive number between 0 and 24' }, { status: 400 });
+      }
     }
 
-    const hoursFloat = parseFloat(hours);
-    if (isNaN(hoursFloat) || hoursFloat <= 0 || hoursFloat > 24) {
-      return NextResponse.json({ error: 'Hours must be a positive number between 0 and 24' }, { status: 400 });
+    const createdLogs = [];
+    for (const log of logs) {
+      const { date, project, taskDescription, hours, notes, assignedByName } = log;
+      const hoursFloat = parseFloat(hours);
+      const trackSheet = await prisma.trackSheet.create({
+        data: {
+          userId: user.userId,
+          date,
+          project,
+          taskDescription,
+          hours: hoursFloat,
+          notes: notes || null,
+          status: 'PENDING',
+          assignedByName,
+        },
+      });
+      createdLogs.push(trackSheet);
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.userId,
+          action: 'CREATE_TRACK_SHEET',
+          entity: 'TrackSheet',
+          entityId: trackSheet.id,
+        },
+      });
     }
 
-    const trackSheet = await prisma.trackSheet.create({
-      data: {
-        userId: user.userId,
-        date,
-        project,
-        taskDescription,
-        hours: hoursFloat,
-        notes,
-        status: 'PENDING',
-        assignedByName: assignedByName || null,
-      },
-    });
-
-    await prisma.auditLog.create({
-      data: {
-        userId: user.userId,
-        action: 'CREATE_TRACK_SHEET',
-        entity: 'TrackSheet',
-        entityId: trackSheet.id,
-      },
-    });
-
-    return NextResponse.json({ success: true, trackSheet });
+    return NextResponse.json({ success: true, trackSheets: createdLogs });
   } catch (error) {
     console.error('TrackSheets POST error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -109,7 +120,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id, project, taskDescription, hours, notes, status } = await request.json();
+    const { id, project, taskDescription, hours, notes, status, tlComment, supportingDocuments } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Track sheet ID is required' }, { status: 400 });
@@ -123,35 +134,42 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Track sheet not found' }, { status: 404 });
     }
 
+    const updateData: any = {};
+
     if (user.role === 'EMPLOYEE') {
       if (existing.userId !== user.userId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
-      if (existing.status !== 'PENDING') {
+      // If employee is editing, status must be pending (unless they are only uploading a supporting document!)
+      if (existing.status !== 'PENDING' && !supportingDocuments) {
         return NextResponse.json({ error: 'Cannot modify an approved/rejected track sheet' }, { status: 400 });
       }
-    }
 
-    const updateData: any = {};
-    if (project) updateData.project = project;
-    if (taskDescription) updateData.taskDescription = taskDescription;
-    if (hours !== undefined) {
-      const hoursFloat = parseFloat(hours);
-      if (isNaN(hoursFloat) || hoursFloat <= 0 || hoursFloat > 24) {
-        return NextResponse.json({ error: 'Invalid hours' }, { status: 400 });
+      if (project) updateData.project = project;
+      if (taskDescription) updateData.taskDescription = taskDescription;
+      if (hours !== undefined) {
+        const hoursFloat = parseFloat(hours);
+        if (isNaN(hoursFloat) || hoursFloat <= 0 || hoursFloat > 24) {
+          return NextResponse.json({ error: 'Invalid hours' }, { status: 400 });
+        }
+        updateData.hours = hoursFloat;
       }
-      updateData.hours = hoursFloat;
-    }
-    if (notes !== undefined) updateData.notes = notes;
-    
-    if (status) {
-      if (user.role === 'EMPLOYEE') {
-        return NextResponse.json({ error: 'Employees cannot change approval status' }, { status: 403 });
+      if (notes !== undefined) updateData.notes = notes;
+      if (supportingDocuments !== undefined) updateData.supportingDocuments = supportingDocuments;
+    } else {
+      // TL or HR can update everything + comments & status
+      if (project) updateData.project = project;
+      if (taskDescription) updateData.taskDescription = taskDescription;
+      if (hours !== undefined) updateData.hours = parseFloat(hours);
+      if (notes !== undefined) updateData.notes = notes;
+      if (tlComment !== undefined) updateData.tlComment = tlComment;
+      if (supportingDocuments !== undefined) updateData.supportingDocuments = supportingDocuments;
+      if (status) {
+        if (!['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+          return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+        }
+        updateData.status = status;
       }
-      if (!['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
-        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
-      }
-      updateData.status = status;
     }
 
     const updated = await prisma.trackSheet.update({

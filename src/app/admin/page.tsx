@@ -146,7 +146,26 @@ interface AuditLog {
 
 export default function AdminDashboard() {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings'>('analytics');
+
+  const formatDateToIndian = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatEmployeeName = (name: string) => {
+    if (!name) return '';
+    const parts = name.toLowerCase().split(/\s+/).filter(Boolean);
+    const capitalized = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1));
+    const initials = capitalized.filter(part => part.length === 1);
+    const fullWords = capitalized.filter(part => part.length > 1);
+    return [...fullWords, ...initials].join(' ');
+  };
+  const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings' | 'resignations'>('analytics');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
   // Data States
@@ -182,6 +201,12 @@ export default function AdminDashboard() {
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+
+  // Resignation Request States
+  const [resignationRequests, setResignationRequests] = useState<any[]>([]);
+  const [reviewResignationId, setReviewResignationId] = useState<string | null>(null);
+  const [resignationNotes, setResignationNotes] = useState('');
+  const [submittingResignation, setSubmittingResignation] = useState(false);
 
   // User Form States
   const [userName, setUserName] = useState('');
@@ -224,6 +249,15 @@ export default function AdminDashboard() {
     ifsc: '',
     pan: '',
     uan: '',
+    professionalEmail: '',
+    insuranceNumber: '',
+    pfNumber: '',
+    bankAddress: '',
+    bankBranch: '',
+    expectedEndDate: '',
+    incrementPerks: '',
+    bloodGroup: 'A+',
+    timezone: 'Asia/Kolkata',
   });
 
   // Payroll States
@@ -420,6 +454,13 @@ export default function AdminDashboard() {
         }
       }
 
+      // 5.7. Fetch Resignation Requests
+      const resignationsRes = await fetch('/api/resignation');
+      if (resignationsRes.ok) {
+        const resignationsData = await resignationsRes.json();
+        setResignationRequests(resignationsData.requests || []);
+      }
+
       // 6. Fetch HR Self Attendance status
       const attRes = await fetch('/api/attendance');
       if (attRes.ok) {
@@ -560,6 +601,15 @@ export default function AdminDashboard() {
         ifsc: '',
         pan: '',
         uan: '',
+        professionalEmail: '',
+        insuranceNumber: '',
+        pfNumber: '',
+        bankAddress: '',
+        bankBranch: '',
+        expectedEndDate: '',
+        incrementPerks: '',
+        bloodGroup: 'A+',
+        timezone: 'Asia/Kolkata',
       });
       fetchAdminData();
     } catch (err: any) {
@@ -955,6 +1005,32 @@ export default function AdminDashboard() {
       setErrorMsg(err.message || 'Error rejecting leave request');
     }
   };
+  const handleReviewResignation = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    setSubmittingResignation(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/resignation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          status,
+          hrNotes: resignationNotes,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update resignation request');
+      setSuccessMsg(`Resignation request has been ${status.toLowerCase()} successfully!`);
+      setReviewResignationId(null);
+      setResignationNotes('');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error updating resignation request');
+    } finally {
+      setSubmittingResignation(false);
+    }
+  };
 
   const handleCreateHoliday = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1073,7 +1149,7 @@ export default function AdminDashboard() {
   });
 
   const adminNavItems: {
-    id: 'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings';
+    id: 'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings' | 'resignations';
     label: string;
     icon: any;
   }[] = [
@@ -1082,6 +1158,7 @@ export default function AdminDashboard() {
     { id: 'new-employee', label: 'Create Employee', icon: UserPlus },
     { id: 'performance', label: 'Performance Ratings', icon: FileCheck },
     { id: 'leaves', label: 'Leave Requests', icon: Calendar },
+    { id: 'resignations', label: 'Resignations', icon: Trash2 },
     { id: 'payroll', label: 'Run Payroll', icon: CreditCard },
     { id: 'trainings', label: 'Training Center', icon: BookOpen },
     { id: 'reports', label: 'Review TL Reports', icon: FileText },
@@ -1250,28 +1327,29 @@ export default function AdminDashboard() {
                   )}
                 </span>
               </div>
-              <div className="shrink-0">
-                {!todayRecord ? (
-                  <button
-                    onClick={handleCheckIn}
-                    disabled={loadingAttendance}
-                    className="bg-brand-cta hover:bg-blue-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
-                  >
-                    {loadingAttendance ? '...' : 'Check In'}
-                  </button>
-                ) : !todayRecord.checkOutTime ? (
-                  <button
-                    onClick={handleCheckOut}
-                    disabled={loadingAttendance}
-                    className="bg-brand-red hover:bg-red-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer shadow-sm btn-premium"
-                  >
-                    {loadingAttendance ? '...' : 'Check Out'}
-                  </button>
-                ) : (
-                  <span className="text-xs font-extrabold text-gray-400 bg-gray-100 px-3 py-2 rounded-xl border border-gray-200">
-                    Completed
-                  </span>
-                )}
+              <div className="shrink-0 flex gap-2">
+                <button
+                  onClick={handleCheckIn}
+                  disabled={loadingAttendance || !!todayRecord}
+                  className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
+                    (!todayRecord && !loadingAttendance)
+                      ? 'bg-brand-cta hover:bg-blue-700 text-white cursor-pointer shadow-sm btn-premium'
+                      : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {loadingAttendance && !todayRecord ? '...' : 'Check In'}
+                </button>
+                <button
+                  onClick={handleCheckOut}
+                  disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
+                  className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
+                    (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
+                      ? 'bg-brand-red hover:bg-red-700 text-white cursor-pointer shadow-sm btn-premium'
+                      : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? '...' : 'Check Out'}
+                </button>
               </div>
             </div>
           )}
@@ -2075,7 +2153,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Personal Email</label>
                     <input
@@ -2083,6 +2161,16 @@ export default function AdminDashboard() {
                       value={employeeForm.personalEmail}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, personalEmail: e.target.value }))}
                       placeholder="personal@email.com"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Professional Email</label>
+                    <input
+                      type="email"
+                      value={employeeForm.professionalEmail}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, professionalEmail: e.target.value }))}
+                      placeholder="professional@nextitpoint.com"
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2132,10 +2220,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Section 4: Bank Details */}
+              {/* Section 4: Bank & Financial Details */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h4>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Name</label>
                     <input
@@ -2143,6 +2231,16 @@ export default function AdminDashboard() {
                       value={employeeForm.bankName}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, bankName: e.target.value }))}
                       placeholder="HDFC Bank"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Branch</label>
+                    <input
+                      type="text"
+                      value={employeeForm.bankBranch}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bankBranch: e.target.value }))}
+                      placeholder="E.g. Kanjurmarg East"
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2166,13 +2264,51 @@ export default function AdminDashboard() {
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PAN Code</label>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Address</label>
                     <input
-                      type="password"
-                      value={employeeForm.pan}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, pan: e.target.value }))}
-                      placeholder="Sensitive Field"
+                      type="text"
+                      value={employeeForm.bankAddress}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bankAddress: e.target.value }))}
+                      placeholder="E.g. 1st Floor, Trade Center, Mumbai"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PAN Code</label>
+                      <input
+                        type="password"
+                        value={employeeForm.pan}
+                        onChange={(e) => setEmployeeForm(prev => ({ ...prev, pan: e.target.value }))}
+                        placeholder="Sensitive Field"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Insurance Number</label>
+                      <input
+                        type="text"
+                        value={employeeForm.insuranceNumber}
+                        onChange={(e) => setEmployeeForm(prev => ({ ...prev, insuranceNumber: e.target.value }))}
+                        placeholder="INS-12345678"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PF Number</label>
+                    <input
+                      type="text"
+                      value={employeeForm.pfNumber}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, pfNumber: e.target.value }))}
+                      placeholder="MH/BAN/12345/678"
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2183,6 +2319,59 @@ export default function AdminDashboard() {
                       value={employeeForm.uan}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, uan: e.target.value }))}
                       placeholder="100123456789"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Joining / Perks & Custom configurations */}
+              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-teal-600">5. Contract Details & Perks</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Expected End Date</label>
+                    <input
+                      type="date"
+                      value={employeeForm.expectedEndDate}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, expectedEndDate: e.target.value }))}
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Blood Group</label>
+                    <select
+                      value={employeeForm.bloodGroup}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bloodGroup: e.target.value }))}
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                    >
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Timezone Context</label>
+                    <input
+                      type="text"
+                      value={employeeForm.timezone}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, timezone: e.target.value }))}
+                      placeholder="Asia/Kolkata"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Increment / Perks</label>
+                    <input
+                      type="text"
+                      value={employeeForm.incrementPerks}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, incrementPerks: e.target.value }))}
+                      placeholder="E.g., Yearly bonus, medical insurance cover"
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2227,7 +2416,7 @@ export default function AdminDashboard() {
                           Team: {rep.team.name}
                         </h4>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          Period: <span className="font-semibold">{new Date(rep.periodStart).toLocaleDateString()} to {new Date(rep.periodEnd).toLocaleDateString()}</span>
+                          Period: <span className="font-semibold">{formatDateToIndian(rep.periodStart)} to {formatDateToIndian(rep.periodEnd)}</span>
                         </p>
                       </div>
 
@@ -2264,7 +2453,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="mt-2 text-[10px] text-gray-400 text-right">
-                      Submitted by: {rep.submittedBy.name} &bull; Filed {new Date(rep.createdAt).toLocaleDateString()}
+                      Submitted by: {formatEmployeeName(rep.submittedBy.name)} &bull; Filed {formatDateToIndian(rep.createdAt)}
                     </div>
                   </div>
                 ))
@@ -2324,7 +2513,7 @@ export default function AdminDashboard() {
                       <div key={h.id} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl text-xs border border-gray-200 shadow-xs">
                         <div>
                           <span className="font-bold text-brand-navy">{h.name}</span>
-                          <span className="text-[10px] text-gray-400 ml-2">({new Date(h.date).toLocaleDateString()})</span>
+                          <span className="text-[10px] text-gray-400 ml-2">({formatDateToIndian(h.date)})</span>
                         </div>
                         <button
                           onClick={() => handleDeleteHoliday(h.id)}
@@ -2559,7 +2748,7 @@ export default function AdminDashboard() {
                           {p.score.overrideReason || '-'}
                         </td>
                         <td className="py-3 px-2 text-center text-gray-400">
-                          {new Date(p.score.updatedAt).toLocaleDateString()}
+                          {formatDateToIndian(p.score.updatedAt)}
                         </td>
                         <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
                           <button
@@ -2689,6 +2878,126 @@ export default function AdminDashboard() {
         </div>
         )}
 
+        {/* TAB: Resignation Requests */}
+        {activeTab === 'resignations' && (
+          <div className="premium-card p-6 space-y-6">
+            <div className="flex justify-between items-center border-b border-gray-150 pb-4">
+              <div>
+                <h3 className="text-lg font-bold text-brand-navy font-heading">Resignation Requests</h3>
+                <p className="text-xs text-gray-500 mt-1">Review, approve, or reject resignation requests submitted by employees.</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200/50 text-gray-550 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-3">Employee Name</th>
+                    <th className="py-3 px-3">Submission Date</th>
+                    <th className="py-3 px-3">Resignation Date</th>
+                    <th className="py-3 px-3">Last Working Day</th>
+                    <th className="py-3 px-3">Reason</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-3">HR Notes</th>
+                    <th className="py-3 px-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {resignationRequests.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-8 text-gray-400">No resignation requests found.</td>
+                    </tr>
+                  ) : (
+                    resignationRequests.map((req) => {
+                      const isPending = req.status === 'PENDING';
+                      return (
+                        <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="py-3.5 px-3">
+                            <div>
+                              <span className="font-bold text-brand-navy block">
+                                {formatEmployeeName(req.user.name)}
+                              </span>
+                              <span className="text-[10px] text-gray-450 block mt-0.5">
+                                {req.user.email} {req.user.team?.name ? `| ${req.user.team.name}` : ''}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3 text-gray-500 font-mono">
+                            {formatDateToIndian(req.createdAt)}
+                          </td>
+                          <td className="py-3.5 px-3 text-gray-500 font-mono">
+                            {formatDateToIndian(req.resignationDate)}
+                          </td>
+                          <td className="py-3.5 px-3 text-gray-500 font-mono">
+                            {formatDateToIndian(req.lastWorkingDay)}
+                          </td>
+                          <td className="py-3.5 px-3 text-gray-500 max-w-xs break-words" title={req.reason}>
+                            {req.reason}
+                          </td>
+                          <td className="py-3.5 px-3 text-center">
+                            <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                              req.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' :
+                              req.status === 'REJECTED' ? 'bg-red-50 text-brand-red border-red-200/60' :
+                              'bg-amber-50 text-amber-700 border-amber-200/60'
+                            }`}>
+                              {req.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3">
+                            {isPending ? (
+                              <input
+                                type="text"
+                                placeholder="Add HR notes..."
+                                value={reviewResignationId === req.id ? resignationNotes : ''}
+                                onFocus={() => {
+                                  setReviewResignationId(req.id);
+                                  setResignationNotes(req.hrNotes || '');
+                                }}
+                                onChange={(e) => setResignationNotes(e.target.value)}
+                                className="rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 outline-none focus:border-brand-cta w-full"
+                              />
+                            ) : (
+                              <span className="text-gray-550 italic">{req.hrNotes || '-'}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                            {isPending ? (
+                              <div className="flex gap-1.5 justify-center">
+                                <button
+                                  onClick={() => {
+                                    setReviewResignationId(req.id);
+                                    handleReviewResignation(req.id, 'APPROVED');
+                                  }}
+                                  disabled={submittingResignation}
+                                  className="bg-emerald-650 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReviewResignationId(req.id);
+                                    handleReviewResignation(req.id, 'REJECTED');
+                                  }}
+                                  disabled={submittingResignation}
+                                  className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 font-semibold text-[10px]">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* TAB: Run Payroll */}
         {activeTab === 'payroll' && (
           <div className="premium-card p-6 space-y-6">
@@ -2800,10 +3109,10 @@ export default function AdminDashboard() {
                         payrollRuns.map((run) => (
                           <tr key={run.id} className="hover:bg-gray-50/50">
                             <td className="py-3 px-2 font-bold text-brand-navy">
-                              {run.user.name}
+                              {formatEmployeeName(run.user.name)}
                             </td>
                             <td className="py-3 px-2 text-gray-500">
-                              {new Date(run.periodStart).toLocaleDateString()} to {new Date(run.periodEnd).toLocaleDateString()}
+                              {formatDateToIndian(run.periodStart)} to {formatDateToIndian(run.periodEnd)}
                             </td>
                             <td className="py-3 px-2 text-right font-semibold text-gray-500">
                               {run.grossEarnings.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -3066,7 +3375,7 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-gray-400 font-semibold mt-0.5">Trainer: {t.trainer} | Dept: {t.department || 'All'}</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-bold text-brand-navy block">{new Date(t.plannedDate).toLocaleDateString()}</span>
+                          <span className="text-xs font-bold text-brand-navy block">{formatDateToIndian(t.plannedDate)}</span>
                           <span className="text-[9px] text-gray-400 font-medium">{t.durationHours} hours duration</span>
                         </div>
                       </div>

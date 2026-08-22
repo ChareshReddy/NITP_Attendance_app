@@ -87,6 +87,8 @@ model User {
   goals                 PerformanceGoal[]  @relation("UserGoals")
   managedGoals          PerformanceGoal[]  @relation("GoalManager")
   trainingAttendance    TrainingAttendance[]
+  resignationRequest     ResignationRequest?
+  regularisationRequests RegularisationRequest[]
 
   @@map("users")
 }
@@ -129,6 +131,8 @@ model TrackSheet {
   status          TrackSheetStatus @default(PENDING)
   notes           String?
   assignedByName  String?          @map("assigned_by_name")
+  tlComment       String?          @map("tl_comment")
+  supportingDocuments String?       @map("supporting_documents")
   
   @@index([userId, date])
   @@index([project])
@@ -303,6 +307,17 @@ model EmployeeProfile {
   pan               String?
   panEncrypted      Boolean  @default(false)
   uan               String?
+  professionalEmail String?  @map("professional_email")
+  insuranceNumber   String?  @map("insurance_number")
+  pfNumber          String?  @map("pf_number")
+  bankAddress       String?  @map("bank_address")
+  bankBranch        String?  @map("bank_branch")
+  expectedEndDate   DateTime? @map("expected_end_date")
+  incrementPerks    String?  @map("increment_perks")
+  bloodGroup        String?  @map("blood_group")
+  profileImage      String?  @map("profile_image")
+  timezone          String?  @default("Asia/Kolkata") @map("timezone")
+  financialDocuments String?  @map("financial_documents")
   updatedAt         DateTime @updatedAt @map("updated_at")
   @@map("employee_profiles")
 }
@@ -390,4 +405,34 @@ model TrainingAttendance {
   feedback       String?
   @@unique([trainingId, userId])
   @@map("training_attendance")
+}
+
+model ResignationRequest {
+  id              String             @id @default(uuid())
+  userId          String             @unique @map("user_id")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resignationDate DateTime           @map("resignation_date")
+  lastWorkingDay  DateTime           @map("last_working_day")
+  reason          String
+  status          String             @default("PENDING") // PENDING, APPROVED, REJECTED
+  hrNotes         String?            @map("hr_notes")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  @@map("resignation_requests")
+}
+
+model RegularisationRequest {
+  id              String             @id @default(uuid())
+  userId          String             @map("user_id")
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            String             // YYYY-MM-DD
+  checkInTime     String?            @map("check_in_time")
+  checkOutTime    String?            @map("check_out_time")
+  reason          String
+  status          String             @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedById    String?            @map("reviewed_by_id")
+  reviewedAt      DateTime?          @map("reviewed_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  @@map("regularisation_requests")
 }

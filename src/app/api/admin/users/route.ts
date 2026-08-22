@@ -63,7 +63,9 @@ export async function POST(request: Request) {
       emergencyContact, permanentAddress, currentAddress, dateOfJoining, employeeType,
       department, designation, grade, location, businessUnit, hrBusinessPartner,
       employmentStatus, probationPeriod, confirmationDate, workShift, bankName,
-      accountNumber, ifsc, pan, uan
+      accountNumber, ifsc, pan, uan, professionalEmail, insuranceNumber, pfNumber,
+      bankAddress, bankBranch, expectedEndDate, incrementPerks, bloodGroup, profileImage,
+      timezone, financialDocuments
     } = body;
 
     // Validate mandatory fields
@@ -124,6 +126,17 @@ export async function POST(request: Request) {
             pan: pan ? encrypt(pan) : null,
             panEncrypted: !!pan,
             uan: uan || null,
+            professionalEmail: professionalEmail || null,
+            insuranceNumber: insuranceNumber || null,
+            pfNumber: pfNumber || null,
+            bankAddress: bankAddress || null,
+            bankBranch: bankBranch || null,
+            expectedEndDate: expectedEndDate ? new Date(expectedEndDate) : null,
+            incrementPerks: incrementPerks || null,
+            bloodGroup: bloodGroup || null,
+            profileImage: profileImage || null,
+            timezone: timezone || 'Asia/Kolkata',
+            financialDocuments: financialDocuments || null,
           }
         }
       },

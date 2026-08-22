@@ -21,6 +21,24 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [userRating, setUserRating] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  function formatEmployeeName(nameVal: string | null | undefined): string {
+    if (!nameVal) return '-';
+    const capitalized = nameVal
+      .trim()
+      .toLowerCase()
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+    const parts = capitalized.split(' ');
+    if (parts.length > 1 && parts[0].length === 1) {
+      const initial = parts.shift();
+      parts.push(initial!);
+      return parts.join(' ');
+    }
+    return capitalized;
+  }
 
   useEffect(() => {
     async function fetchSession() {
@@ -43,12 +61,29 @@ export default function Header() {
     if (user) {
       fetchNotifications();
       fetchPerformance();
+      fetchProfileImage();
       
       // Setup interval for notifications polling (every 30s is fine)
       const interval = setInterval(fetchNotifications, 30000);
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  const fetchProfileImage = async () => {
+    try {
+      const res = await fetch('/api/users/profile');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.profileImage) {
+          setProfileImage(data.profileImage);
+        } else {
+          setProfileImage(null);
+        }
+      }
+    } catch (e) {
+      console.error('Profile fetch failed in header:', e);
+    }
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -182,14 +217,24 @@ export default function Header() {
           )}
 
           {user.role === 'TL' && (
-            <Link
-              href="/tl"
-              className={`hover:text-brand-navy transition-colors pb-1 ${
-                pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
-              }`}
-            >
-              Team Leader Board
-            </Link>
+            <>
+              <Link
+                href="/employee"
+                className={`hover:text-brand-navy transition-colors pb-1 ${
+                  pathname.startsWith('/employee') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                }`}
+              >
+                My Portal
+              </Link>
+              <Link
+                href="/tl"
+                className={`hover:text-brand-navy transition-colors pb-1 ${
+                  pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                }`}
+              >
+                Team Leader Board
+              </Link>
+            </>
           )}
         </nav>
       )}
@@ -258,14 +303,26 @@ export default function Header() {
               )}
             </div>
 
-            <div className="flex flex-col text-right items-end hidden sm:flex">
-              <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
-                <UserIcon className="w-3.5 h-3.5 text-brand-navy/80" />
-                {user.name}
-              </span>
-              <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
-                {user.role.replace('_', ' ')}
-              </span>
+            <div className="flex items-center gap-2.5">
+              {profileImage ? (
+                <img 
+                  src={profileImage} 
+                  alt={user.name} 
+                  className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-brand-navy/80">
+                  <UserIcon className="w-4 h-4" />
+                </div>
+              )}
+              <div className="flex flex-col text-right items-end hidden sm:flex">
+                <span className="text-xs font-bold text-brand-navy flex items-center gap-1">
+                  {formatEmployeeName(user.name)} ({user.id.slice(-3).toUpperCase()})
+                </span>
+                <span className={`text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
+                  {user.role.replace('_', ' ')}
+                </span>
+              </div>
             </div>
             <button
               onClick={handleLogout}
