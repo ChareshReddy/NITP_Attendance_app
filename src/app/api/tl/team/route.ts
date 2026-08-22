@@ -65,6 +65,7 @@ export async function GET(request: Request) {
         name: true,
         email: true,
         role: true,
+        employeeProfile: true,
       },
     });
 

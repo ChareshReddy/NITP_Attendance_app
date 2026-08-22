@@ -139,6 +139,17 @@ export async function PUT(request: Request) {
       if (body.bankName !== undefined) updateData.bankName = body.bankName;
       if (body.ifsc !== undefined) updateData.ifsc = body.ifsc;
       if (body.uan !== undefined) updateData.uan = body.uan;
+      if (body.professionalEmail !== undefined) updateData.professionalEmail = body.professionalEmail;
+      if (body.insuranceNumber !== undefined) updateData.insuranceNumber = body.insuranceNumber;
+      if (body.pfNumber !== undefined) updateData.pfNumber = body.pfNumber;
+      if (body.bankAddress !== undefined) updateData.bankAddress = body.bankAddress;
+      if (body.bankBranch !== undefined) updateData.bankBranch = body.bankBranch;
+      if (body.expectedEndDate !== undefined) updateData.expectedEndDate = body.expectedEndDate ? new Date(body.expectedEndDate) : null;
+      if (body.incrementPerks !== undefined) updateData.incrementPerks = body.incrementPerks;
+      if (body.bloodGroup !== undefined) updateData.bloodGroup = body.bloodGroup;
+      if (body.profileImage !== undefined) updateData.profileImage = body.profileImage;
+      if (body.timezone !== undefined) updateData.timezone = body.timezone;
+      if (body.financialDocuments !== undefined) updateData.financialDocuments = body.financialDocuments;
       
       // Encrypt bank account and PAN if provided
       if (body.accountNumber !== undefined) {
@@ -149,13 +160,17 @@ export async function PUT(request: Request) {
         updateData.panEncrypted = !!body.pan;
       }
     } else {
-      // Employees can only update contact & address info
+      // Employees can only update contact & address info, plus custom fields like blood group, profile image, timezone, financial docs
       if (body.personalEmail !== undefined) updateData.personalEmail = body.personalEmail;
       if (body.mobileNumber !== undefined) updateData.mobileNumber = body.mobileNumber;
       if (body.emergencyContact !== undefined) updateData.emergencyContact = body.emergencyContact;
       if (body.permanentAddress !== undefined) updateData.permanentAddress = body.permanentAddress;
       if (body.currentAddress !== undefined) updateData.currentAddress = body.currentAddress;
       if (body.maritalStatus !== undefined) updateData.maritalStatus = body.maritalStatus;
+      if (body.bloodGroup !== undefined) updateData.bloodGroup = body.bloodGroup;
+      if (body.profileImage !== undefined) updateData.profileImage = body.profileImage;
+      if (body.timezone !== undefined) updateData.timezone = body.timezone;
+      if (body.financialDocuments !== undefined) updateData.financialDocuments = body.financialDocuments;
     }
 
     const updatedProfile = await prisma.employeeProfile.update({

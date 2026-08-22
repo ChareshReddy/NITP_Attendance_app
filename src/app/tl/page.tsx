@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/Header';
+import Link from 'next/link';
 import { 
   Users, 
   Clock, 
@@ -10,6 +11,7 @@ import {
   Plus, 
   FileText, 
   CheckSquare, 
+  ArrowLeftRight,
   AlertCircle, 
   CheckCircle2, 
   Calendar,
@@ -60,6 +62,7 @@ interface TeamMember {
     ip: string;
     tz: string;
   } | null;
+  employeeProfile?: any;
 }
 
 interface TeamTrackSheet {
@@ -71,6 +74,7 @@ interface TeamTrackSheet {
   status: string;
   notes: string | null;
   assignedByName: string | null;
+  tlComment?: string | null;
   user: {
     id: string;
     name: string;
@@ -154,7 +158,32 @@ export default function TeamLeaderDashboard() {
 
   // Filtering States for Track Sheets
   const [filterMember, setFilterMember] = useState('all');
-  const [filterProject, setFilterProject] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Drill-down and commenting states
+  const [selectedMemberForDetail, setSelectedMemberForDetail] = useState<TeamMember | null>(null);
+  const [commentingTrackSheet, setCommentingTrackSheet] = useState<any | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  const formatDateToIndian = (dateString: string | Date | null | undefined) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatEmployeeName = (name: string) => {
+    if (!name) return '';
+    const parts = name.toLowerCase().split(/\s+/).filter(Boolean);
+    const capitalized = parts.map(part => part.charAt(0).toUpperCase() + part.slice(1));
+    const initials = capitalized.filter(part => part.length === 1);
+    const fullWords = capitalized.filter(part => part.length > 1);
+    return [...fullWords, ...initials].join(' ');
+  };
 
   // Status message states
   const [errorMsg, setErrorMsgState] = useState('');
@@ -376,6 +405,34 @@ export default function TeamLeaderDashboard() {
     }
   };
 
+  const handleSaveComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentingTrackSheet) return;
+    setSubmittingComment(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      const res = await fetch('/api/tracksheets', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: commentingTrackSheet.id,
+          tlComment: commentText
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save comment');
+      setSuccessMsg('Comment saved successfully!');
+      setCommentingTrackSheet(null);
+      setCommentText('');
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error saving comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
   const handleReviewLeaveRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     setErrorMsg('');
     setSuccessMsg('');
@@ -544,8 +601,8 @@ export default function TeamLeaderDashboard() {
   // Filtered Track Sheets
   const filteredTrackSheets = trackSheets.filter(sheet => {
     const matchesMember = filterMember === 'all' || sheet.user.id === filterMember;
-    const matchesProject = filterProject.trim() === '' || sheet.project.toLowerCase().includes(filterProject.toLowerCase());
-    return matchesMember && matchesProject;
+    const matchesStatus = filterStatus === 'all' || sheet.status === filterStatus;
+    return matchesMember && matchesStatus;
   });
 
   const tlNavItems: {
@@ -614,6 +671,18 @@ export default function TeamLeaderDashboard() {
               );
             })}
           </nav>
+          
+          <div className="mt-auto px-2 border-t border-slate-100 pt-4 mb-2">
+            <Link
+              href="/employee"
+              className="w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
+            >
+              <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
+              <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
+                My Portal
+              </span>
+            </Link>
+          </div>
         </aside>
 
         {/* Mobile Slide-over Drawer */}
@@ -654,6 +723,18 @@ export default function TeamLeaderDashboard() {
                   </button>
                 ))}
               </nav>
+
+              <div className="mt-auto px-4 border-t border-slate-100 pt-4 mb-4">
+                <Link
+                  href="/employee"
+                  className="w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
+                >
+                  <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
+                  <span className="text-xs font-semibold tracking-wide">
+                    My Portal
+                  </span>
+                </Link>
+              </div>
             </aside>
           </div>
         )}
@@ -718,81 +799,51 @@ export default function TeamLeaderDashboard() {
           )}
         </div>
 
-        {/* KPI Tiles Strip */}
-        <div className="premium-card p-5 grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-0 divide-y lg:divide-y-0 lg:divide-x divide-gray-250/40 mb-8">
-          {/* Team Members */}
-          <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
-                {activeMembersCount}
+        {/* Combined Summary & Category Bar */}
+        <div className="premium-card p-3 mb-8 bg-slate-50/60 border border-slate-255/35 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
+            <span className="font-semibold text-slate-550">
+              Team: <strong className="text-brand-navy">{team?.name || 'N/A'}</strong>
+            </span>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+            <div className="flex flex-wrap items-center gap-4 text-slate-650">
+              <span className="flex items-center gap-1.5 font-medium">
+                <Users className="w-3.5 h-3.5 text-blue-500" />
+                Members: <strong className="text-brand-navy">{activeMembersCount}</strong>
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Team Members</span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                Present: <strong className="text-emerald-700">{presentTodayCount}</strong>
+              </span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <Clock className="w-3.5 h-3.5 text-brand-red" />
+                Late: <strong className="text-brand-red">{lateTodayCount}</strong>
+              </span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <FileText className="w-3.5 h-3.5 text-amber-500" />
+                Pending Logs: <strong className="text-amber-700">{pendingTrackSheetsCount}</strong>
+              </span>
             </div>
           </div>
-
-          {/* Present Today */}
-          <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-2xl font-extrabold font-mono text-emerald-600 leading-none">
-                {presentTodayCount}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Present Today</span>
-            </div>
-          </div>
-
-          {/* Late Arrivals */}
-          <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-2xl font-extrabold font-mono text-brand-red leading-none">
-                {lateTodayCount}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Late Arrivals</span>
-            </div>
-          </div>
-
-          {/* Pending Reviews */}
-          <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
-                {pendingTrackSheetsCount}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Pending Reviews</span>
-            </div>
-          </div>
-
-          {/* Team Performance */}
-          <div className="flex flex-col justify-center py-2 lg:py-0 lg:px-6">
-            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block text-center mb-1.5">Performance Health</span>
-            <div className="flex justify-around items-center gap-1 bg-slate-50/60 p-1.5 rounded-xl border border-gray-150/40">
-              <div className="text-center">
-                <span className="block text-[10px] font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">B</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">G</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-[10px] font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">Y</span>
-              </div>
-              <div className="text-center">
-                <span className="block text-[10px] font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
-                <span className="text-[8px] text-gray-400 block mt-0.5">R</span>
-              </div>
-            </div>
+          
+          {/* Quick tab filters/categories */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {tlNavItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                    isActive 
+                      ? 'bg-brand-navy text-white border-brand-navy shadow-sm' 
+                      : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -803,81 +854,82 @@ export default function TeamLeaderDashboard() {
         {/* TAB 1: Attendance Grid */}
         {activeTab === 'attendance' && (
           <div className="space-y-6">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Shift Attendance Status</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {members.length === 0 ? (
-                <p className="text-sm text-gray-400 py-6 text-center col-span-3">No members found in this team.</p>
-              ) : (
-                members.map((member) => (
-                  <div key={member.id} className="premium-card p-5 relative">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="text-base font-bold text-brand-navy">{member.name}</h4>
-                        <p className="text-xs text-gray-400">{member.email}</p>
-                        {(() => {
-                          const mScoreObj = performanceScores.find((p) => p.user.id === member.id);
-                          if (mScoreObj) {
-                            return (
-                              <div className="mt-1 flex items-center gap-1.5">
-                                <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-extrabold border ${
-                                  mScoreObj.score.rating === 'BLUE' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                  mScoreObj.score.rating === 'GREEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                  mScoreObj.score.rating === 'YELLOW' ? 'bg-amber-50 text-amber-700 border-amber-100' :
-                                  'bg-red-50 text-brand-red border-red-100'
-                                }`}>
-                                  {mScoreObj.score.rating} ({Math.round(mScoreObj.score.autoScore)}%)
-                                </span>
-                                {mScoreObj.score.manualOverride && (
-                                  <span className="text-[8px] bg-purple-50 text-purple-600 px-1 py-0.5 rounded font-bold" title={`Reason: ${mScoreObj.score.overrideReason}`}>
-                                    override
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                      </div>
-                      
-                      {member.todayAttendance ? (
-                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                          member.todayAttendance.status === 'PRESENT' ? 'bg-emerald-100 text-emerald-800' :
-                          member.todayAttendance.status === 'LATE' ? 'bg-red-100 text-brand-red' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {member.todayAttendance.status}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                          ABSENT
-                        </span>
-                      )}
-                    </div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-brand-navy font-heading">Attendance Status</h3>
+            </div>
 
-                    <div className="space-y-2 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                      <div className="flex justify-between">
-                        <span>Check In:</span>
-                        <span className="font-semibold text-brand-navy">
-                          {member.todayAttendance && member.todayAttendance.checkInTime ? new Date(member.todayAttendance.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Check Out:</span>
-                        <span className="font-semibold text-brand-navy">
-                          {member.todayAttendance?.checkOutTime ? new Date(member.todayAttendance.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
-                        </span>
-                      </div>
-                      
-                      {member.todayAttendance && (
-                        <div className="pt-2 flex flex-col gap-0.5 text-[10px] text-gray-400">
-                          <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> IP: {member.todayAttendance.ip}</span>
-                          <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> TZ: {member.todayAttendance.tz}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="premium-card p-6 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-3">Employee Name</th>
+                    <th className="py-3 px-3">Emp No</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-3">Check-in Time</th>
+                    <th className="py-3 px-3">Check-out Time</th>
+                    <th className="py-3 px-3">IP & Timezone</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {members.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-gray-400">No members found in this team.</td>
+                    </tr>
+                  ) : (
+                    members.map((member) => {
+                      const todayAtt = member.todayAttendance;
+                      const hasCheckedIn = !!todayAtt;
+                      const isLate = todayAtt?.status === 'LATE' || todayAtt?.status.includes('LATE');
+                      const isPresent = todayAtt?.status === 'PRESENT' || todayAtt?.status === 'OVERTIME';
+
+                      return (
+                        <tr 
+                          key={member.id} 
+                          className="hover:bg-gray-50/50 cursor-pointer transition-colors"
+                          onClick={() => setSelectedMemberForDetail(member)}
+                        >
+                          <td className="py-3.5 px-3">
+                            <div>
+                              <span className="font-bold text-brand-navy block">{formatEmployeeName(member.name)}</span>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">{member.role}</span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-3 font-semibold text-brand-navy">
+                            #{member.id.slice(-4).toUpperCase()}
+                          </td>
+                          <td className="py-3.5 px-3 text-center">
+                            {hasCheckedIn ? (
+                              <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                isLate ? 'bg-red-50 text-brand-red border-red-200/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
+                              }`}>
+                                {todayAtt.status.replace('_', ' ')}
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border bg-slate-100 text-slate-500 border-slate-200">
+                                ABSENT
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-3 font-medium text-slate-600 font-mono">
+                            {todayAtt?.checkInTime ? new Date(todayAtt.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                          </td>
+                          <td className="py-3.5 px-3 font-medium text-slate-600 font-mono">
+                            {todayAtt?.checkOutTime ? new Date(todayAtt.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                          </td>
+                          <td className="py-3.5 px-3 text-[10px] text-gray-450 leading-relaxed">
+                            {todayAtt ? (
+                              <div>
+                                <span className="block font-medium">IP: {todayAtt.ip || 'Unknown'}</span>
+                                <span className="block text-gray-400 font-medium">TZ: {todayAtt.tz || 'Asia/Kolkata'}</span>
+                              </div>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -900,13 +952,16 @@ export default function TeamLeaderDashboard() {
                     <option value="all">All Members</option>
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
-                  <input
-                    type="text"
-                    value={filterProject}
-                    onChange={(e) => setFilterProject(e.target.value)}
-                    placeholder="Filter by Task..."
-                    className="rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all w-36 shadow-xs"
-                  />
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    className="rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="APPROVED">Approved</option>
+                    <option value="REJECTED">Rejected</option>
+                  </select>
                 </div>
               </div>
             </div>
@@ -963,26 +1018,37 @@ export default function TeamLeaderDashboard() {
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center">
-                          {sheet.status === 'PENDING' ? (
-                            <div className="flex justify-center gap-1.5">
-                              <button
-                                onClick={() => handleReviewTrackSheet(sheet.id, 'APPROVED')}
-                                className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 p-1.5 rounded cursor-pointer transition-colors"
-                                title="Approve Log"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleReviewTrackSheet(sheet.id, 'REJECTED')}
-                                className="bg-red-100 text-brand-red hover:bg-red-200 p-1.5 rounded cursor-pointer transition-colors"
-                                title="Reject Log"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-[10px] font-semibold">Reviewed</span>
-                          )}
+                          <div className="flex flex-col gap-1.5 justify-center items-center">
+                            {sheet.status === 'PENDING' ? (
+                              <div className="flex gap-1 justify-center">
+                                <button
+                                  onClick={() => handleReviewTrackSheet(sheet.id, 'APPROVED')}
+                                  className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 p-1 rounded cursor-pointer transition-colors"
+                                  title="Approve Log"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleReviewTrackSheet(sheet.id, 'REJECTED')}
+                                  className="bg-red-100 text-brand-red hover:bg-red-200 p-1 rounded cursor-pointer transition-colors"
+                                  title="Reject Log"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-[10px] font-semibold">Reviewed</span>
+                            )}
+                            <button
+                              onClick={() => {
+                                setCommentingTrackSheet(sheet);
+                                setCommentText(sheet.tlComment || '');
+                              }}
+                              className="text-[9px] bg-brand-cta/15 text-brand-cta border border-brand-cta/25 px-1.5 py-0.5 rounded font-extrabold hover:bg-brand-cta/25 transition-all cursor-pointer"
+                            >
+                              {sheet.tlComment ? 'Edit Feedback' : 'Add Feedback'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1608,6 +1674,257 @@ export default function TeamLeaderDashboard() {
                   className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Save Review
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Detail Modal */}
+      {selectedMemberForDetail && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200/80 space-y-4 text-brand-navy max-h-[85vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-gray-150 pb-3">
+              <div className="flex items-center gap-3">
+                {selectedMemberForDetail.employeeProfile?.profileImage ? (
+                  <img 
+                    src={selectedMemberForDetail.employeeProfile.profileImage} 
+                    alt="Avatar" 
+                    className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-brand-navy/60">
+                    {selectedMemberForDetail.name.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-base font-bold font-heading">
+                    {formatEmployeeName(selectedMemberForDetail.name)}
+                  </h3>
+                  <span className="text-xs text-gray-500 font-medium block">
+                    Role: {selectedMemberForDetail.role} | Emp No: #{selectedMemberForDetail.id.slice(-4).toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedMemberForDetail(null)}
+                className="text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-normal">
+              {/* Section 1: Personal Profile */}
+              <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl">
+                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Personal Profile</h4>
+                <div className="space-y-2">
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Gender:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.gender || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Date of Birth:</strong>
+                    <span className="font-bold">
+                      {selectedMemberForDetail.employeeProfile?.dateOfBirth ? new Date(selectedMemberForDetail.employeeProfile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A'}
+                    </span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Marital Status:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.maritalStatus || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Blood Group:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.bloodGroup || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <strong className="text-gray-500">Nationality:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.nationality || 'N/A'}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Section 2: Contact Details */}
+              <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl">
+                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Contact Info</h4>
+                <div className="space-y-2">
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Mobile Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.mobileNumber || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Personal Email:</strong>
+                    <span className="font-bold truncate max-w-[150px]" title={selectedMemberForDetail.employeeProfile?.personalEmail}>{selectedMemberForDetail.employeeProfile?.personalEmail || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Professional Email:</strong>
+                    <span className="font-bold truncate max-w-[150px]" title={selectedMemberForDetail.employeeProfile?.professionalEmail}>{selectedMemberForDetail.employeeProfile?.professionalEmail || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <strong className="text-gray-500">Emergency Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.emergencyContact || 'N/A'}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Section 3: Professional Info */}
+              <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
+                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Employment & Job Profile</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Date of Joining:</strong>
+                    <span className="font-bold">
+                      {selectedMemberForDetail.employeeProfile?.dateOfJoining ? new Date(selectedMemberForDetail.employeeProfile.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
+                    </span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Employment Status:</strong>
+                    <span className="font-bold text-emerald-600">{selectedMemberForDetail.employeeProfile?.employmentStatus || 'Active'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Employee Type:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.employeeType || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Department:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.department || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Designation:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.designation || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Insurance Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.insuranceNumber || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Expected End Date:</strong>
+                    <span className="font-bold">
+                      {selectedMemberForDetail.employeeProfile?.expectedEndDate ? new Date(selectedMemberForDetail.employeeProfile.expectedEndDate).toLocaleDateString('en-GB') : 'N/A'}
+                    </span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Increment/Perks:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.incrementPerks || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <strong className="text-gray-500">Timezone Context:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.timezone || 'Asia/Kolkata'}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Section 4: Address Details */}
+              <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
+                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Address Details</h4>
+                <div className="space-y-2">
+                  <div>
+                    <strong className="text-gray-500 block mb-0.5">Current Address:</strong>
+                    <p className="font-semibold text-slate-700">{selectedMemberForDetail.employeeProfile?.currentAddress || 'N/A'}</p>
+                  </div>
+                  <div className="border-t border-slate-100 pt-2 mt-2">
+                    <strong className="text-gray-500 block mb-0.5">Permanent Address:</strong>
+                    <p className="font-semibold text-slate-700">{selectedMemberForDetail.employeeProfile?.permanentAddress || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Financial Details */}
+              <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
+                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Financial Details</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Bank Name:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.bankName || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Bank Branch:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.bankBranch || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Bank Address:</strong>
+                    <span className="font-bold truncate max-w-[150px]" title={selectedMemberForDetail.employeeProfile?.bankAddress}>{selectedMemberForDetail.employeeProfile?.bankAddress || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">Account Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.accountNumber || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">IFSC Code:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.ifsc || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">PF Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.pfNumber || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-slate-100 pb-1">
+                    <strong className="text-gray-500">UAN Number:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.uan || 'N/A'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <strong className="text-gray-500">PAN Card:</strong>
+                    <span className="font-bold">{selectedMemberForDetail.employeeProfile?.pan || 'N/A'}</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3">
+              <button
+                onClick={() => setSelectedMemberForDetail(null)}
+                className="bg-brand-navy hover:bg-brand-navy-light text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full text-center"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Track Sheet Feedback Modal */}
+      {commentingTrackSheet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Provide Log Feedback</h3>
+            <p className="text-xs text-gray-550 leading-relaxed">
+              Add review comments or instructions on completed task log by <strong>{formatEmployeeName(commentingTrackSheet.user.name)}</strong>:
+            </p>
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 text-xs text-slate-600">
+              <strong>Task:</strong> {commentingTrackSheet.project} <br/>
+              <strong>Desc:</strong> {commentingTrackSheet.taskDescription}
+            </div>
+
+            <form onSubmit={handleSaveComment} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Feedback Comment</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="E.g. Excellent work, verify edge cases in production..."
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs min-h-[80px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCommentingTrackSheet(null);
+                    setCommentText('');
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingComment}
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                >
+                  {submittingComment ? 'Saving...' : 'Save Feedback'}
                 </button>
               </div>
             </form>

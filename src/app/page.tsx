@@ -244,7 +244,7 @@ export default function Home() {
                     </label>
                     <div className="relative mt-2">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Mail className="h-5 w-5 text-gray-400" />
+                        <Mail className="h-5 w-5 text-brand-navy-light" />
                       </div>
                       <input
                         type="email"
@@ -272,7 +272,7 @@ export default function Home() {
                     </div>
                     <div className="relative mt-2">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                        <Lock className="h-5 w-5 text-brand-navy-light" />
                       </div>
                       <input
                         type="password"
@@ -306,7 +306,7 @@ export default function Home() {
                     </label>
                     <div className="relative mt-2">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Mail className="h-5 w-5 text-gray-400" />
+                        <Mail className="h-5 w-5 text-brand-navy-light" />
                       </div>
                       <input
                         type="email"
@@ -373,7 +373,7 @@ export default function Home() {
                     </label>
                     <div className="relative mt-2">
                       <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Lock className="h-5 w-5 text-gray-400" />
+                        <Lock className="h-5 w-5 text-brand-navy-light" />
                       </div>
                       <input
                         type="password"
