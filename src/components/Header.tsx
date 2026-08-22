@@ -115,15 +115,15 @@ export default function Header() {
   const getRatingBadgeClass = (rating: string) => {
     switch (rating) {
       case 'BLUE':
-        return 'bg-blue-100 text-blue-800 border border-blue-200';
+        return 'bg-blue-50 text-blue-700 border border-blue-200/60 shadow-sm';
       case 'GREEN':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-200';
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm';
       case 'YELLOW':
-        return 'bg-amber-100 text-amber-800 border border-amber-200';
+        return 'bg-amber-50 text-amber-700 border border-amber-200/60 shadow-sm';
       case 'RED':
-        return 'bg-red-100 text-brand-red border border-red-200';
+        return 'bg-red-50 text-brand-red border border-red-200/60 shadow-sm';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-50 text-gray-700 border border-gray-200/60';
     }
   };
 
@@ -138,22 +138,22 @@ export default function Header() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'HR_ADMIN':
-        return 'bg-purple-100 text-purple-800';
+        return 'bg-purple-50 text-purple-700 border border-purple-200/60';
       case 'TL':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-50 text-blue-700 border border-blue-200/60';
       default:
-        return 'bg-emerald-100 text-emerald-800';
+        return 'bg-emerald-50 text-emerald-700 border border-emerald-200/60';
     }
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/90 backdrop-blur-md px-6 py-3.5 shadow-sm flex items-center justify-between">
+    <header className="sticky top-0 z-50 w-full bg-white px-6 py-3.5 shadow-sm border-b border-gray-200 flex items-center justify-between text-brand-navy">
       {/* Brand logo image */}
-      <Link href="/" className="select-none flex items-center">
+      <Link href="/" className="select-none flex items-center transition-all">
         <img 
           src="/logo.png" 
           alt="Next IT Point Logo" 
-          className="h-10 w-auto object-contain"
+          className="h-9 w-auto object-contain"
         />
       </Link>
 
@@ -164,16 +164,16 @@ export default function Header() {
             <>
               <Link
                 href="/admin"
-                className={`hover:text-brand-navy transition-colors ${
-                  pathname.startsWith('/admin') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
+                className={`hover:text-brand-navy transition-colors pb-1 ${
+                  pathname.startsWith('/admin') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
                 }`}
               >
                 HR Panel
               </Link>
               <Link
                 href="/tl"
-                className={`hover:text-brand-navy transition-colors ${
-                  pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
+                className={`hover:text-brand-navy transition-colors pb-1 ${
+                  pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
                 }`}
               >
                 TL Board
@@ -184,8 +184,8 @@ export default function Header() {
           {user.role === 'TL' && (
             <Link
               href="/tl"
-              className={`hover:text-brand-navy transition-colors ${
-                pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-gray-500 hover:text-gray-700'
+              className={`hover:text-brand-navy transition-colors pb-1 ${
+                pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
               }`}
             >
               Team Leader Board
@@ -202,19 +202,19 @@ export default function Header() {
             <div className="relative">
               <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className="relative p-2 text-gray-500 hover:text-brand-navy hover:bg-gray-50 rounded-lg transition-colors cursor-pointer outline-none border border-gray-100"
+                className={`relative p-2 text-brand-navy/70 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition-colors cursor-pointer outline-none border border-slate-200 ${unreadCount > 0 ? 'notif-pulse' : ''}`}
                 aria-label="Notifications"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] bg-brand-red text-white text-[8px] font-extrabold flex items-center justify-center rounded-full px-0.5 animate-pulse">
+                  <span className="absolute top-1 right-1 min-w-[14px] h-[14px] bg-brand-red text-white text-[8px] font-extrabold flex items-center justify-center rounded-full px-0.5">
                     {unreadCount}
                   </span>
                 )}
               </button>
 
               {isNotifOpen && (
-                <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl border border-gray-150 shadow-xl z-50 overflow-hidden py-1">
+                <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl z-50 overflow-hidden py-1">
                   <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
                     <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Notifications</span>
                     {unreadCount > 0 && (
@@ -235,7 +235,7 @@ export default function Header() {
                       notifications.map((n) => (
                         <div 
                           key={n.id} 
-                          className={`p-3 text-left transition-colors flex flex-col gap-1 relative ${!n.read ? 'bg-blue-50/30' : ''}`}
+                          className={`p-3 text-left transition-colors flex flex-col gap-1 relative ${!n.read ? 'bg-blue-50/40' : ''}`}
                         >
                           <div className="flex items-start justify-between gap-1.5">
                             <p className="text-[11px] text-brand-navy leading-normal font-medium">{n.message}</p>
@@ -260,7 +260,7 @@ export default function Header() {
 
             <div className="flex flex-col text-right items-end hidden sm:flex">
               <span className="text-sm font-bold text-brand-navy flex items-center gap-1.5">
-                <UserIcon className="w-3.5 h-3.5 text-brand-navy" />
+                <UserIcon className="w-3.5 h-3.5 text-brand-navy/80" />
                 {user.name}
               </span>
               <span className={`text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
@@ -269,7 +269,7 @@ export default function Header() {
             </div>
             <button
               onClick={handleLogout}
-              className="rounded-lg bg-brand-cta text-white font-bold text-xs sm:text-sm px-4 py-2 hover:bg-blue-700 transition-all flex items-center gap-2 cursor-pointer btn-premium shadow-sm"
+              className="rounded-xl bg-slate-50 text-brand-navy hover:bg-slate-100 font-bold text-xs sm:text-sm px-4 py-2 hover:shadow-md border border-slate-200 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Logout</span>
