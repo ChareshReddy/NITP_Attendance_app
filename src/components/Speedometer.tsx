@@ -6,7 +6,7 @@ interface SpeedometerProps {
   size?: number;
 }
 
-export default function Speedometer({ score, rating, size = 180 }: SpeedometerProps) {
+export default function Speedometer({ score, rating, size = 350 }: SpeedometerProps) {
   // Bounded score 0-100
   const val = Math.max(0, Math.min(100, score));
   
@@ -15,105 +15,101 @@ export default function Speedometer({ score, rating, size = 180 }: SpeedometerPr
 
   // Determine active colors based on rating
   const colorMap = {
-    RED: { text: 'text-brand-red', bg: 'bg-red-50 border-red-100', hex: '#EF4444' },
-    YELLOW: { text: 'text-amber-600', bg: 'bg-amber-50 border-amber-100', hex: '#F59E0B' },
-    GREEN: { text: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100', hex: '#10B981' },
-    BLUE: { text: 'text-blue-600', bg: 'bg-blue-50 border-blue-100', hex: '#3B82F6' },
+    RED: { hex: '#E4222E', label: 'Needs Improvement' },
+    YELLOW: { hex: '#F59E0B', label: 'Average' },
+    GREEN: { hex: '#10B981', label: 'Good' },
+    BLUE: { hex: '#1E4FD8', label: 'Excellent' },
   };
 
   const activeColor = colorMap[rating] || colorMap.GREEN;
 
   return (
-    <div className="flex flex-col items-center justify-center relative w-full">
-      {/* Speedometer Gauge Arc */}
-      <div className="relative" style={{ width: size, height: size * 0.6 }}>
+    <div className="flex flex-col items-center justify-center relative w-full select-none">
+      <div className="relative" style={{ width: size, height: size * 0.55 }}>
         <svg
           width={size}
-          height={size * 0.6}
-          viewBox="0 0 200 120"
+          height={size * 0.55}
+          viewBox="0 0 360 150"
           className="overflow-visible"
         >
           <defs>
-            {/* Speedometer color gradient arc */}
-            <linearGradient id="speedometer-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#EF4444" />     {/* RED */}
-              <stop offset="35%" stopColor="#EF4444" />
-              <stop offset="45%" stopColor="#F59E0B" />    {/* YELLOW */}
-              <stop offset="60%" stopColor="#F59E0B" />
-              <stop offset="70%" stopColor="#10B981" />    {/* GREEN */}
-              <stop offset="82%" stopColor="#10B981" />
-              <stop offset="90%" stopColor="#3B82F6" />    {/* BLUE */}
-              <stop offset="100%" stopColor="#3B82F6" />
-            </linearGradient>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="3" stdDeviation="3" floodOpacity="0.15" />
+            <filter id="needle-shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.1" />
             </filter>
           </defs>
 
-          {/* Background track (light gray) - radius 82, center (100, 110) */}
+          {/* Segment 1: Red Arc */}
           <path
-            d="M 18 110 A 82 82 0 0 1 182 110"
+            d="M 105 120 A 75 75 0 0 1 126.97 66.97"
             fill="none"
-            stroke="#F3F4F6"
-            strokeWidth="12"
-            strokeLinecap="round"
+            stroke="#E4222E"
+            strokeWidth="18"
+            strokeLinecap="butt"
           />
 
-          {/* Color Gradient Track */}
+          {/* Segment 2: Yellow Arc */}
           <path
-            d="M 18 110 A 82 82 0 0 1 182 110"
+            d="M 126.97 66.97 A 75 75 0 0 1 180 45"
             fill="none"
-            stroke="url(#speedometer-grad)"
-            strokeWidth="12"
-            strokeLinecap="round"
-            opacity="0.9"
+            stroke="#F59E0B"
+            strokeWidth="18"
+            strokeLinecap="butt"
           />
 
-          {/* Dash Overlay for clean segmentation */}
+          {/* Segment 3: Green Arc */}
           <path
-            d="M 18 110 A 82 82 0 0 1 182 110"
+            d="M 180 45 A 75 75 0 0 1 233.03 66.97"
             fill="none"
-            stroke="#FFFFFF"
-            strokeWidth="14"
-            strokeDasharray="2, 6"
-            opacity="0.25"
+            stroke="#10B981"
+            strokeWidth="18"
+            strokeLinecap="butt"
           />
 
-          {/* Ticks and Labels (positioned cleanly outside the arc) */}
-          {/* 0 label */}
-          <line x1="10" y1="110" x2="18" y2="110" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="2" y="114" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">0</text>
+          {/* Segment 4: Blue Arc */}
+          <path
+            d="M 233.03 66.97 A 75 75 0 0 1 255 120"
+            fill="none"
+            stroke="#1E4FD8"
+            strokeWidth="18"
+            strokeLinecap="butt"
+          />
 
-          {/* 25 label */}
-          <line x1="36.4" y1="46.4" x2="42" y2="52" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="26" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">25</text>
+          {/* Segment Divider Lines */}
+          <line x1="135.5" y1="75.5" x2="118.5" y2="58.5" stroke="#FFFFFF" strokeWidth="2.5" />
+          <line x1="180" y1="57" x2="180" y2="33" stroke="#FFFFFF" strokeWidth="2.5" />
+          <line x1="224.5" y1="75.5" x2="241.5" y2="58.5" stroke="#FFFFFF" strokeWidth="2.5" />
 
-          {/* 50 label */}
-          <line x1="100" y1="28" x2="100" y2="36" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="100" y="18" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">50</text>
+          {/* Labeled Segments (Connectors and Text) */}
+          {/* Needs Improvement */}
+          <path d="M 101.5 87.5 L 92.3 83.7" fill="none" stroke="#94A3B8" strokeWidth="1" strokeDasharray="2,2" />
+          <text x="88" y="87" fill="#475569" fontSize="9" fontWeight="700" textAnchor="end">Needs Improvement</text>
 
-          {/* 75 label */}
-          <line x1="163.6" y1="46.4" x2="158" y2="52" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="174" y="44" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">75</text>
+          {/* Average */}
+          <path d="M 147.5 41.5 L 143.7 32.3" fill="none" stroke="#94A3B8" strokeWidth="1" strokeDasharray="2,2" />
+          <text x="139" y="29" fill="#475569" fontSize="9" fontWeight="700" textAnchor="end">Average</text>
 
-          {/* 100 label */}
-          <line x1="190" y1="110" x2="182" y2="110" stroke="#D1D5DB" strokeWidth="1.5" />
-          <text x="198" y="114" fill="#9CA3AF" fontSize="10" fontWeight="800" textAnchor="middle">100</text>
+          {/* Good */}
+          <path d="M 212.5 41.5 L 216.3 32.3" fill="none" stroke="#94A3B8" strokeWidth="1" strokeDasharray="2,2" />
+          <text x="221" y="29" fill="#475569" fontSize="9" fontWeight="700" textAnchor="start">Good</text>
+
+          {/* Excellent */}
+          <path d="M 258.5 87.5 L 267.7 83.7" fill="none" stroke="#94A3B8" strokeWidth="1" strokeDasharray="2,2" />
+          <text x="272" y="87" fill="#475569" fontSize="9" fontWeight="700" textAnchor="start">Excellent</text>
 
           {/* Needle Pointer */}
-          <g transform={`rotate(${needleRotation}, 100, 110)`} className="transition-transform duration-1000 ease-out">
+          <g transform={`rotate(${needleRotation}, 180, 120)`} className="transition-transform duration-1000 ease-out">
             <polygon
-              points="97,110 100,32 103,110"
-              fill="#1F2937"
-              filter="url(#shadow)"
+              points="176.5,120 179.2,38 180.8,38 183.5,120"
+              fill="#0D1B6E"
+              filter="url(#needle-shadow)"
             />
-            {/* Pointer colored tip */}
-            <circle cx="100" cy="34" r="2.5" fill={activeColor.hex} />
+            <circle cx="180" cy="38" r="2.5" fill={activeColor.hex} />
           </g>
 
           {/* Center Hub */}
-          <circle cx="100" cy="110" r="8" fill="#1F2937" />
-          <circle cx="100" cy="110" r="3.5" fill="#FFFFFF" />
+          <circle cx="180" cy="120" r="10" fill="#0D1B6E" />
+          <circle cx="180" cy="120" r="4" fill="#FFFFFF" />
+
         </svg>
       </div>
     </div>

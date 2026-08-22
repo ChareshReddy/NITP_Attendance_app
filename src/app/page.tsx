@@ -161,7 +161,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-brand-bg relative">
+    <div className="min-h-screen flex flex-col md:flex-row bg-transparent relative">
       
       {/* Left Column: Autoplay Looping Hero Video Panel */}
       <div className="relative w-full md:w-[50%] lg:w-[55%] h-64 md:h-screen shrink-0 overflow-hidden bg-brand-navy">
@@ -194,7 +194,7 @@ export default function Home() {
       </div>
 
       {/* Right Column: Existing Login Forms and Branding */}
-      <div className="flex-1 flex flex-col justify-center py-12 px-6 sm:px-12 md:px-16 lg:px-20 xl:px-24 overflow-y-auto h-auto md:h-screen bg-brand-bg">
+      <div className="flex-1 flex flex-col justify-center py-12 px-6 sm:px-12 md:px-16 lg:px-20 xl:px-24 overflow-y-auto h-auto md:h-screen bg-transparent">
         <div className="mx-auto w-full max-w-md">
           
           {/* Logo Branding */}
@@ -213,7 +213,7 @@ export default function Home() {
           </h2>
 
           <div className="mt-8">
-            <div className="bg-white py-10 px-8 premium-card border border-gray-100">
+            <div className="py-10 px-8 premium-card">
               
               {error && (
                 <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-brand-red flex items-start gap-2.5 border border-red-100 animate-pulse">
@@ -252,7 +252,7 @@ export default function Home() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="employee@nextitpoint.com"
-                        className="block w-full rounded-lg border-0 py-2.5 pl-10 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand-cta sm:text-sm sm:leading-6 bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 pl-10 text-brand-gray placeholder:text-gray-400 focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all bg-white/70 backdrop-blur-xs outline-none sm:text-sm shadow-xs"
                       />
                     </div>
                   </div>
@@ -280,7 +280,7 @@ export default function Home() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="block w-full rounded-lg border-0 py-2.5 pl-10 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand-cta sm:text-sm sm:leading-6 bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 pl-10 text-brand-gray placeholder:text-gray-400 focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all bg-white/70 backdrop-blur-xs outline-none sm:text-sm shadow-xs"
                       />
                     </div>
                   </div>
@@ -289,7 +289,7 @@ export default function Home() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-cta btn-premium disabled:opacity-50 cursor-pointer"
+                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-md hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-cta btn-premium disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {loading ? 'Signing in...' : 'Sign In'}
                       {!loading && <ArrowRight className="w-4 h-4" />}
@@ -314,7 +314,7 @@ export default function Home() {
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
                         placeholder="employee@nextitpoint.com"
-                        className="block w-full rounded-lg border-0 py-2.5 pl-10 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand-cta sm:text-sm sm:leading-6 bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 pl-10 text-brand-gray placeholder:text-gray-400 focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all bg-white/70 backdrop-blur-xs outline-none sm:text-sm shadow-xs"
                       />
                     </div>
                   </div>
@@ -323,7 +323,7 @@ export default function Home() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-blue-700 btn-premium disabled:opacity-50 cursor-pointer"
+                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-md hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 btn-premium disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {loading ? 'Requesting...' : 'Generate Reset Token'}
                     </button>
@@ -332,7 +332,7 @@ export default function Home() {
                       <button
                         type="button"
                         onClick={() => setView('reset')}
-                        className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-navy px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-slate-800 btn-premium cursor-pointer"
+                        className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-navy px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-md hover:bg-slate-800 hover:shadow-lg hover:shadow-brand-navy/15 btn-premium cursor-pointer transition-all"
                       >
                         Go to Reset Password
                       </button>
@@ -362,7 +362,7 @@ export default function Home() {
                         value={resetToken}
                         onChange={(e) => setResetToken(e.target.value)}
                         placeholder="Enter reset token"
-                        className="block w-full rounded-lg border-0 py-2.5 px-3.5 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand-cta sm:text-sm sm:leading-6 bg-white outline-none font-mono"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3.5 text-brand-gray placeholder:text-gray-400 focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all bg-white/70 backdrop-blur-xs outline-none sm:text-sm font-mono shadow-xs"
                       />
                     </div>
                   </div>
@@ -381,7 +381,7 @@ export default function Home() {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="block w-full rounded-lg border-0 py-2.5 pl-10 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-brand-cta sm:text-sm sm:leading-6 bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 pl-10 text-brand-gray placeholder:text-gray-400 focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all bg-white/70 backdrop-blur-xs outline-none sm:text-sm shadow-xs"
                       />
                     </div>
                   </div>
@@ -390,7 +390,7 @@ export default function Home() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex w-full justify-center items-center gap-2 rounded-lg bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-sm hover:bg-blue-700 btn-premium disabled:opacity-50 cursor-pointer"
+                      className="flex w-full justify-center items-center gap-2 rounded-xl bg-brand-cta px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-md hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 btn-premium disabled:opacity-50 cursor-pointer transition-all"
                     >
                       {loading ? 'Resetting...' : 'Update Password'}
                     </button>

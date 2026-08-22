@@ -26,6 +26,31 @@ import {
   X
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Framer motion variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring" as const, 
+      stiffness: 260, 
+      damping: 25 
+    } 
+  }
+};
 
 // Dynamic import of Recharts to prevent SSR window issues
 import {
@@ -1065,11 +1090,11 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg">
+    <div className="flex flex-col min-h-screen bg-transparent">
       <Header />
 
       {/* Mobile Nav Toggle Bar */}
-      <div className="md:hidden bg-white border-b border-gray-150 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
+      <div className="md:hidden bg-white/60 backdrop-blur-md border-b border-gray-200/50 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
@@ -1086,25 +1111,36 @@ export default function AdminDashboard() {
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Persistent Left Sidebar - Desktop */}
-        <aside className="hidden md:flex w-60 bg-white border-r border-gray-150 flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto">
-          <div className="px-4 mb-4">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Admin Panel</span>
-          </div>
-          <nav className="flex-1 space-y-1">
-            {adminNavItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
-                  activeTab === item.id 
-                    ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
-                    : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
-                }`}
-              >
-                <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
-                <span className="text-xs tracking-wide">{item.label}</span>
-              </button>
-            ))}
+        <aside className="hidden md:flex w-20 hover:w-60 bg-white flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto transition-all duration-300 ease-in-out group shadow-sm border-r border-gray-200">
+          <nav className="flex-1 space-y-1 px-2 relative">
+            {adminNavItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
+                    isActive 
+                      ? 'text-brand-navy font-bold' 
+                      : 'text-slate-600 hover:text-brand-navy hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Animated sliding highlight background pill */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabPillAdmin"
+                      className="absolute inset-0 bg-slate-100 border-l-4 border-brand-navy rounded-xl -z-10"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  
+                  <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-brand-navy' : 'text-slate-400 group-hover:text-brand-navy'}`} />
+                  <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </nav>
         </aside>
 
@@ -1116,12 +1152,12 @@ export default function AdminDashboard() {
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             
-            <aside className="relative flex w-full max-w-xs flex-col bg-white py-4 shadow-xl border-r border-gray-100 h-full animate-in slide-in-from-left duration-200">
-              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100 mb-4">
+            <aside className="relative flex w-full max-w-xs flex-col bg-white border-r border-gray-200 py-4 shadow-xl h-full animate-in slide-in-from-left duration-200 text-brand-navy">
+              <div className="flex items-center justify-between px-4 pb-4 border-b border-slate-100 mb-4">
                 <span className="text-sm font-extrabold text-brand-navy font-heading">Admin Panel</span>
                 <button 
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="text-gray-500 hover:text-brand-navy p-1"
+                  className="text-slate-400 hover:text-slate-600 p-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1137,11 +1173,11 @@ export default function AdminDashboard() {
                     }}
                     className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
                       activeTab === item.id 
-                        ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
-                        : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                        ? 'bg-slate-100 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                        : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 hover:text-brand-navy font-semibold'
                     }`}
                   >
-                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-slate-400'}`} />
                     <span className="text-xs tracking-wide">{item.label}</span>
                   </button>
                 ))}
@@ -1193,7 +1229,7 @@ export default function AdminDashboard() {
 
           {/* Quick Check-in/out widget for HR */}
           {activeTab === 'analytics' && (
-            <div className="flex items-center gap-4 bg-white p-4 rounded-2xl border border-gray-150 shadow-sm self-start lg:self-center min-w-[280px]">
+            <div className="flex items-center gap-4 premium-card p-4 shadow-sm self-start lg:self-center min-w-[280px] border border-gray-200/50">
               <div className="bg-blue-50 p-2.5 rounded-xl text-brand-navy shrink-0">
                 <Clock className="w-5 h-5" />
               </div>
@@ -1245,7 +1281,7 @@ export default function AdminDashboard() {
         {activeTab === 'analytics' && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {/* Active Employees */}
-            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
               <span className="block text-3xl font-extrabold text-brand-navy font-heading">
                 {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
               </span>
@@ -1253,7 +1289,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Avg Attendance */}
-            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
               <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
                 {kpiStats.rollingAttendanceRate.toFixed(1)}%
               </span>
@@ -1261,7 +1297,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Present Today */}
-            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
               <span className="block text-3xl font-extrabold text-brand-cta font-heading">
                 {kpiStats.checkedInToday}
               </span>
@@ -1269,7 +1305,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Absent Today */}
-            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
               <span className="block text-3xl font-extrabold text-brand-red font-heading">
                 {kpiStats.absentToday}
               </span>
@@ -1277,7 +1313,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* On Leave Today */}
-            <div className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
               <span className="block text-3xl font-extrabold text-purple-600 font-heading">
                 {kpiStats.onLeaveToday}
               </span>
@@ -1287,7 +1323,7 @@ export default function AdminDashboard() {
             {/* Pending TL Reports */}
             <button
               onClick={() => setActiveTab('reports')}
-              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
             >
               <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
                 {reports.filter(r => r.status === 'PENDING').length}
@@ -1298,7 +1334,7 @@ export default function AdminDashboard() {
             {/* Pending Leaves */}
             <button
               onClick={() => setActiveTab('leaves')}
-              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
             >
               <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
                 {leaveRequests.filter(r => r.status === 'PENDING').length}
@@ -1309,7 +1345,7 @@ export default function AdminDashboard() {
             {/* Payroll Status */}
             <button
               onClick={() => setActiveTab('payroll')}
-              className="bg-white premium-card p-4 border border-gray-100 text-center flex flex-col justify-center items-center min-h-[90px] shadow-sm hover:shadow-md transition-shadow cursor-pointer group w-full"
+              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
             >
               {payrollRuns.some(r => r.status === 'DRAFT') ? (
                 <>
@@ -1337,7 +1373,7 @@ export default function AdminDashboard() {
             </button>
 
             {/* Performance Overview (lg:col-span-2) */}
-            <div className="bg-white premium-card p-4 border border-gray-100 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-sm hover:shadow-md transition-shadow">
+            <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-xs hover:shadow-md transition-all">
               <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center tracking-wider">Performance Overview</span>
               <div className="flex justify-around items-center gap-1">
                 <div className="text-center">
@@ -1370,7 +1406,7 @@ export default function AdminDashboard() {
             {/* Monthly & Rostered Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Total Rostered Employees */}
-              <div className="bg-white premium-card p-6 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
                 <div>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Rostered Employees</span>
                   <span className="text-3xl font-extrabold text-brand-navy mt-2 block font-heading">{kpiStats.totalEmployees}</span>
@@ -1379,7 +1415,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* New Joiners */}
-              <div className="bg-white premium-card p-6 border border-gray-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+              <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
                 <div>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">New Joiners (This Month)</span>
                   <span className="text-3xl font-extrabold text-blue-600 mt-2 block font-heading">{kpiStats.newJoiners}</span>
@@ -1393,7 +1429,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Attendance Trends */}
-                <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2">
+                <div className="premium-card p-6 lg:col-span-2">
                   <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-brand-cta" />
                     Attendance Trends (Weekly Overview)
@@ -1419,7 +1455,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Task Accomplishment */}
-                <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1">
+                <div className="premium-card p-6 lg:col-span-1">
                   <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                     <FileCheck className="w-5 h-5 text-brand-cta" />
                     Deliverables Completion Rate
@@ -1463,7 +1499,7 @@ export default function AdminDashboard() {
             )}
 
             {/* Excel Export Module */}
-            <div className="bg-white premium-card p-6 border border-gray-100">
+            <div className="premium-card p-6">
               <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <Download className="w-5 h-5 text-brand-cta" />
                 Data Export & Excel Stream Center
@@ -1475,7 +1511,7 @@ export default function AdminDashboard() {
                   <select
                     value={exportType}
                     onChange={(e) => setExportType(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="attendance">Shift Attendance Logs</option>
                     <option value="tracksheet">Work Track Sheets</option>
@@ -1487,7 +1523,7 @@ export default function AdminDashboard() {
                   <select
                     value={exportTeam}
                     onChange={(e) => setExportTeam(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="all">All Teams</option>
                     {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1499,7 +1535,7 @@ export default function AdminDashboard() {
                   <select
                     value={exportUser}
                     onChange={(e) => setExportUser(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="all">All Employees</option>
                     {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
@@ -1512,7 +1548,7 @@ export default function AdminDashboard() {
                     type="date"
                     value={exportStart}
                     onChange={(e) => setExportStart(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   />
                 </div>
 
@@ -1522,7 +1558,7 @@ export default function AdminDashboard() {
                     type="date"
                     value={exportEnd}
                     onChange={(e) => setExportEnd(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   />
                 </div>
               </div>
@@ -1548,7 +1584,7 @@ export default function AdminDashboard() {
             <div className="space-y-6 lg:col-span-1">
               
               {/* Create Account Form */}
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
               <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-brand-cta" />
                 Provision New Account
@@ -1563,7 +1599,7 @@ export default function AdminDashboard() {
                     value={userName}
                     onChange={(e) => setUserName(e.target.value)}
                     placeholder="John Doe"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                   />
                 </div>
 
@@ -1575,7 +1611,7 @@ export default function AdminDashboard() {
                     value={userEmail}
                     onChange={(e) => setUserEmail(e.target.value)}
                     placeholder="john@nextitpoint.com"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                   />
                 </div>
 
@@ -1587,7 +1623,7 @@ export default function AdminDashboard() {
                     value={userPassword}
                     onChange={(e) => setUserPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                   />
                 </div>
 
@@ -1597,7 +1633,7 @@ export default function AdminDashboard() {
                     <select
                       value={userRole}
                       onChange={(e) => setUserRole(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="EMPLOYEE">EMPLOYEE</option>
                       <option value="TL">TEAM LEADER</option>
@@ -1609,7 +1645,7 @@ export default function AdminDashboard() {
                     <select
                       value={userTeamId}
                       onChange={(e) => setUserTeamId(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="">No Team Assigned</option>
                       {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1622,7 +1658,7 @@ export default function AdminDashboard() {
                   <select
                     value={userManagerId}
                     onChange={(e) => setUserManagerId(e.target.value)}
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                   >
                     <option value="">No Manager</option>
                     {users.filter(u => u.role === 'TL').map(tl => (
@@ -1634,7 +1670,7 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
+                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
                 >
                   {loading ? 'Creating...' : 'Create Account'}
                 </button>
@@ -1642,7 +1678,7 @@ export default function AdminDashboard() {
             </div>
 
               {/* Create Team Form */}
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-brand-red" />
                   Create New Team
@@ -1657,7 +1693,7 @@ export default function AdminDashboard() {
                       value={newTeamName}
                       onChange={(e) => setNewTeamName(e.target.value)}
                       placeholder="e.g. Sales Team"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                     />
                   </div>
 
@@ -1666,7 +1702,7 @@ export default function AdminDashboard() {
                     <select
                       value={newTeamLeaderId}
                       onChange={(e) => setNewTeamLeaderId(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="">No Team Leader</option>
                       {users.filter(u => u.role === 'TL').map(tl => (
@@ -1678,7 +1714,7 @@ export default function AdminDashboard() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
+                    className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
                   >
                     {loading ? 'Creating Team...' : 'Create Team'}
                   </button>
@@ -1688,7 +1724,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Accounts Directory */}
-            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2 lg:h-[768px] flex flex-col">
+            <div className="premium-card p-6 lg:col-span-2 lg:h-[768px] flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shrink-0">
                 <h3 className="text-lg font-bold text-brand-navy font-heading">User Directory</h3>
                 
@@ -1701,21 +1737,21 @@ export default function AdminDashboard() {
                     value={userSearch}
                     onChange={(e) => setUserSearch(e.target.value)}
                     placeholder="Search accounts..."
-                    className="block w-full rounded-lg border border-gray-200 py-1.5 pl-9 pr-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-1.5 pl-9 pr-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                   />
                 </div>
               </div>
 
               <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                      <th className="py-3 px-2 bg-white">Name</th>
-                      <th className="py-3 px-2 bg-white">Role</th>
-                      <th className="py-3 px-2 bg-white">Team</th>
-                      <th className="py-3 px-2 bg-white">Reporting Manager</th>
-                      <th className="py-3 px-2 text-center bg-white">Status</th>
-                      <th className="py-3 px-2 text-center bg-white">Actions</th>
+                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-2 bg-transparent">Name</th>
+                      <th className="py-3 px-2 bg-transparent">Role</th>
+                      <th className="py-3 px-2 bg-transparent">Team</th>
+                      <th className="py-3 px-2 bg-transparent">Reporting Manager</th>
+                      <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                      <th className="py-3 px-2 text-center bg-transparent">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -1766,7 +1802,7 @@ export default function AdminDashboard() {
 
         {/* TAB: Create Employee */}
         {activeTab === 'new-employee' && (
-          <div className="bg-white premium-card p-6 border border-gray-100 space-y-8">
+          <div className="premium-card p-6 space-y-8">
             <div>
               <h3 className="text-xl font-bold text-brand-navy font-heading">Onboard & Create New Employee</h3>
               <p className="text-xs text-gray-500 mt-1">Provide employee details to generate their system account and profile record.</p>
@@ -1774,7 +1810,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleCreateEmployee} className="space-y-6">
               {/* Section 1: Account Details */}
-              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -1785,7 +1821,7 @@ export default function AdminDashboard() {
                       value={employeeForm.name}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="e.g. Rahul Kumar"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                     />
                   </div>
                   <div>
@@ -1796,7 +1832,7 @@ export default function AdminDashboard() {
                       value={employeeForm.email}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, email: e.target.value }))}
                       placeholder="rahul@nextitpoint.com"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                     />
                   </div>
                   <div>
@@ -1807,7 +1843,7 @@ export default function AdminDashboard() {
                       value={employeeForm.password}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, password: e.target.value }))}
                       placeholder="••••••••"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none sm:text-sm focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                     />
                   </div>
                 </div>
@@ -1818,7 +1854,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.role}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, role: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="EMPLOYEE">EMPLOYEE</option>
                       <option value="TL">TEAM LEADER</option>
@@ -1830,7 +1866,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.teamId}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, teamId: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="">No Team Assigned</option>
                       {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -1841,7 +1877,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.managerId}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, managerId: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="">No Manager</option>
                       {users.filter(u => u.role === 'TL').map(tl => (
@@ -1853,7 +1889,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Section 2: Employment Profile */}
-              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-600">2. Employment Details</h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -1863,7 +1899,7 @@ export default function AdminDashboard() {
                       required
                       value={employeeForm.dateOfJoining}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, dateOfJoining: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div>
@@ -1871,7 +1907,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.employeeType}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, employeeType: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="Full-time">Full-time</option>
                       <option value="Contract">Contract</option>
@@ -1886,7 +1922,7 @@ export default function AdminDashboard() {
                       value={employeeForm.department}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, department: e.target.value }))}
                       placeholder="e.g. Engineering"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1897,7 +1933,7 @@ export default function AdminDashboard() {
                       value={employeeForm.designation}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, designation: e.target.value }))}
                       placeholder="e.g. Senior Developer"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -1910,7 +1946,7 @@ export default function AdminDashboard() {
                       value={employeeForm.grade}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, grade: e.target.value }))}
                       placeholder="e.g. M3"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1920,7 +1956,7 @@ export default function AdminDashboard() {
                       value={employeeForm.location}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, location: e.target.value }))}
                       placeholder="e.g. Offshore / Bangalore"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1930,7 +1966,7 @@ export default function AdminDashboard() {
                       value={employeeForm.businessUnit}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, businessUnit: e.target.value }))}
                       placeholder="e.g. Digital Delivery"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1940,7 +1976,7 @@ export default function AdminDashboard() {
                       value={employeeForm.hrBusinessPartner}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, hrBusinessPartner: e.target.value }))}
                       placeholder="HR Specialist"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -1953,7 +1989,7 @@ export default function AdminDashboard() {
                       value={employeeForm.workShift}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, workShift: e.target.value }))}
                       placeholder="e.g. General Shift (9:00 - 18:00)"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1962,7 +1998,7 @@ export default function AdminDashboard() {
                       type="number"
                       value={employeeForm.probationPeriod}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, probationPeriod: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -1971,7 +2007,7 @@ export default function AdminDashboard() {
                       type="date"
                       value={employeeForm.confirmationDate}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, confirmationDate: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div>
@@ -1979,7 +2015,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.employmentStatus}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, employmentStatus: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="Active">Active</option>
                       <option value="Suspended">Suspended</option>
@@ -1990,7 +2026,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Section 3: Personal & Contact */}
-              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-600">3. Personal & Contact Info</h4>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -1999,7 +2035,7 @@ export default function AdminDashboard() {
                       type="date"
                       value={employeeForm.dateOfBirth}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, dateOfBirth: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div>
@@ -2007,7 +2043,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.gender}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, gender: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -2019,7 +2055,7 @@ export default function AdminDashboard() {
                     <select
                       value={employeeForm.maritalStatus}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, maritalStatus: e.target.value }))}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
@@ -2034,7 +2070,7 @@ export default function AdminDashboard() {
                       value={employeeForm.nationality}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, nationality: e.target.value }))}
                       placeholder="e.g. Indian"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -2047,7 +2083,7 @@ export default function AdminDashboard() {
                       value={employeeForm.personalEmail}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, personalEmail: e.target.value }))}
                       placeholder="personal@email.com"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2057,7 +2093,7 @@ export default function AdminDashboard() {
                       value={employeeForm.mobileNumber}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, mobileNumber: e.target.value }))}
                       placeholder="+91 XXXXX XXXXX"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2067,7 +2103,7 @@ export default function AdminDashboard() {
                       value={employeeForm.emergencyContact}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, emergencyContact: e.target.value }))}
                       placeholder="Name - Relationship - Phone"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -2080,7 +2116,7 @@ export default function AdminDashboard() {
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, currentAddress: e.target.value }))}
                       placeholder="Current residence address..."
                       rows={2}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2090,14 +2126,14 @@ export default function AdminDashboard() {
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, permanentAddress: e.target.value }))}
                       placeholder="Permanent address as per records..."
                       rows={2}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Section 4: Bank Details */}
-              <div className="bg-gray-50/50 p-5 rounded-2xl border border-gray-100 space-y-4">
+              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                   <div>
@@ -2107,7 +2143,7 @@ export default function AdminDashboard() {
                       value={employeeForm.bankName}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, bankName: e.target.value }))}
                       placeholder="HDFC Bank"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2117,7 +2153,7 @@ export default function AdminDashboard() {
                       value={employeeForm.accountNumber}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, accountNumber: e.target.value }))}
                       placeholder="Sensitive Field"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2127,7 +2163,7 @@ export default function AdminDashboard() {
                       value={employeeForm.ifsc}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, ifsc: e.target.value }))}
                       placeholder="HDFC0001234"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2137,7 +2173,7 @@ export default function AdminDashboard() {
                       value={employeeForm.pan}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, pan: e.target.value }))}
                       placeholder="Sensitive Field"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2147,7 +2183,7 @@ export default function AdminDashboard() {
                       value={employeeForm.uan}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, uan: e.target.value }))}
                       placeholder="100123456789"
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -2158,14 +2194,14 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('users')}
-                  className="px-5 py-2.5 rounded-lg text-xs font-extrabold uppercase tracking-wide bg-gray-100 text-gray-500 hover:bg-gray-200 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-slate-100 text-gray-500 hover:bg-slate-200 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2.5 rounded-lg text-xs font-extrabold uppercase tracking-wide bg-brand-cta text-white hover:bg-blue-700 transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
                 >
                   {loading ? 'Onboarding...' : 'Onboard Employee'}
                 </button>
@@ -2176,7 +2212,7 @@ export default function AdminDashboard() {
 
         {/* TAB 3: Review TL Submitted Reports */}
         {activeTab === 'reports' && (
-          <div className="bg-white premium-card p-6 border border-gray-100">
+          <div className="premium-card p-6">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Review Periodic Team Status Reports</h3>
 
             <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
@@ -2184,7 +2220,7 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-400 py-6 text-center">No team reports submitted yet.</p>
               ) : (
                 reports.map((rep) => (
-                  <div key={rep.id} className="p-5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all">
+                  <div key={rep.id} className="p-5 rounded-xl border border-gray-200 bg-slate-50 hover:bg-slate-100/50 shadow-xs hover:shadow-md transition-all">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4">
                       <div>
                         <h4 className="text-sm font-bold text-brand-navy flex items-center gap-2">
@@ -2208,13 +2244,13 @@ export default function AdminDashboard() {
                           <div className="flex gap-1.5">
                             <button
                               onClick={() => handleReviewReport(rep.id, 'APPROVED')}
-                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-1 px-3 rounded cursor-pointer transition-colors shadow-sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-650/15 text-white text-xs font-bold py-1.5 px-3.5 rounded-lg cursor-pointer transition-all shadow-md"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => handleReviewReport(rep.id, 'REJECTED')}
-                              className="bg-brand-red hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded cursor-pointer transition-colors shadow-sm"
+                              className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white text-xs font-bold py-1.5 px-3.5 rounded-lg cursor-pointer transition-all shadow-md"
                             >
                               Reject
                             </button>
@@ -2223,7 +2259,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-lg border border-gray-100 text-xs text-gray-500 whitespace-pre-line font-medium leading-relaxed">
+                    <div className="bg-white/50 backdrop-blur-xs p-4 rounded-lg border border-gray-200/40 text-xs text-gray-500 whitespace-pre-line font-medium leading-relaxed">
                       {rep.summary}
                     </div>
 
@@ -2243,7 +2279,7 @@ export default function AdminDashboard() {
             
             {/* Holiday Configuration */}
             <div className="space-y-6">
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   Configure Company Holidays
                 </h3>
@@ -2257,7 +2293,7 @@ export default function AdminDashboard() {
                       value={holidayName}
                       onChange={(e) => setHolidayName(e.target.value)}
                       placeholder="Independence Day"
-                      className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div>
@@ -2267,13 +2303,13 @@ export default function AdminDashboard() {
                       required
                       value={holidayDate}
                       onChange={(e) => setHolidayDate(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div className="sm:col-span-3 flex justify-end mt-2">
                     <button
                       type="submit"
-                      className="bg-brand-cta text-white font-bold text-xs px-4 py-2 rounded-lg hover:bg-blue-700 transition-all cursor-pointer btn-premium"
+                      className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                     >
                       Add Holiday
                     </button>
@@ -2285,7 +2321,7 @@ export default function AdminDashboard() {
                     <p className="text-xs text-gray-400 py-6 text-center">No holidays configured.</p>
                   ) : (
                     holidays.map((h) => (
-                      <div key={h.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg text-xs border border-gray-100">
+                      <div key={h.id} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl text-xs border border-gray-200 shadow-xs">
                         <div>
                           <span className="font-bold text-brand-navy">{h.name}</span>
                           <span className="text-[10px] text-gray-400 ml-2">({new Date(h.date).toLocaleDateString()})</span>
@@ -2306,7 +2342,7 @@ export default function AdminDashboard() {
 
             {/* Leave Policy Settings */}
             <div className="space-y-6">
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   Configure Leave Types Policy
                 </h3>
@@ -2320,7 +2356,7 @@ export default function AdminDashboard() {
                       value={leaveName}
                       onChange={(e) => setLeaveName(e.target.value)}
                       placeholder="Casual Leave"
-                      className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2331,13 +2367,13 @@ export default function AdminDashboard() {
                       min="1"
                       value={leaveDays}
                       onChange={(e) => setLeaveDays(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div className="sm:col-span-3 flex justify-end mt-2">
                     <button
                       type="submit"
-                      className="bg-brand-cta text-white font-bold text-xs px-4 py-2 rounded-lg hover:bg-blue-700 transition-all cursor-pointer btn-premium"
+                      className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                     >
                       Add Policy
                     </button>
@@ -2349,7 +2385,7 @@ export default function AdminDashboard() {
                     <p className="text-xs text-gray-400 py-6 text-center">No leave policies defined.</p>
                   ) : (
                     leaveTypes.map((l) => (
-                      <div key={l.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-lg text-xs border border-gray-100">
+                      <div key={l.id} className="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl text-xs border border-gray-200 shadow-xs">
                         <div>
                           <span className="font-bold text-brand-navy">{l.name}</span>
                           <span className="text-[10px] text-gray-400 ml-2">({l.daysAllowed} days allowed per year)</span>
@@ -2373,7 +2409,7 @@ export default function AdminDashboard() {
 
         {/* TAB 5: System Audit Logs */}
         {activeTab === 'audit' && (
-          <div className="bg-white premium-card p-6 border border-gray-100">
+          <div className="premium-card p-6">
             <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-brand-red shrink-0" />
               Company Audit Logs (Key System Operations)
@@ -2381,13 +2417,13 @@ export default function AdminDashboard() {
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                    <th className="py-3 px-2 bg-white">Timestamp</th>
-                    <th className="py-3 px-2 bg-white">Operation Executed By</th>
-                    <th className="py-3 px-2 bg-white">Action Type</th>
-                    <th className="py-3 px-2 bg-white">Target Entity</th>
-                    <th className="py-3 px-2 bg-white">Target ID</th>
+                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2 bg-transparent">Timestamp</th>
+                    <th className="py-3 px-2 bg-transparent">Operation Executed By</th>
+                    <th className="py-3 px-2 bg-transparent">Action Type</th>
+                    <th className="py-3 px-2 bg-transparent">Target Entity</th>
+                    <th className="py-3 px-2 bg-transparent">Target ID</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 font-medium">
@@ -2432,25 +2468,25 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Performance KPI Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-sm">
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-blue-700 font-heading">{performanceCounts.BLUE}</span>
                 <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block mt-1">Blue Rating</span>
               </div>
-              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-sm">
+              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">{performanceCounts.GREEN}</span>
                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Green Rating</span>
               </div>
-              <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-sm">
+              <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-amber-700 font-heading">{performanceCounts.YELLOW}</span>
                 <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Yellow Rating</span>
               </div>
-              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-sm">
+              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
                 <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block mt-1">Red Rating</span>
               </div>
             </div>
 
-            <div className="bg-white premium-card p-6 border border-gray-100">
+            <div className="premium-card p-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h3>
@@ -2458,7 +2494,7 @@ export default function AdminDashboard() {
                 </div>
                 <button
                   onClick={() => fetchAdminData()}
-                  className="bg-brand-bg hover:bg-gray-100 text-brand-navy border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-gray-200/50 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-xs"
                 >
                   Recompute Auto-Scores
                 </button>
@@ -2466,16 +2502,16 @@ export default function AdminDashboard() {
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                    <th className="py-3 px-2 bg-white">Employee</th>
-                    <th className="py-3 px-2 bg-white">Team</th>
-                    <th className="py-3 px-2 text-center bg-white">Score Type</th>
-                    <th className="py-3 px-2 text-center bg-white">Score</th>
-                    <th className="py-3 px-2 text-center bg-white">Rating Badge</th>
-                    <th className="py-3 px-2 bg-white">Override Reason</th>
-                    <th className="py-3 px-2 text-center bg-white">Last Updated</th>
-                    <th className="py-3 px-2 text-center bg-white">Action</th>
+                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2 bg-transparent">Employee</th>
+                    <th className="py-3 px-2 bg-transparent">Team</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Score Type</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Score</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Rating Badge</th>
+                    <th className="py-3 px-2 bg-transparent">Override Reason</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Last Updated</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -2528,14 +2564,14 @@ export default function AdminDashboard() {
                         <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
                           <button
                             onClick={() => handleOpenOverrideModal(p.user.id, p.score)}
-                            className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                           >
                             Override
                           </button>
                           {p.score.manualOverride && (
                             <button
                               onClick={() => handleClearOverride(p.user.id)}
-                              className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                             >
                               Clear
                             </button>
@@ -2556,19 +2592,19 @@ export default function AdminDashboard() {
           <div className="space-y-6">
             {/* Leave Requests KPI Row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100/50 text-center shadow-sm">
+              <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-purple-700 font-heading">
                   {leaveRequests.filter(r => r.status === 'PENDING').length}
                 </span>
                 <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider block mt-1">Pending Leave Requests</span>
               </div>
-              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-sm">
+              <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">
                   {leaveRequests.filter(r => r.status === 'APPROVED').length}
                 </span>
                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Approved Leave Requests</span>
               </div>
-              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-sm">
+              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">
                   {leaveRequests.filter(r => r.status === 'REJECTED').length}
                 </span>
@@ -2576,21 +2612,21 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="bg-white premium-card p-6 border border-gray-100">
+            <div className="premium-card p-6">
               <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
             
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                  <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                    <th className="py-3 px-2 bg-white">Employee</th>
-                    <th className="py-3 px-2 bg-white">Team</th>
-                    <th className="py-3 px-2 bg-white">Leave Type</th>
-                    <th className="py-3 px-2 bg-white">Duration</th>
-                    <th className="py-3 px-2 bg-white">Reason</th>
-                    <th className="py-3 px-2 text-center bg-white">Status</th>
-                    <th className="py-3 px-2 bg-white">Reviewed By</th>
-                    <th className="py-3 px-2 text-center bg-white">Action</th>
+                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <th className="py-3 px-2 bg-transparent">Employee</th>
+                    <th className="py-3 px-2 bg-transparent">Team</th>
+                    <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                    <th className="py-3 px-2 bg-transparent">Duration</th>
+                    <th className="py-3 px-2 bg-transparent">Reason</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                    <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                    <th className="py-3 px-2 text-center bg-transparent">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -2628,13 +2664,13 @@ export default function AdminDashboard() {
                             <>
                               <button
                                 onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                                className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-650/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                               >
                                 Approve
                               </button>
                               <button
                                 onClick={() => handleOpenRejectModal(req.id)}
-                                className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                                className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                               >
                                 Reject
                               </button>
@@ -2655,7 +2691,7 @@ export default function AdminDashboard() {
 
         {/* TAB: Run Payroll */}
         {activeTab === 'payroll' && (
-          <div className="bg-white premium-card p-6 border border-gray-100 space-y-6">
+          <div className="premium-card p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4">
               <div>
                 <h3 className="text-xl font-bold text-brand-navy font-heading">Payroll Management</h3>
@@ -2690,17 +2726,17 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 {/* Payroll KPI Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-200 text-center shadow-sm">
+                  <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-200 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-brand-navy font-heading">{payrollRuns.length}</span>
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mt-1">Total Runs Logged</span>
                   </div>
-                  <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-sm">
+                  <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-amber-700 font-heading">
                       {payrollRuns.filter(r => r.status === 'DRAFT').length}
                     </span>
                     <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Draft Payrolls</span>
                   </div>
-                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-sm">
+                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-blue-700 font-heading">
                       {payrollRuns.filter(r => r.status === 'APPROVED').length}
                     </span>
@@ -2709,7 +2745,7 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Parameters block */}
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <div className="bg-white/50 backdrop-blur-xs p-4 rounded-xl border border-gray-200/50 shadow-xs">
                   <form onSubmit={handleGeneratePayroll} className="flex flex-col md:flex-row md:items-end gap-4">
                     <div className="flex-1">
                       <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Period Start Date</label>
@@ -2718,7 +2754,7 @@ export default function AdminDashboard() {
                         required
                         value={payrollPeriodStart}
                         onChange={(e) => setPayrollPeriodStart(e.target.value)}
-                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                       />
                     </div>
                     <div className="flex-1">
@@ -2728,13 +2764,13 @@ export default function AdminDashboard() {
                         required
                         value={payrollPeriodEnd}
                         onChange={(e) => setPayrollPeriodEnd(e.target.value)}
-                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                       />
                     </div>
                     <button
                       type="submit"
                       disabled={loading}
-                      className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-6 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium text-center disabled:opacity-50"
+                      className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-6 py-2.5 rounded-xl transition-all cursor-pointer btn-premium text-center disabled:opacity-50 shadow-md"
                     >
                       {loading ? 'Generating...' : 'Generate Payroll Draft'}
                     </button>
@@ -2744,15 +2780,15 @@ export default function AdminDashboard() {
                 {/* Runs list */}
                 <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                   <table className="min-w-full text-left text-xs relative border-collapse">
-                    <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                      <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                        <th className="py-3 px-2 bg-white">Employee</th>
-                        <th className="py-3 px-2 bg-white">Period</th>
-                        <th className="py-3 px-2 text-right bg-white">Gross (INR)</th>
-                        <th className="py-3 px-2 text-right bg-white">Deductions (INR)</th>
-                        <th className="py-3 px-2 text-right bg-white">Net Pay (INR)</th>
-                        <th className="py-3 px-2 text-center bg-white">Status</th>
-                        <th className="py-3 px-2 text-center bg-white">Action</th>
+                    <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                      <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                        <th className="py-3 px-2 bg-transparent">Employee</th>
+                        <th className="py-3 px-2 bg-transparent">Period</th>
+                        <th className="py-3 px-2 text-right bg-transparent">Gross (INR)</th>
+                        <th className="py-3 px-2 text-right bg-transparent">Deductions (INR)</th>
+                        <th className="py-3 px-2 text-right bg-transparent">Net Pay (INR)</th>
+                        <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                        <th className="py-3 px-2 text-center bg-transparent">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -2799,13 +2835,13 @@ export default function AdminDashboard() {
                                       setRunLoanDeduction(run.loanDeduction.toString());
                                       setIsPayrollEditModalOpen(true);
                                     }}
-                                    className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                    className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                                   >
                                     Edit Extras
                                   </button>
                                   <button
                                     onClick={() => handlePayrollStatusChange(run.id, 'APPROVED')}
-                                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                    className="bg-blue-500 hover:bg-blue-600 hover:shadow-lg hover:shadow-blue-500/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                                   >
                                     Approve
                                   </button>
@@ -2814,7 +2850,7 @@ export default function AdminDashboard() {
                               {run.status === 'APPROVED' && (
                                 <button
                                   onClick={() => handlePayrollStatusChange(run.id, 'PAID')}
-                                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] cursor-pointer"
+                                  className="bg-emerald-500 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                                 >
                                   Mark Paid
                                 </button>
@@ -2823,7 +2859,7 @@ export default function AdminDashboard() {
                                 <a
                                   href={`/api/payroll/runs/export?id=${run.id}`}
                                   download
-                                  className="inline-block bg-gray-800 hover:bg-gray-950 text-white font-bold px-2 py-1 rounded text-[10px] text-center"
+                                  className="inline-block bg-gray-800 hover:bg-gray-950 text-white font-bold px-2.5 py-1 rounded-lg text-[10px] text-center transition-all shadow-xs"
                                 >
                                   Payslip
                                 </a>
@@ -2842,16 +2878,16 @@ export default function AdminDashboard() {
             {payrollSubTab === 'structures' && (
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                      <th className="py-3 px-2 bg-white">Employee</th>
-                      <th className="py-3 px-2 bg-white">Department</th>
-                      <th className="py-3 px-2 bg-white">Designation</th>
-                      <th className="py-3 px-2 text-right bg-white">Basic (INR)</th>
-                      <th className="py-3 px-2 text-right bg-white">HRA (INR)</th>
-                      <th className="py-3 px-2 text-right bg-white">Conveyance (INR)</th>
-                      <th className="py-3 px-2 text-right bg-white">Allowance (INR)</th>
-                      <th className="py-3 px-2 text-center bg-white">Action</th>
+                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-2 bg-transparent">Employee</th>
+                      <th className="py-3 px-2 bg-transparent">Department</th>
+                      <th className="py-3 px-2 bg-transparent">Designation</th>
+                      <th className="py-3 px-2 text-right bg-transparent">Basic (INR)</th>
+                      <th className="py-3 px-2 text-right bg-transparent">HRA (INR)</th>
+                      <th className="py-3 px-2 text-right bg-transparent">Conveyance (INR)</th>
+                      <th className="py-3 px-2 text-right bg-transparent">Allowance (INR)</th>
+                      <th className="py-3 px-2 text-center bg-transparent">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -2891,7 +2927,7 @@ export default function AdminDashboard() {
                                 setSalaryEffectiveFrom(employee.salaryStructure?.effectiveFrom ? new Date(employee.salaryStructure.effectiveFrom).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]);
                                 setIsSalaryModalOpen(true);
                               }}
-                              className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px] transition-colors cursor-pointer"
+                              className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-3 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
                             >
                               Configure
                             </button>
@@ -2910,7 +2946,7 @@ export default function AdminDashboard() {
         {activeTab === 'trainings' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Create Training & Assign Employees */}
-            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-1 space-y-4">
+            <div className="premium-card p-6 lg:col-span-1 space-y-4">
               <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
                 <Bell className="w-5 h-5 text-brand-cta" />
                 Schedule New Training
@@ -2925,7 +2961,7 @@ export default function AdminDashboard() {
                     value={trainingName}
                     onChange={(e) => setTrainingName(e.target.value)}
                     placeholder="e.g. Next.js App Router Masterclass"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                   />
                 </div>
 
@@ -2937,7 +2973,7 @@ export default function AdminDashboard() {
                     value={trainingTrainer}
                     onChange={(e) => setTrainingTrainer(e.target.value)}
                     placeholder="e.g. Santhosh Kumar"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                   />
                 </div>
 
@@ -2949,7 +2985,7 @@ export default function AdminDashboard() {
                       required
                       value={trainingPlannedDate}
                       onChange={(e) => setTrainingPlannedDate(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     />
                   </div>
                   <div>
@@ -2960,7 +2996,7 @@ export default function AdminDashboard() {
                       required
                       value={trainingHours}
                       onChange={(e) => setTrainingHours(e.target.value)}
-                      className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                 </div>
@@ -2972,14 +3008,14 @@ export default function AdminDashboard() {
                     value={trainingDept}
                     onChange={(e) => setTrainingDept(e.target.value)}
                     placeholder="e.g. Engineering"
-                    className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                   />
                 </div>
 
                 {/* Checklist to assign users */}
                 <div>
                   <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Assign Employees</label>
-                  <div className="max-h-[160px] overflow-y-auto border border-gray-200 p-2.5 rounded-lg bg-gray-50/50 space-y-2">
+                  <div className="max-h-[160px] overflow-y-auto border border-gray-200/50 p-2.5 rounded-xl bg-white/50 backdrop-blur-xs space-y-2 shadow-xs">
                     {users.length === 0 ? (
                       <p className="text-[10px] text-gray-400">No active employees found.</p>
                     ) : (
@@ -3007,7 +3043,7 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-brand-cta text-white font-bold py-2.5 px-4 rounded-lg hover:bg-blue-700 transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
+                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50 shadow-md"
                 >
                   {loading ? 'Creating...' : 'Schedule & Assign Training'}
                 </button>
@@ -3015,7 +3051,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Courses & Assignments review list */}
-            <div className="bg-white premium-card p-6 border border-gray-100 lg:col-span-2 space-y-6">
+            <div className="premium-card p-6 lg:col-span-2 space-y-6">
               <h3 className="text-lg font-bold text-brand-navy font-heading">Scheduled Trainings & Performance Results</h3>
 
               <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
@@ -3023,7 +3059,7 @@ export default function AdminDashboard() {
                   <p className="text-xs text-gray-400 py-6 text-center">No trainings scheduled yet.</p>
                 ) : (
                   trainings.map((t) => (
-                    <div key={t.id} className="p-4 rounded-2xl border border-gray-200 bg-gray-50/50 space-y-4 shadow-sm hover:border-gray-300 transition-all">
+                    <div key={t.id} className="p-4 rounded-2xl border border-gray-200 bg-slate-50 space-y-4 shadow-xs hover:shadow-md transition-all">
                       <div className="flex justify-between items-start border-b border-gray-200/50 pb-2">
                         <div>
                           <h4 className="text-sm font-extrabold text-brand-navy">{t.trainingName}</h4>
@@ -3042,15 +3078,15 @@ export default function AdminDashboard() {
                           <p className="text-[10px] text-gray-400 italic">No employees assigned to this course.</p>
                         ) : (
                           <div className="overflow-x-auto">
-                            <table className="min-w-full text-left text-[11px] bg-white rounded-lg border border-gray-100">
+                            <table className="min-w-full text-left text-[11px] bg-white/40 backdrop-blur-xs rounded-xl border border-gray-200/50 shadow-xs">
                               <thead>
-                                <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase">
-                                  <th className="py-2 px-2.5">Name</th>
-                                  <th className="py-2 px-2.5 text-center">Attended</th>
-                                  <th className="py-2 px-2.5 text-center">Certified</th>
-                                  <th className="py-2 px-2.5 text-center">Score</th>
-                                  <th className="py-2 px-2.5">Feedback</th>
-                                  <th className="py-2 px-2.5 text-center">Action</th>
+                                <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase">
+                                  <th className="py-2 px-2.5 bg-transparent">Name</th>
+                                  <th className="py-2 px-2.5 text-center bg-transparent">Attended</th>
+                                  <th className="py-2 px-2.5 text-center bg-transparent">Certified</th>
+                                  <th className="py-2 px-2.5 text-center bg-transparent">Score</th>
+                                  <th className="py-2 px-2.5 bg-transparent">Feedback</th>
+                                  <th className="py-2 px-2.5 text-center bg-transparent">Action</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100 font-medium text-brand-navy">
@@ -3085,7 +3121,7 @@ export default function AdminDashboard() {
                                           setEvalFeedback(assign.feedback || '');
                                           setIsTrainingEvalModalOpen(true);
                                         }}
-                                        className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-2 py-0.5 rounded text-[9px] cursor-pointer"
+                                        className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-2 py-0.5 rounded-lg text-[9px] transition-all cursor-pointer shadow-xs"
                                       >
                                         Evaluate
                                       </button>
@@ -3110,9 +3146,9 @@ export default function AdminDashboard() {
 
       {/* Override Modal */}
       {isOverrideModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Override Performance Rating</h3>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-lg font-bold text-brand-navy font-heading">Override Performance Rating</h3>
             
             {(() => {
               const uObj = performanceData.find((p) => p.user.id === overrideUserId);
@@ -3129,7 +3165,7 @@ export default function AdminDashboard() {
                             ? uObj.score.overrideScore
                             : (displayRating === 'RED' ? 20 : displayRating === 'YELLOW' ? 53 : displayRating === 'GREEN' ? 75 : 93);
                         }
-                        return <Speedometer score={displayScore} rating={displayRating} size={150} />;
+                        return <Speedometer score={displayScore} rating={displayRating} size={240} />;
                       })()}
                     </div>
                   </div>
@@ -3145,7 +3181,7 @@ export default function AdminDashboard() {
                   required
                   value={overrideRating}
                   onChange={(e) => setOverrideRating(e.target.value)}
-                  className="block w-full rounded-lg border-0 py-2.5 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                 >
                   <option value="RED">RED (Poor)</option>
                   <option value="YELLOW">YELLOW (Needs Improvement)</option>
@@ -3164,7 +3200,7 @@ export default function AdminDashboard() {
                   value={overrideScore}
                   onChange={(e) => setOverrideScore(e.target.value)}
                   placeholder="e.g. 53"
-                  className="block w-full rounded-lg border-0 py-2.5 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
                 <p className="text-[10px] text-gray-400 mt-1">If blank, defaults to midpoint of chosen rating band (RED=20, YELLOW=53, GREEN=75, BLUE=93).</p>
               </div>
@@ -3177,7 +3213,7 @@ export default function AdminDashboard() {
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="Enter justification for overriding automatic score calculation..."
-                  className="block w-full rounded-lg border-0 py-2 px-3 text-brand-gray shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-brand-cta sm:text-sm bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
 
@@ -3185,13 +3221,13 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setIsOverrideModalOpen(false)}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Save Override
                 </button>
@@ -3203,8 +3239,8 @@ export default function AdminDashboard() {
 
       {/* Configure Salary Modal */}
       {isSalaryModalOpen && selectedSalaryUser && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-brand-navy font-heading">Configure Salary Structure</h3>
             <p className="text-xs text-gray-500">Set base compensation values for <strong>{selectedSalaryUser.name}</strong>.</p>
 
@@ -3216,7 +3252,7 @@ export default function AdminDashboard() {
                   required
                   value={salaryBasic}
                   onChange={(e) => setSalaryBasic(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3226,7 +3262,7 @@ export default function AdminDashboard() {
                   required
                   value={salaryHRA}
                   onChange={(e) => setSalaryHRA(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3236,7 +3272,7 @@ export default function AdminDashboard() {
                   required
                   value={salaryConveyance}
                   onChange={(e) => setSalaryConveyance(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3246,7 +3282,7 @@ export default function AdminDashboard() {
                   required
                   value={salarySpecial}
                   onChange={(e) => setSalarySpecial(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3256,7 +3292,7 @@ export default function AdminDashboard() {
                   required
                   value={salaryEffectiveFrom}
                   onChange={(e) => setSalaryEffectiveFrom(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                 />
               </div>
 
@@ -3267,14 +3303,14 @@ export default function AdminDashboard() {
                     setIsSalaryModalOpen(false);
                     setSelectedSalaryUser(null);
                   }}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Save Structure
                 </button>
@@ -3286,8 +3322,8 @@ export default function AdminDashboard() {
 
       {/* Edit Payroll Run Modal */}
       {isPayrollEditModalOpen && selectedRun && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-brand-navy font-heading">Edit Payroll Extras</h3>
             <p className="text-xs text-gray-500">Adjust monthly variables for <strong>{selectedRun.user.name}</strong>.</p>
 
@@ -3298,7 +3334,7 @@ export default function AdminDashboard() {
                   type="number"
                   value={runOvertime}
                   onChange={(e) => setRunOvertime(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3307,7 +3343,7 @@ export default function AdminDashboard() {
                   type="number"
                   value={runBonus}
                   onChange={(e) => setRunBonus(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3316,7 +3352,7 @@ export default function AdminDashboard() {
                   type="number"
                   value={runIncentives}
                   onChange={(e) => setRunIncentives(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
               <div>
@@ -3325,7 +3361,7 @@ export default function AdminDashboard() {
                   type="number"
                   value={runLoanDeduction}
                   onChange={(e) => setRunLoanDeduction(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
 
@@ -3336,14 +3372,14 @@ export default function AdminDashboard() {
                     setIsPayrollEditModalOpen(false);
                     setSelectedRun(null);
                   }}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Recompute & Save
                 </button>
@@ -3355,8 +3391,8 @@ export default function AdminDashboard() {
 
       {/* Rejection Reason Modal */}
       {isRejectModalOpen && rejectRequestId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-brand-navy font-heading">Reject Leave Request</h3>
             <p className="text-xs text-gray-500">Provide a clear reason explaining why this leave request is being rejected.</p>
 
@@ -3369,7 +3405,7 @@ export default function AdminDashboard() {
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="e.g. Project deliverable deadline conflicts with the requested dates."
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none focus:border-brand-cta min-h-[80px]"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs min-h-[80px]"
                 />
               </div>
 
@@ -3381,13 +3417,13 @@ export default function AdminDashboard() {
                     setRejectRequestId(null);
                     setRejectionReason('');
                   }}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-brand-red hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Confirm Rejection
                 </button>
@@ -3399,8 +3435,8 @@ export default function AdminDashboard() {
       
       {/* Training Evaluation Modal */}
       {isTrainingEvalModalOpen && selectedTraining && selectedAttendee && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-lg font-bold text-brand-navy font-heading">Evaluate Training Performance</h3>
             <p className="text-xs text-gray-500">Record assessment results for <strong>{selectedAttendee.name}</strong> on course <strong>{selectedTraining.trainingName}</strong>.</p>
 
@@ -3435,7 +3471,7 @@ export default function AdminDashboard() {
                   value={evalScore}
                   onChange={(e) => setEvalScore(e.target.value)}
                   placeholder="e.g. 85"
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
 
@@ -3446,7 +3482,7 @@ export default function AdminDashboard() {
                   value={evalFeedback}
                   onChange={(e) => setEvalFeedback(e.target.value)}
                   placeholder="Enter comments about performance, strengths, or actions..."
-                  className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
 
@@ -3458,14 +3494,14 @@ export default function AdminDashboard() {
                     setSelectedTraining(null);
                     setSelectedAttendee(null);
                   }}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Save Results
                 </button>

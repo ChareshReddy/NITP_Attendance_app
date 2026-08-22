@@ -22,6 +22,94 @@ import {
   User
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// CountUp animations for stats
+function CountUp({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    let start = 0;
+    const end = value;
+    if (start === end) return;
+    const duration = 800;
+    const startTime = performance.now();
+
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = progress * (2 - progress);
+      const current = Math.floor(easedProgress * (end - start) + start);
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
+        setDisplayValue(end);
+      }
+    };
+    requestAnimationFrame(update);
+  }, [value]);
+
+  return <>{mounted ? displayValue : value}</>;
+}
+
+function CountUpFloat({ value }: { value: number }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    let start = 0.0;
+    const end = value;
+    if (start === end) return;
+    const duration = 800;
+    const startTime = performance.now();
+
+    const update = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = progress * (2 - progress);
+      const current = easedProgress * (end - start) + start;
+      setDisplayValue(Number(current.toFixed(1)));
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      } else {
+        setDisplayValue(end);
+      }
+    };
+    requestAnimationFrame(update);
+  }, [value]);
+
+  return <>{mounted ? displayValue.toFixed(1) : value.toFixed(1)}</>;
+}
+
+// Framer motion variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 12 },
+  show: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { 
+      type: "spring" as const, 
+      stiffness: 260, 
+      damping: 25 
+    } 
+  }
+};
 
 interface AttendanceRecord {
   id: string;
@@ -155,6 +243,25 @@ interface Notification {
 export default function EmployeeDashboard() {
   // Session & States
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [holidays, setHolidays] = useState<any[]>([]);
+  const [timeStr, setTimeStr] = useState('');
+  const [greeting, setGreeting] = useState('');
+  const [isLogExpanded, setIsLogExpanded] = useState(false);
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const hrs = now.getHours();
+      if (hrs < 12) setGreeting('Good morning');
+      else if (hrs < 17) setGreeting('Good afternoon');
+      else setGreeting('Good evening');
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [stats, setStats] = useState({ present: 0, late: 0, absent: 0, leave: 0 });
   
@@ -176,8 +283,13 @@ export default function EmployeeDashboard() {
   const [performanceScore, setPerformanceScore] = useState<any>(null);
 
   // Self-Service States
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  
+  // Calendar History States
+  const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState<number>(new Date().getMonth()); // 0-11
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
   const [profileForm, setProfileForm] = useState({
     mobileNumber: '',
@@ -257,6 +369,7 @@ export default function EmployeeDashboard() {
       if (attRes.ok) {
         const attData = await attRes.json();
         setAttendance(attData.attendance || []);
+        setHolidays(attData.holidays || []);
         setTodayRecord(attData.todayRecord);
         if (attData.stats) setStats(attData.stats);
       }
@@ -582,26 +695,26 @@ export default function EmployeeDashboard() {
   };
 
   const employeeNavItems: {
-    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings';
+    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history';
     label: string;
     icon: any;
   }[] = [
     { id: 'dashboard', label: 'My Dashboard', icon: Clock },
+    { id: 'profile', label: 'My Profile', icon: User },
     { id: 'tasks', label: 'My Tasks', icon: CheckSquare },
     { id: 'tracksheets', label: 'My Track Sheets', icon: FileText },
-    { id: 'profile', label: 'My Profile', icon: User },
     { id: 'leaves', label: 'My Leaves & Requests', icon: Calendar },
-    { id: 'payroll', label: 'My Payroll & Payslips', icon: TrendingUp },
-    { id: 'goals', label: 'My Goals & KPIs', icon: CheckSquare },
-    { id: 'trainings', label: 'My Trainings Catalog', icon: Bell },
+    { id: 'history', label: 'My Attendance History', icon: History },
+    { id: 'payroll', label: 'My Payroll & Payslip', icon: TrendingUp },
+    { id: 'trainings', label: 'My Trainings', icon: Bell },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-brand-bg">
+    <div className="flex flex-col min-h-screen bg-transparent">
       <Header />
 
       {/* Mobile Nav Toggle Bar */}
-      <div className="md:hidden bg-white border-b border-gray-150 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
+      <div className="md:hidden bg-white/60 backdrop-blur-md border-b border-gray-200/50 px-4 py-3.5 flex items-center justify-between sticky top-[73px] z-30 shadow-sm">
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMobileSidebarOpen(true)}
@@ -618,25 +731,36 @@ export default function EmployeeDashboard() {
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Persistent Left Sidebar - Desktop */}
-        <aside className="hidden md:flex w-60 bg-white border-r border-gray-150 flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto">
-          <div className="px-4 mb-4">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Employee Portal</span>
-          </div>
-          <nav className="flex-1 space-y-1">
-            {employeeNavItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
-                  activeTab === item.id 
-                    ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
-                    : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
-                }`}
-              >
-                <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
-                <span className="text-xs tracking-wide">{item.label}</span>
-              </button>
-            ))}
+        <aside className="hidden md:flex w-20 hover:w-60 bg-white flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto transition-all duration-300 ease-in-out group shadow-sm border-r border-gray-200">
+          <nav className="flex-1 space-y-1 px-2 relative">
+            {employeeNavItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
+                    isActive 
+                      ? 'text-brand-navy font-bold' 
+                      : 'text-slate-600 hover:text-brand-navy hover:bg-slate-50'
+                  }`}
+                >
+                  {/* Animated sliding highlight background pill */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTabPill"
+                      className="absolute inset-0 bg-slate-100 border-l-4 border-brand-navy rounded-xl -z-10"
+                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    />
+                  )}
+                  
+                  <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-brand-navy' : 'text-slate-400 group-hover:text-brand-navy'}`} />
+                  <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
           </nav>
         </aside>
 
@@ -648,12 +772,12 @@ export default function EmployeeDashboard() {
               onClick={() => setIsMobileSidebarOpen(false)}
             />
             
-            <aside className="relative flex w-full max-w-xs flex-col bg-white py-4 shadow-xl border-r border-gray-100 h-full animate-in slide-in-from-left duration-200">
-              <div className="flex items-center justify-between px-4 pb-4 border-b border-gray-100 mb-4">
+            <aside className="relative flex w-full max-w-xs flex-col bg-white border-r border-gray-200 py-4 shadow-xl h-full animate-in slide-in-from-left duration-200 text-brand-navy">
+              <div className="flex items-center justify-between px-4 pb-4 border-b border-slate-100 mb-4">
                 <span className="text-sm font-extrabold text-brand-navy font-heading">Employee Portal</span>
                 <button 
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="text-gray-500 hover:text-brand-navy p-1"
+                  className="text-slate-400 hover:text-slate-600 p-1"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -669,11 +793,11 @@ export default function EmployeeDashboard() {
                     }}
                     className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
                       activeTab === item.id 
-                        ? 'bg-blue-50/60 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
-                        : 'border-l-4 border-transparent text-brand-gray hover:bg-gray-50 hover:text-brand-navy font-semibold'
+                        ? 'bg-slate-100 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
+                        : 'border-l-4 border-transparent text-slate-600 hover:bg-slate-50 hover:text-brand-navy font-semibold'
                     }`}
                   >
-                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-gray-400'}`} />
+                    <item.icon className={`w-4 h-4 shrink-0 ${activeTab === item.id ? 'text-brand-navy' : 'text-slate-400'}`} />
                     <span className="text-xs tracking-wide">{item.label}</span>
                   </button>
                 ))}
@@ -722,51 +846,65 @@ export default function EmployeeDashboard() {
 
           {/* TAB 1: Dashboard */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-6">
-              {/* Row 1: 3 equal-width columns */}
+            <motion.div 
+              initial="hidden"
+              animate="show"
+              variants={containerVariants}
+              className="space-y-6"
+            >
+              {/* Top Row: Hero and Performance */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Daily Shift Logging Card */}
-                <div className="bg-white premium-card p-6 border-l-4 border-l-brand-navy border-y border-r border-gray-150 relative overflow-hidden lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl min-h-[240px]">
-                  <div>
-                    <div className="flex justify-between items-center mb-3">
-                      <h3 className="text-base font-bold text-brand-navy font-heading">Daily Work Shift</h3>
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-brand-navy">
-                        <Clock className="w-4 h-4" />
+                {/* Daily Shift Logging Card (Hero Card - Spans 2 Columns) */}
+                <motion.div 
+                  variants={cardVariants}
+                  className="premium-card card-accent-blue p-6 relative overflow-hidden lg:col-span-2 flex flex-col justify-between min-h-[260px]"
+                >
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-150/40">
+                    <div>
+                      <h2 className="text-2xl font-extrabold text-brand-navy font-heading tracking-tight">
+                        {greeting}, {employeeProfile ? employeeProfile.personalEmail?.split('@')[0] || 'Member' : 'Member'}!
+                      </h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2.5 bg-brand-navy/5 px-4 py-2 rounded-2xl border border-brand-navy/10">
+                      <Clock className="w-4 h-4 text-brand-navy animate-pulse" />
+                      <span className="font-mono text-sm font-extrabold text-brand-navy tracking-wider">
+                        {timeStr || '--:--:--'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div className="bg-slate-50/75 p-3 rounded-2xl border border-slate-200/50 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                        <Clock className="w-4.5 h-4.5" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check In Time</p>
+                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                          {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
+                        </p>
+                        {todayRecord && (
+                          <span className={`inline-block mt-0.5 text-[8px] font-extrabold px-1.5 py-0.25 rounded-md uppercase border ${
+                            todayRecord.status.includes('LATE') ? 'bg-red-50 text-brand-red border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                          }`}>
+                            {todayRecord.status.replace('_', ' ')}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <div className="space-y-3 mb-4">
-                      <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Today's Date</p>
-                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
-                          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                        </p>
+
+                    <div className="bg-slate-50/75 p-3 rounded-2xl border border-slate-200/50 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
+                        <Clock className="w-4.5 h-4.5" />
                       </div>
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
-                          <div>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase">Check In</p>
-                            <p className="text-sm font-extrabold text-brand-navy mt-0.5">
-                              {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
-                            </p>
-                          </div>
-                          {todayRecord && (
-                            <div className="mt-1">
-                              <span className={`text-[8px] font-extrabold px-1 py-0.25 rounded uppercase ${
-                                todayRecord.status.includes('LATE') ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
-                              }`}>
-                                {todayRecord.status.replace('_', ' ')}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="bg-gray-50/60 p-2.5 rounded-lg border border-gray-100 flex flex-col justify-between min-h-[60px]">
-                          <div>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase">Check Out</p>
-                            <p className="text-sm font-extrabold text-brand-navy mt-0.5">
-                              {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
-                            </p>
-                          </div>
-                        </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check Out Time</p>
+                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                          {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -776,52 +914,37 @@ export default function EmployeeDashboard() {
                       <button
                         onClick={handleCheckIn}
                         disabled={loadingAttendance}
-                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-md text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider"
+                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white font-bold py-3.5 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider flex items-center justify-center gap-2"
                       >
+                        <Clock className="w-4 h-4" />
                         {loadingAttendance ? 'Processing...' : 'Check In Now'}
                       </button>
                     ) : !todayRecord.checkOutTime ? (
                       <button
                         onClick={handleCheckOut}
                         disabled={loadingAttendance}
-                        className="w-full bg-brand-red hover:bg-red-700 hover:shadow-md text-white font-bold py-3 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider"
+                        className="w-full bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white font-bold py-3.5 px-4 rounded-xl transition-all text-xs cursor-pointer disabled:opacity-50 text-center btn-premium uppercase tracking-wider flex items-center justify-center gap-2"
                       >
+                        <Clock className="w-4 h-4" />
                         {loadingAttendance ? 'Processing...' : 'Check Out Now'}
                       </button>
                     ) : (
-                      <div className="w-full text-center bg-gray-100 text-gray-500 font-bold py-3 px-4 rounded-xl text-xs border border-gray-200 uppercase tracking-wider">
+                      <div className="w-full text-center bg-gray-100 text-gray-500 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-gray-250/60 uppercase tracking-wider flex items-center justify-center gap-2">
+                        <Check className="w-4 h-4 text-gray-400" />
                         Shift Completed
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
 
-                {/* Center Column: Stats panel widgets */}
-                <div className="lg:col-span-1 grid grid-cols-2 gap-4">
-                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
-                    <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">{stats.present}</span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
-                  </div>
-                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
-                    <span className="block text-2xl font-extrabold text-brand-red font-heading leading-tight">{stats.late}</span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
-                  </div>
-                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
-                    <span className="block text-2xl font-extrabold text-brand-maroon font-heading leading-tight">{stats.leave}</span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
-                  </div>
-                  <div className="bg-white premium-card p-4 border border-gray-150 text-center shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center min-h-[90px] rounded-xl">
-                    <span className="block text-2xl font-extrabold text-brand-cta font-heading leading-tight">
-                      {trackSheets.length > 0 
-                        ? (trackSheets.reduce((sum, item) => sum + item.hours, 0) / trackSheets.length).toFixed(1)
-                        : '0.0'}h
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
-                  </div>
-                </div>
-
-                {/* Right Column: Performance Health Gauge Card (Decreased to col-span-1) */}
-                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-1 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[240px] rounded-2xl">
+                {/* Right Column: Performance Health Gauge Card */}
+                <motion.div 
+                  variants={cardVariants}
+                  className="premium-card p-6 lg:col-span-1 transition-all duration-300 flex flex-col justify-between min-h-[260px] relative overflow-hidden"
+                >
+                  {/* Subtle soft brand-color glow ring behind it */}
+                  <div className="glow-ring-soft w-48 h-48 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 bg-blue-400/20 blur-3xl rounded-full" />
+                  
                   {(() => {
                     const displayRating = performanceScore?.rating || 'GREEN';
                     let displayScore = performanceScore?.autoScore ?? 100;
@@ -832,25 +955,28 @@ export default function EmployeeDashboard() {
                     }
                     return (
                       <>
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex justify-between items-center mb-2 z-10">
                           <h3 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-1.5">
                             <TrendingUp className="w-4 h-4 text-brand-cta shrink-0" />
                             Performance
                           </h3>
                           {performanceScore && (
-                            <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-sm ${
-                              displayRating === 'BLUE' ? 'bg-blue-100 text-blue-800 border-blue-200' :
-                              displayRating === 'GREEN' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' :
-                              displayRating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
-                              'bg-red-100 text-brand-red border-red-200'
+                            <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-xs ${
+                              displayRating === 'BLUE' ? 'bg-blue-50 text-blue-700 border-blue-200/60' :
+                              displayRating === 'GREEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' :
+                              displayRating === 'YELLOW' ? 'bg-amber-50 text-amber-700 border-amber-200/60' :
+                              'bg-red-50 text-brand-red border-red-200/60'
                             }`}>
-                              {displayRating} ({displayScore})
+                              {displayRating === 'BLUE' ? 'Excellent' :
+                               displayRating === 'GREEN' ? 'Good' :
+                               displayRating === 'YELLOW' ? 'Average' :
+                               'Needs Improvement'} ({displayScore})
                             </span>
                           )}
                         </div>
-                        <div className="flex justify-center flex-1 items-center pt-2">
+                        <div className="flex justify-center flex-1 items-center pt-2 z-10">
                           {performanceScore ? (
-                            <Speedometer score={displayScore} rating={displayRating} size={210} />
+                            <Speedometer score={displayScore} rating={displayRating} size={350} />
                           ) : (
                             <p className="text-xs text-gray-400">No score logged.</p>
                           )}
@@ -858,87 +984,172 @@ export default function EmployeeDashboard() {
                       </>
                     );
                   })()}
-                </div>
+                </motion.div>
               </div>
 
-              {/* Row 2: Full width form */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Log Daily Work Hours form */}
-                <div className="bg-white premium-card p-6 border border-gray-150 lg:col-span-3 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between rounded-2xl">
-                  <div className="mb-4">
-                    <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-brand-cta" />
-                      Log Daily Work Hours
-                    </h3>
+              {/* Middle Row: Horizontal Stat-Strip */}
+              <motion.div 
+                variants={cardVariants}
+                className="premium-card p-5 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-250/40"
+              >
+                {/* Presents Stat */}
+                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                    <TrendingUp className="w-5 h-5" />
                   </div>
-                  <form onSubmit={handleSubmitTrackSheet} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
-                        <input
-                          type="text"
-                          required
-                          value={project}
-                          onChange={(e) => setProject(e.target.value)}
-                          placeholder="e.g. API Integration"
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
-                        <input
-                          type="number"
-                          step="0.5"
-                          min="0.5"
-                          max="24"
-                          required
-                          value={hours}
-                          onChange={(e) => setHours(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
-                        <input
-                          type="text"
-                          required
-                          value={assignedByName}
-                          onChange={(e) => setAssignedByName(e.target.value)}
-                          placeholder="e.g. TL Likith"
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
-                      <textarea
-                        required
-                        rows={2}
-                        value={taskDescription}
-                        onChange={(e) => setTaskDescription(e.target.value)}
-                        placeholder="Explain task details..."
-                        className="block w-full rounded-lg border border-gray-200 py-1.5 px-3 text-xs text-brand-gray bg-white outline-none focus:ring-1 focus:ring-brand-cta transition-all"
-                      />
-                    </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={submittingTrack}
-                        className="bg-brand-cta hover:bg-blue-700 hover:shadow-md text-white font-bold text-xs px-5 py-2.5 rounded-lg transition-all flex items-center gap-2 cursor-pointer btn-premium"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        {submittingTrack ? 'Saving...' : 'Submit Entry'}
-                      </button>
-                    </div>
-                  </form>
+                  <div className="text-left">
+                    <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                      <CountUp value={stats.present} />
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                {/* Lates Stat */}
+                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
+                    <TrendingUp className="w-5 h-5 rotate-90" />
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-2xl font-extrabold font-mono text-brand-red leading-none">
+                      <CountUp value={stats.late} />
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
+                  </div>
+                </div>
+
+                {/* Leaves Stat */}
+                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0 shadow-xs">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-2xl font-extrabold font-mono text-brand-maroon leading-none">
+                      <CountUp value={stats.leave} />
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
+                  </div>
+                </div>
+
+                {/* Avg Hours Stat */}
+                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                      {(() => {
+                        const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
+                        const monthlyTrack = trackSheets.filter(t => t.date.startsWith(currentMonthPrefix));
+                        const val = monthlyTrack.length > 0 
+                          ? Number((monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1))
+                          : 0.0;
+                        return <CountUpFloat value={val} />;
+                      })()}
+                      <span className="text-sm font-semibold">h</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Bottom Row: Collapsible Daily Work Hours form */}
+              <motion.div 
+                variants={cardVariants}
+                className="premium-card p-6 transition-all duration-300"
+              >
+                <button
+                  onClick={() => setIsLogExpanded(!isLogExpanded)}
+                  className="w-full flex justify-between items-center outline-none cursor-pointer"
+                >
+                  <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-brand-cta" />
+                    Log Daily Work Hours
+                  </h3>
+                  <span className="text-xs font-bold text-brand-cta hover:underline">
+                    {isLogExpanded ? 'Collapse Form' : 'Expand Form'}
+                  </span>
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {isLogExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: "easeInOut" }}
+                      className="overflow-hidden"
+                    >
+                      <form onSubmit={handleSubmitTrackSheet} className="space-y-4 pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
+                            <input
+                              type="text"
+                              required
+                              value={project}
+                              onChange={(e) => setProject(e.target.value)}
+                              placeholder="e.g. API Integration"
+                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="0.5"
+                              max="24"
+                              required
+                              value={hours}
+                              onChange={(e) => setHours(e.target.value)}
+                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
+                            <input
+                              type="text"
+                              required
+                              value={assignedByName}
+                              onChange={(e) => setAssignedByName(e.target.value)}
+                              placeholder="e.g. TL Likith"
+                              className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                          <textarea
+                            required
+                            rows={2}
+                            value={taskDescription}
+                            onChange={(e) => setTaskDescription(e.target.value)}
+                            placeholder="Explain task details..."
+                            className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                          />
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            type="submit"
+                            disabled={submittingTrack}
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 cursor-pointer btn-premium shadow-sm"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {submittingTrack ? 'Saving...' : 'Submit Entry'}
+                          </button>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            </motion.div>
           )}
 
           {/* TAB 1.1: My Tasks Page */}
           {activeTab === 'tasks' && (
-            <div className="bg-white premium-card p-6 border border-gray-150 shadow-md rounded-2xl space-y-6">
+            <div className="premium-card p-6 space-y-6">
               <div className="border-b border-gray-100 pb-4">
                 <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
                   <CheckSquare className="w-5 h-5 text-brand-cta" />
@@ -991,7 +1202,7 @@ export default function EmployeeDashboard() {
 
           {/* TAB 1.2: My Track Sheets Page */}
           {activeTab === 'tracksheets' && (
-            <div className="bg-white premium-card p-6 border border-gray-150 shadow-md rounded-2xl space-y-6">
+            <div className="premium-card p-6 space-y-6">
               <div className="border-b border-gray-100 pb-4">
                 <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
                   <FileText className="w-5 h-5 text-brand-cta" />
@@ -1002,15 +1213,15 @@ export default function EmployeeDashboard() {
 
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="w-full table-fixed text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-white shadow-[0_1px_0_0_rgba(243,244,246,1)] z-10">
-                    <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider bg-white">
-                      <th className="py-3 px-2 bg-white w-[100px]">Date</th>
-                      <th className="py-3 px-2 bg-white w-[160px]">Task / Project</th>
-                      <th className="py-3 px-2 bg-white w-[120px]">Assigned By</th>
-                      <th className="py-3 px-2 bg-white">Description</th>
-                      <th className="py-3 px-2 text-center bg-white w-[80px]">Hours</th>
-                      <th className="py-3 px-2 text-center bg-white w-[100px]">Status</th>
-                      <th className="py-3 px-2 text-center bg-white w-[80px]">Action</th>
+                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-2 w-[100px] bg-transparent">Date</th>
+                      <th className="py-3 px-2 w-[160px] bg-transparent">Task / Project</th>
+                      <th className="py-3 px-2 w-[120px] bg-transparent">Assigned By</th>
+                      <th className="py-3 px-2 bg-transparent">Description</th>
+                      <th className="py-3 px-2 text-center w-[80px] bg-transparent">Hours</th>
+                      <th className="py-3 px-2 text-center w-[100px] bg-transparent">Status</th>
+                      <th className="py-3 px-2 text-center w-[80px] bg-transparent">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -1063,7 +1274,7 @@ export default function EmployeeDashboard() {
           {/* TAB 2: My Profile */}
           {activeTab === 'profile' && employeeProfile && (
             <div className="space-y-6">
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <div className="border-b border-gray-100 pb-4 mb-6">
                   <h3 className="text-lg font-bold text-brand-navy font-heading">My Professional Profile</h3>
                   <p className="text-xs text-gray-500 mt-1">Review your designation, department, and employment details set by HR.</p>
@@ -1110,7 +1321,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Editable Personal Contact Fields */}
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <div className="border-b border-gray-100 pb-4 mb-6">
                   <h3 className="text-lg font-bold text-brand-navy font-heading">Personal Contact Details</h3>
                   <p className="text-xs text-gray-500 mt-1">Keep your contact information up-to-date.</p>
@@ -1124,7 +1335,7 @@ export default function EmployeeDashboard() {
                         type="text"
                         value={profileForm.mobileNumber}
                         onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
                     <div>
@@ -1133,7 +1344,7 @@ export default function EmployeeDashboard() {
                         type="email"
                         value={profileForm.personalEmail}
                         onChange={(e) => setProfileForm({ ...profileForm, personalEmail: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
                     <div>
@@ -1142,7 +1353,7 @@ export default function EmployeeDashboard() {
                         type="text"
                         value={profileForm.emergencyContact}
                         onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
                     <div>
@@ -1150,7 +1361,7 @@ export default function EmployeeDashboard() {
                       <select
                         value={profileForm.maritalStatus}
                         onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-2.5 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       >
                         <option value="Single">Single</option>
                         <option value="Married">Married</option>
@@ -1164,7 +1375,7 @@ export default function EmployeeDashboard() {
                         type="text"
                         value={profileForm.currentAddress}
                         onChange={(e) => setProfileForm({ ...profileForm, currentAddress: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -1173,7 +1384,7 @@ export default function EmployeeDashboard() {
                         type="text"
                         value={profileForm.permanentAddress}
                         onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
-                        className="block w-full rounded-lg border border-gray-200 py-2 px-3 text-xs text-brand-gray bg-white outline-none"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
                   </div>
@@ -1181,7 +1392,7 @@ export default function EmployeeDashboard() {
                   <div className="flex justify-end pt-2">
                     <button
                       type="submit"
-                      className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-5 py-2 rounded-lg transition-colors cursor-pointer shadow-md"
+                      className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                     >
                       Save Profile Changes
                     </button>
@@ -1190,7 +1401,7 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Financial/Regulatory Info (Read Only) */}
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <div className="border-b border-gray-100 pb-4 mb-6">
                   <h3 className="text-lg font-bold text-brand-navy font-heading">Financial & Bank Information</h3>
                   <p className="text-xs text-gray-500 mt-1">Details stored securely with field-level encryption. Contact HR to edit.</p>
@@ -1222,7 +1433,7 @@ export default function EmployeeDashboard() {
           {/* TAB 3: My Leaves */}
           {activeTab === 'leaves' && (
             <div className="space-y-6">
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-brand-cta" />
                   Leave Balances & Time-off Requests
@@ -1234,18 +1445,18 @@ export default function EmployeeDashboard() {
                     <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Leave Balance Status</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {leaveBalances.map((bal) => (
-                        <div key={bal.id} className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/50">
+                        <div key={bal.id} className="p-3.5 rounded-xl border border-gray-250 bg-gray-50/80 shadow-xs">
                           <p className="text-xs font-bold text-brand-navy">{bal.name}</p>
                           <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-gray-500 font-semibold text-center">
-                            <div className="bg-white p-1 rounded border border-gray-100">
+                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
                               <span className="block text-xs font-extrabold text-brand-navy">{bal.daysAllowed}</span>
                               Allotted
                             </div>
-                            <div className="bg-white p-1 rounded border border-gray-100">
+                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
                               <span className="block text-xs font-extrabold text-brand-red">{bal.daysUsed}</span>
                               Used
                             </div>
-                            <div className="bg-white p-1 rounded border border-gray-100">
+                            <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
                               <span className="block text-xs font-extrabold text-emerald-600">{bal.daysRemaining}</span>
                               Remaining
                             </div>
@@ -1256,7 +1467,7 @@ export default function EmployeeDashboard() {
                   </div>
 
                   {/* Apply Form */}
-                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 space-y-3 lg:col-span-1">
+                  <div className="premium-card p-4 space-y-3 lg:col-span-1 border border-gray-200/50">
                     <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
                     <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
                       <div>
@@ -1265,7 +1476,7 @@ export default function EmployeeDashboard() {
                           required
                           value={leaveTypeId}
                           onChange={(e) => setLeaveTypeId(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 py-1.5 px-2.5 text-xs text-brand-gray bg-white outline-none"
+                          className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                         >
                           <option value="">Select leave type</option>
                           {leaveBalances.map((bal) => (
@@ -1284,7 +1495,7 @@ export default function EmployeeDashboard() {
                             required
                             value={leaveStartDate}
                             onChange={(e) => setLeaveStartDate(e.target.value)}
-                            className="block w-full rounded-lg border border-gray-200 py-1 px-1.5 text-xs text-brand-gray bg-white outline-none"
+                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
                         <div>
@@ -1294,7 +1505,7 @@ export default function EmployeeDashboard() {
                             required
                             value={leaveEndDate}
                             onChange={(e) => setLeaveEndDate(e.target.value)}
-                            className="block w-full rounded-lg border border-gray-200 py-1 px-1.5 text-xs text-brand-gray bg-white outline-none"
+                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
                       </div>
@@ -1307,14 +1518,14 @@ export default function EmployeeDashboard() {
                           value={leaveReason}
                           onChange={(e) => setLeaveReason(e.target.value)}
                           placeholder="State reason..."
-                          className="block w-full rounded-lg border border-gray-200 py-1 px-1.5 text-xs text-brand-gray bg-white outline-none"
+                          className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                         />
                       </div>
 
                       <button
                         type="submit"
                         disabled={submittingLeave}
-                        className="w-full bg-brand-cta text-white font-bold text-xs py-2 px-3 rounded-lg hover:bg-blue-700 transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
                       >
                         {submittingLeave ? 'Submitting...' : 'Request Leave'}
                       </button>
@@ -1323,12 +1534,12 @@ export default function EmployeeDashboard() {
                 </div>
 
                 {/* History */}
-                <div className="mt-6 border-t border-gray-100 pt-6">
+                <div className="mt-6 border-t border-gray-150 pt-6">
                   <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Leave Request History</h4>
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-left text-xs">
                       <thead>
-                        <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
                           <th className="py-2.5 px-2">Leave Type</th>
                           <th className="py-2.5 px-2">Duration</th>
                           <th className="py-2.5 px-2">Reason</th>
@@ -1379,32 +1590,32 @@ export default function EmployeeDashboard() {
             <div className="space-y-6">
               {/* Salary Structure Info */}
               {employeeProfile && (
-                <div className="bg-white premium-card p-6 border border-gray-100">
+                <div className="premium-card p-6">
                   <div className="border-b border-gray-100 pb-4 mb-4">
                     <h3 className="text-lg font-bold text-brand-navy font-heading">My Salary Structure Breakdown</h3>
                     <p className="text-xs text-gray-500 mt-1">Periodic salary structure values registered under your profile account.</p>
                   </div>
                   {/* Pull default values for structure if not explicitly set yet */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
                       <span className="block text-[10px] font-bold text-gray-400 uppercase">Basic Salary</span>
                       <span className="text-base font-extrabold text-brand-navy mt-1 block">
                         {(myPayrollRuns[0]?.basicSalary || 30000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                       </span>
                     </div>
-                    <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
                       <span className="block text-[10px] font-bold text-gray-400 uppercase">HRA Allowance</span>
                       <span className="text-base font-extrabold text-brand-navy mt-1 block">
                         {(myPayrollRuns[0]?.hra || 12000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                       </span>
                     </div>
-                    <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
                       <span className="block text-[10px] font-bold text-gray-400 uppercase">Conveyance</span>
                       <span className="text-base font-extrabold text-brand-navy mt-1 block">
                         {(myPayrollRuns[0]?.conveyance || 3000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
                       </span>
                     </div>
-                    <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-100">
+                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
                       <span className="block text-[10px] font-bold text-gray-400 uppercase">Special Allowance</span>
                       <span className="text-base font-extrabold text-brand-navy mt-1 block">
                         {(myPayrollRuns[0]?.specialAllowance || 5000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
@@ -1415,7 +1626,7 @@ export default function EmployeeDashboard() {
               )}
 
               {/* My Payslips Table */}
-              <div className="bg-white premium-card p-6 border border-gray-100">
+              <div className="premium-card p-6">
                 <div className="border-b border-gray-100 pb-4 mb-4">
                   <h3 className="text-lg font-bold text-brand-navy font-heading">My Monthly Payslips</h3>
                   <p className="text-xs text-gray-500 mt-1">Download official digital Excel/PDF payslip documents generated by the HR payroll system.</p>
@@ -1424,7 +1635,7 @@ export default function EmployeeDashboard() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-xs">
                     <thead>
-                      <tr className="border-b border-gray-100 text-gray-400 font-bold uppercase tracking-wider">
+                      <tr className="border-b border-gray-250/50 text-gray-500 font-bold uppercase tracking-wider">
                         <th className="py-3 px-2">Pay Period</th>
                         <th className="py-3 px-2 text-right">Gross Earnings (INR)</th>
                         <th className="py-3 px-2 text-right">Deductions (INR)</th>
@@ -1462,7 +1673,7 @@ export default function EmployeeDashboard() {
                               <a
                                 href={`/api/payroll/runs/export?id=${run.id}`}
                                 download
-                                className="inline-block bg-brand-cta hover:bg-blue-700 text-white font-bold px-3 py-1 rounded text-[10px]"
+                                className="inline-block bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-3.5 py-1.5 rounded-lg text-[10px] transition-all cursor-pointer"
                               >
                                 Download Payslip
                               </a>
@@ -1477,112 +1688,293 @@ export default function EmployeeDashboard() {
             </div>
           )}
 
-          {/* TAB 5: My Goals */}
-          {activeTab === 'goals' && (
-            <div className="bg-white premium-card p-6 border border-gray-100">
-              <div className="border-b border-gray-100 pb-4 mb-4">
-                <h3 className="text-lg font-bold text-brand-navy font-heading">Performance Goals & KPI Targets</h3>
-                <p className="text-xs text-gray-500 mt-1">Review active objectives, submit accomplishments, and review manager reviews.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {myGoals.length === 0 ? (
-                  <p className="col-span-2 text-xs text-gray-400 py-6 text-center">No goals assigned for this appraisal cycle.</p>
-                ) : (
-                  myGoals.map((goal) => (
-                    <div key={goal.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition-all flex flex-col justify-between space-y-4">
-                      <div>
-                        <div className="flex justify-between items-start">
-                          <h4 className="text-sm font-bold text-brand-navy">{goal.goalTitle}</h4>
-                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                            goal.status === 'HR_REVIEWED' ? 'bg-purple-100 text-purple-800' :
-                            goal.status === 'MANAGER_APPROVED' ? 'bg-blue-100 text-blue-800' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>{goal.status}</span>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2"><strong>KPI:</strong> {goal.kpi}</p>
-                        <p className="text-xs text-gray-500 mt-1"><strong>Target Metric:</strong> {goal.target}</p>
-                        <p className="text-xs text-gray-500 mt-1"><strong>Appraisal Period:</strong> {goal.period}</p>
-                        <p className="text-xs text-gray-500 mt-1"><strong>Goal Weight:</strong> {goal.weight}%</p>
-                        {goal.achievement && (
-                          <div className="mt-3 p-2 bg-white rounded border border-gray-100 text-xs">
-                            <span className="font-bold block text-[10px] text-gray-400">Accomplishment description:</span>
-                            {goal.achievement}
-                          </div>
-                        )}
-                        {goal.rating && (
-                          <p className="text-xs font-bold text-brand-cta mt-2">Manager Rating: {goal.rating} / 5.0</p>
-                        )}
-                      </div>
-
-                      {goal.status !== 'HR_REVIEWED' && (
-                        <div className="pt-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedGoal(goal);
-                              setAchievementInput(goal.achievement || '');
-                              setIsGoalModalOpen(true);
-                            }}
-                            className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg w-full text-center transition-colors cursor-pointer"
-                          >
-                            Update Accomplishments
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
           {/* TAB 6: Trainings Catalog */}
           {activeTab === 'trainings' && (
-            <div className="bg-white premium-card p-6 border border-gray-100">
+            <div className="premium-card p-6">
               <div className="border-b border-gray-100 pb-4 mb-4">
                 <h3 className="text-lg font-bold text-brand-navy font-heading">My Training Courses & Certifications</h3>
                 <p className="text-xs text-gray-500 mt-1">View specialized training sessions assigned to you and check certification status.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {myTrainings.length === 0 ? (
-                  <p className="col-span-2 text-xs text-gray-400 py-6 text-center">No trainings assigned at this time.</p>
-                ) : (
-                  myTrainings.map((assign) => (
-                    <div key={assign.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-sm font-bold text-brand-navy">{assign.training.trainingName}</h4>
-                          <span className="text-[10px] text-gray-400 block mt-0.5">Trainer: {assign.training.trainer}</span>
-                        </div>
-                        <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                          assign.certified ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {assign.certified ? 'Certified' : 'Registered'}
-                        </span>
-                      </div>
-
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <p><strong>Scheduled Date:</strong> {new Date(assign.training.plannedDate).toLocaleDateString()}</p>
-                        <p><strong>Duration Hours:</strong> {assign.training.durationHours} hours</p>
-                        <p><strong>Attended:</strong> {assign.attended ? 'Yes' : 'No'}</p>
-                        {assign.assessmentScore !== null && (
-                          <p><strong>Assessment Score:</strong> <span className="font-bold text-brand-navy">{assign.assessmentScore}%</span></p>
-                        )}
-                        {assign.feedback && (
-                          <div className="p-2 bg-white rounded border border-gray-100 text-[11px] italic mt-2">
-                            "Feedback: {assign.feedback}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
+              <div className="py-8 text-center bg-gray-50/80 rounded-2xl border border-gray-200">
+                <p className="text-sm font-semibold text-brand-navy">Courses are not yet started.</p>
               </div>
             </div>
           )}
 
+          {/* TAB 7: Attendance History */}
+          {activeTab === 'history' && (
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* Filter Controls Card */}
+              <div className="premium-card p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                      <History className="w-5 h-5 text-brand-cta shrink-0" />
+                      My Attendance History
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1">Select month and year to view daily check-in patterns, leaves, and holidays.</p>
+                  </div>
+                  
+                  {/* Controls */}
+                  <div className="flex items-center gap-2.5">
+                    {/* Prev Month */}
+                    <button
+                      onClick={() => {
+                        if (calendarMonth === 0) {
+                          setCalendarMonth(11);
+                          setCalendarYear(calendarYear - 1);
+                        } else {
+                          setCalendarMonth(calendarMonth - 1);
+                        }
+                      }}
+                      className="p-2 border border-gray-200 hover:bg-slate-50 rounded-xl transition-all cursor-pointer text-brand-navy text-sm font-bold shadow-xs bg-white"
+                      title="Previous Month"
+                    >
+                      &larr;
+                    </button>
+                    
+                    {/* Month selector */}
+                    <select
+                      value={calendarMonth}
+                      onChange={(e) => setCalendarMonth(Number(e.target.value))}
+                      className="rounded-xl border border-gray-200 py-2 px-3 text-xs font-semibold text-brand-navy bg-white outline-none focus:border-brand-cta transition-all shadow-xs"
+                    >
+                      {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((mName, idx) => (
+                        <option key={idx} value={idx}>{mName}</option>
+                      ))}
+                    </select>
+
+                    {/* Year selector */}
+                    <select
+                      value={calendarYear}
+                      onChange={(e) => setCalendarYear(Number(e.target.value))}
+                      className="rounded-xl border border-gray-200 py-2 px-3 text-xs font-semibold text-brand-navy bg-white outline-none focus:border-brand-cta transition-all shadow-xs"
+                    >
+                      {[2024, 2025, 2026, 2027].map((yr) => (
+                        <option key={yr} value={yr}>{yr}</option>
+                      ))}
+                    </select>
+
+                    {/* Next Month */}
+                    <button
+                      onClick={() => {
+                        if (calendarMonth === 11) {
+                          setCalendarMonth(0);
+                          setCalendarYear(calendarYear + 1);
+                        } else {
+                          setCalendarMonth(calendarMonth + 1);
+                        }
+                      }}
+                      className="p-2 border border-gray-200 hover:bg-slate-50 rounded-xl transition-all cursor-pointer text-brand-navy text-sm font-bold shadow-xs bg-white"
+                      title="Next Month"
+                    >
+                      &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Monthly Stats Summary Strip */}
+              {(() => {
+                const selectedYearMonth = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}`;
+                const monthlyRecords = attendance.filter(r => r.date.startsWith(selectedYearMonth));
+                const monthlyTrack = trackSheets.filter(t => t.date.startsWith(selectedYearMonth));
+                
+                const presents = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(r.status)).length;
+                const lates = monthlyRecords.filter(r => r.status === 'LATE_COMING').length;
+                const leaves = monthlyRecords.filter(r => r.status === 'LEAVE').length;
+                const holidays = monthlyRecords.filter(r => r.status === 'HOLIDAY').length;
+                const absents = monthlyRecords.filter(r => r.status === 'ABSENT').length;
+                
+                const avgHrs = monthlyTrack.length > 0 
+                  ? (monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1)
+                  : '0.0';
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {/* Present Card */}
+                    <div className="premium-card p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-xl font-extrabold font-mono text-emerald-600 leading-none">
+                          <CountUp value={presents} />
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present</span>
+                      </div>
+                    </div>
+
+                    {/* Late Card */}
+                    <div className="premium-card p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
+                        <AlertCircle className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-xl font-extrabold font-mono text-amber-650 leading-none">
+                          <CountUp value={lates} />
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
+                      </div>
+                    </div>
+
+                    {/* Leave Card */}
+                    <div className="premium-card p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 shadow-xs">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-xl font-extrabold font-mono text-rose-600 leading-none">
+                          <CountUp value={leaves} />
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
+                      </div>
+                    </div>
+
+                    {/* Holiday Card */}
+                    <div className="premium-card p-4 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                        <Globe className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-xl font-extrabold font-mono text-brand-navy leading-none">
+                          <CountUp value={holidays} />
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Holidays</span>
+                      </div>
+                    </div>
+
+                    {/* Avg Hours Card */}
+                    <div className="premium-card p-4 flex items-center gap-3 col-span-2 md:col-span-1">
+                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-gray-600 shrink-0 shadow-xs">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-xl font-extrabold font-mono text-brand-gray leading-none">
+                          {avgHrs}h
+                        </span>
+                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Calendar Grid Card */}
+              <div className="premium-card p-6">
+                {/* Week headers */}
+                <div className="grid grid-cols-7 gap-2 mb-3 text-center">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dHeader) => (
+                    <span key={dHeader} className="text-xs font-bold text-gray-400 uppercase tracking-wider">{dHeader}</span>
+                  ))}
+                </div>
+
+                {/* Grid cells */}
+                <div className="grid grid-cols-7 gap-2">
+                  {(() => {
+                    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+                    const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+                      const cells = [];
+                    // Empty cells for alignment
+                    for (let i = 0; i < firstDayIndex; i++) {
+                      cells.push(<div key={`empty-${i}`} className="bg-slate-50/40 rounded-xl border border-gray-100 min-h-[50px] md:min-h-[65px]" />);
+                    }
+                    
+                    // Month dates
+                    for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+                      const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                      const rec = attendance.find(r => r.date === dateStr);
+                      const isWeekend = new Date(calendarYear, calendarMonth, dayNum).getDay() === 0 || new Date(calendarYear, calendarMonth, dayNum).getDay() === 6;
+                      
+                      let cellStyle = "bg-white text-brand-navy border-gray-200 hover:border-brand-cta";
+                      let statusText = "";
+                      
+                      const hItem = holidays.find(h => h.date === dateStr);
+                      const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
+                      const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
+
+                      if (isHoliday) {
+                        cellStyle = "bg-blue-600/85 text-white border-blue-600/60 hover:bg-blue-600";
+                        statusText = holidayName || "Holiday";
+                      } else if (rec) {
+                        const status = rec.status;
+                        if (['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(status)) {
+                          cellStyle = "bg-emerald-600/85 text-white border-emerald-600/60 hover:bg-emerald-600";
+                          statusText = status === 'LATE_COMING' ? "Late" : (status === 'OVERTIME' ? "Overtime" : "Present");
+                        } else if (status === 'LEAVE') {
+                          cellStyle = "bg-purple-600/85 text-white border-purple-600/60 hover:bg-purple-600";
+                          statusText = "Leave";
+                        } else if (status === 'WEEK_OFF') {
+                          cellStyle = "bg-slate-300/85 text-slate-700 border-slate-300/60 hover:bg-slate-300";
+                          statusText = "Weekend";
+                        } else if (status === 'ABSENT') {
+                          cellStyle = "bg-red-500/85 text-white border-red-500/60 hover:bg-red-500";
+                          statusText = "Absent";
+                        }
+                      } else {
+                        // Fallback checking for future or week offs
+                        if (isWeekend) {
+                          cellStyle = "bg-slate-300/85 text-slate-700 border-slate-300/60 hover:bg-slate-300";
+                          statusText = "Weekend";
+                        } else {
+                          const today = new Date().toISOString().split('T')[0];
+                          if (dateStr < today) {
+                            cellStyle = "bg-red-500/85 text-white border-red-500/60 hover:bg-red-500";
+                            statusText = "Absent";
+                          } else {
+                            cellStyle = "bg-white text-gray-400 border-gray-200/80 hover:border-brand-cta";
+                            statusText = "";
+                          }
+                        }
+                      }
+
+                      cells.push(
+                        <button
+                          key={dayNum}
+                          onClick={() => setSelectedCalendarDate(dateStr)}
+                          className={`p-1.5 md:p-2 rounded-xl border text-left flex flex-col justify-between min-h-[50px] md:min-h-[65px] transition-all cursor-pointer shadow-xs hover:shadow-md ${cellStyle}`}
+                        >
+                          <span className="text-sm font-extrabold font-mono">{dayNum}</span>
+                          {statusText && (
+                            <span className="text-[7px] md:text-[8px] font-extrabold tracking-wide uppercase mt-1 truncate max-w-full block">
+                              {statusText}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    }
+                    
+                    return cells;
+                  })()}
+                </div>
+
+                {/* Color Legend Block */}
+                <div className="flex flex-wrap items-center justify-center gap-6 mt-8 pt-6 border-t border-gray-100 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-md bg-emerald-600/85 border border-emerald-600/60 block" />
+                    <span className="font-semibold text-brand-gray">Present / Overtime</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-md bg-purple-600/85 border border-purple-600/60 block" />
+                    <span className="font-semibold text-brand-gray">Leave (Approved)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-md bg-blue-600/85 border border-blue-600/60 block" />
+                    <span className="font-semibold text-brand-gray">Company Holiday (HR)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-md bg-red-500/85 border border-red-500/60 block" />
+                    <span className="font-semibold text-brand-gray">Absent (No check-in)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 rounded-md bg-slate-300/85 border border-slate-300/60 block" />
+                    <span className="font-semibold text-brand-gray">Weekend (Week Off)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
@@ -1590,7 +1982,7 @@ export default function EmployeeDashboard() {
       {/* Goal Accomplishment Submission Modal */}
       {isGoalModalOpen && selectedGoal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+          <div className="bg-white/85 backdrop-blur-lg rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/40 space-y-4">
             <h3 className="text-lg font-bold text-brand-navy font-heading">Record Goal Accomplishments</h3>
             <p className="text-xs text-gray-500">Provide details on what you accomplished toward this objective: <strong>{selectedGoal.goalTitle}</strong>.</p>
 
@@ -1603,7 +1995,7 @@ export default function EmployeeDashboard() {
                   value={achievementInput}
                   onChange={(e) => setAchievementInput(e.target.value)}
                   placeholder="E.g., I reduced the bundle size from 500kb to 380kb, updated dependencies, and implemented code split bundles..."
-                  className="block w-full rounded-lg border border-gray-200 py-2.5 px-3 text-xs text-brand-gray bg-white outline-none"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
               </div>
 
@@ -1614,18 +2006,129 @@ export default function EmployeeDashboard() {
                     setIsGoalModalOpen(false);
                     setSelectedGoal(null);
                   }}
-                  className="bg-gray-100 hover:bg-gray-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg transition-colors cursor-pointer btn-premium shadow-md"
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Submit for Review
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Date Detail Modal */}
+      {selectedCalendarDate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white/85 backdrop-blur-lg rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-white/40 space-y-4 text-brand-navy">
+            <div className="flex justify-between items-center border-b border-gray-150 pb-3">
+              <h3 className="text-sm font-bold font-heading">
+                Attendance Details
+              </h3>
+              <span className="text-xs font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                {selectedCalendarDate}
+              </span>
+            </div>
+
+            {(() => {
+              const rec = attendance.find(r => r.date === selectedCalendarDate);
+              const isWeekend = new Date(selectedCalendarDate).getDay() === 0 || new Date(selectedCalendarDate).getDay() === 6;
+              const hItem = holidays.find(h => h.date === selectedCalendarDate);
+              const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
+              const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
+
+              if (isHoliday) {
+                return (
+                  <div className="text-xs space-y-2.5">
+                    <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                      <strong className="text-gray-400 font-medium">Status:</strong>
+                      <span className="font-extrabold text-blue-600 uppercase">HOLIDAY</span>
+                    </p>
+                    <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                      <strong className="text-gray-400 font-medium">Reason / Name:</strong>
+                      <span className="font-bold text-right">{holidayName || 'Company Holiday'}</span>
+                    </p>
+                    <p className="text-[10px] text-gray-450 italic">This day has been declared a holiday by HR.</p>
+                  </div>
+                );
+              }
+
+              if (!rec) {
+                if (isWeekend) {
+                  return (
+                    <div className="text-xs text-gray-500 py-3 space-y-2">
+                      <p><strong>Status:</strong> Weekend (Non-Working Day)</p>
+                      <p className="italic text-gray-400">No attendance logging required.</p>
+                    </div>
+                  );
+                }
+                const today = new Date().toISOString().split('T')[0];
+                if (selectedCalendarDate > today) {
+                  return (
+                    <div className="text-xs text-gray-500 py-3 space-y-2">
+                      <p><strong>Status:</strong> Future Date</p>
+                      <p className="italic text-gray-400">Attendance records will appear once checked in.</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-xs text-gray-500 py-3 space-y-2">
+                    <p><strong>Status:</strong> Absent</p>
+                    <p className="italic text-red-650 font-bold">No check-in record found for this day.</p>
+                  </div>
+                );
+              }
+
+              // Found record details
+              const workingHours = rec.checkInTime && rec.checkOutTime 
+                ? ((new Date(rec.checkOutTime).getTime() - new Date(rec.checkInTime).getTime()) / (1000 * 60 * 60)).toFixed(1) + ' hours'
+                : (rec.status === 'WEEK_OFF' || rec.status === 'HOLIDAY' ? null : '--');
+
+              return (
+                <div className="text-xs space-y-2.5">
+                  <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                    <strong className="text-gray-400 font-medium">Status:</strong>
+                    <span className="font-extrabold uppercase">{rec.status.replace('_', ' ')}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                    <strong className="text-gray-400 font-medium">Check-in:</strong>
+                    <span className="font-bold">{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                  </p>
+                  <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                    <strong className="text-gray-400 font-medium">Check-out:</strong>
+                    <span className="font-bold">{rec.checkOutTime ? new Date(rec.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                  </p>
+                  {workingHours && (
+                    <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                      <strong className="text-gray-400 font-medium">Working Hours:</strong>
+                      <span className="font-bold font-mono">{workingHours}</span>
+                    </p>
+                  )}
+                  <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                    <strong className="text-gray-400 font-medium">Device IP:</strong>
+                    <span className="font-mono text-gray-500">{rec.ip || 'Unknown'}</span>
+                  </p>
+                  <p className="flex justify-between">
+                    <strong className="text-gray-400 font-medium">Timezone:</strong>
+                    <span className="text-gray-500">{rec.tz || 'Asia/Kolkata'}</span>
+                  </p>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end pt-3">
+              <button
+                type="button"
+                onClick={() => setSelectedCalendarDate(null)}
+                className="bg-brand-navy hover:bg-brand-navy-light text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer w-full text-center"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

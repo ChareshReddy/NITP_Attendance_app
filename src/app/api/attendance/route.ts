@@ -106,12 +106,15 @@ export async function GET(request: Request) {
       orderBy: { date: 'desc' },
     });
 
-    const presentCount = attendanceRecords.filter(r => ['PRESENT', 'OVERTIME'].includes(r.status)).length;
-    const lateCount = attendanceRecords.filter(r => r.status === 'LATE_COMING').length;
-    const absentCount = attendanceRecords.filter(r => r.status === 'ABSENT').length;
-    const leaveCount = attendanceRecords.filter(r => r.status === 'LEAVE').length;
-    const missingCount = attendanceRecords.filter(r => r.status === 'MISSING_PUNCH').length;
-    const earlyLeavingCount = attendanceRecords.filter(r => r.status === 'EARLY_LEAVING').length;
+    const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
+    const monthlyRecords = attendanceRecords.filter(r => r.date.startsWith(currentMonthPrefix));
+
+    const presentCount = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(r.status)).length;
+    const lateCount = monthlyRecords.filter(r => r.status === 'LATE_COMING').length;
+    const absentCount = monthlyRecords.filter(r => r.status === 'ABSENT').length;
+    const leaveCount = monthlyRecords.filter(r => r.status === 'LEAVE').length;
+    const missingCount = monthlyRecords.filter(r => r.status === 'MISSING_PUNCH').length;
+    const earlyLeavingCount = monthlyRecords.filter(r => r.status === 'EARLY_LEAVING').length;
     
     const stats = {
       present: presentCount,
@@ -128,6 +131,7 @@ export async function GET(request: Request) {
       attendance: attendanceRecords,
       todayRecord,
       stats,
+      holidays,
     });
   } catch (error) {
     console.error('Attendance GET error:', error);
