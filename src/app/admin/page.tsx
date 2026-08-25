@@ -165,6 +165,14 @@ export default function AdminDashboard() {
     const fullWords = capitalized.filter(part => part.length > 1);
     return [...fullWords, ...initials].join(' ');
   };
+
+  const formatToTitleCase = (text: string | null | undefined): string => {
+    if (!text) return '';
+    return text
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  };
   const [activeTab, setActiveTab] = useState<'analytics' | 'users' | 'new-employee' | 'reports' | 'policies' | 'audit' | 'performance' | 'leaves' | 'payroll' | 'trainings' | 'resignations'>('analytics');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   
@@ -1180,7 +1188,7 @@ export default function AdminDashboard() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">
+          <span className="text-xs font-extrabold text-brand-navy tracking-wider">
             {adminNavItems.find(item => item.id === activeTab)?.label}
           </span>
         </div>
@@ -1300,7 +1308,7 @@ export default function AdminDashboard() {
         {/* Dashboard Title & Quick KPIs */}
         <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-gray-100 pb-6">
           <div>
-            <h2 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h2>
+            <h1 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h1>
             <p className="text-sm text-gray-500 mt-1">Configure company policy, verify check-ins, approve reports, and audit system actions.</p>
           </div>
 
@@ -1311,7 +1319,7 @@ export default function AdminDashboard() {
                 <Clock className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-bold text-gray-400 block uppercase">Daily Work Shift</span>
+                <span className="text-[10px] font-bold text-gray-400 block">Daily Work Shift</span>
                 <span className="text-xs font-bold text-brand-navy block mt-0.5">
                   {todayRecord ? (
                     <>
@@ -1363,7 +1371,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-brand-navy font-heading">
                 {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Active Employees</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Active Employees</span>
             </div>
 
             {/* Avg Attendance */}
@@ -1371,7 +1379,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
                 {kpiStats.rollingAttendanceRate.toFixed(1)}%
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Attendance</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Avg Attendance</span>
             </div>
 
             {/* Present Today */}
@@ -1379,7 +1387,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-brand-cta font-heading">
                 {kpiStats.checkedInToday}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present Today</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Present Today</span>
             </div>
 
             {/* Absent Today */}
@@ -1387,7 +1395,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-brand-red font-heading">
                 {kpiStats.absentToday}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Absent Today</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Absent Today</span>
             </div>
 
             {/* On Leave Today */}
@@ -1395,7 +1403,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-purple-600 font-heading">
                 {kpiStats.onLeaveToday}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">On Leave (Today)</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">On Leave (Today)</span>
             </div>
 
             {/* Pending TL Reports */}
@@ -1406,7 +1414,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
                 {reports.filter(r => r.status === 'PENDING').length}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
             </button>
 
             {/* Pending Leaves */}
@@ -1417,7 +1425,7 @@ export default function AdminDashboard() {
               <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
                 {leaveRequests.filter(r => r.status === 'PENDING').length}
               </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
             </button>
 
             {/* Payroll Status */}
@@ -1447,12 +1455,12 @@ export default function AdminDashboard() {
                   <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
                 </>
               )}
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
             </button>
 
             {/* Performance Overview (lg:col-span-2) */}
             <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-xs hover:shadow-md transition-all">
-              <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1 text-center tracking-wider">Performance Overview</span>
+              <span className="text-[10px] font-bold text-gray-400 block mb-1 text-center tracking-wider">Performance Overview</span>
               <div className="flex justify-around items-center gap-1">
                 <div className="text-center">
                   <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{performanceCounts.BLUE}</span>
@@ -1479,14 +1487,14 @@ export default function AdminDashboard() {
 
         {/* TAB 1: Analytics & Excel Export */}
         {activeTab === 'analytics' && (
-          <div className="space-y-8">
+          <div className="space-y-6">
 
             {/* Monthly & Rostered Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Total Rostered Employees */}
               <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
                 <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Rostered Employees</span>
+                  <span className="text-[10px] font-bold text-gray-400 tracking-wider block">Total Rostered Employees</span>
                   <span className="text-3xl font-extrabold text-brand-navy mt-2 block font-heading">{kpiStats.totalEmployees}</span>
                 </div>
                 <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Includes all active staff profiles</span>
@@ -1495,7 +1503,7 @@ export default function AdminDashboard() {
               {/* New Joiners */}
               <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
                 <div>
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">New Joiners (This Month)</span>
+                  <span className="text-[10px] font-bold text-gray-400 tracking-wider block">New Joiners (This Month)</span>
                   <span className="text-3xl font-extrabold text-blue-600 mt-2 block font-heading">{kpiStats.newJoiners}</span>
                 </div>
                 <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Onboarded since the 1st of the month</span>
@@ -1508,10 +1516,10 @@ export default function AdminDashboard() {
                 
                 {/* Attendance Trends */}
                 <div className="premium-card p-6 lg:col-span-2">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                  <h2 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-brand-cta" />
                     Attendance Trends (Weekly Overview)
-                  </h3>
+                  </h2>
                   
                   <div className="h-[250px] w-full text-xs">
                     <ResponsiveContainer width="100%" height="100%">
@@ -1534,10 +1542,10 @@ export default function AdminDashboard() {
 
                 {/* Task Accomplishment */}
                 <div className="premium-card p-6 lg:col-span-1">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                  <h2 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                     <FileCheck className="w-5 h-5 text-brand-cta" />
                     Deliverables Completion Rate
-                  </h3>
+                  </h2>
                   
                   <div className="h-[180px] w-full flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
@@ -1578,14 +1586,14 @@ export default function AdminDashboard() {
 
             {/* Excel Export Module */}
             <div className="premium-card p-6">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <Download className="w-5 h-5 text-brand-cta" />
                 Data Export & Excel Stream Center
-              </h3>
+              </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Export Data Type</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Export Data Type</label>
                   <select
                     value={exportType}
                     onChange={(e) => setExportType(e.target.value)}
@@ -1597,7 +1605,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Filter Team</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Filter Team</label>
                   <select
                     value={exportTeam}
                     onChange={(e) => setExportTeam(e.target.value)}
@@ -1609,7 +1617,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Filter Employee</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Filter Employee</label>
                   <select
                     value={exportUser}
                     onChange={(e) => setExportUser(e.target.value)}
@@ -1621,7 +1629,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Start Date</label>
                   <input
                     type="date"
                     value={exportStart}
@@ -1631,7 +1639,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">End Date</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">End Date</label>
                   <input
                     type="date"
                     value={exportEnd}
@@ -1656,21 +1664,21 @@ export default function AdminDashboard() {
 
         {/* TAB 2: User Account Administration */}
         {activeTab === 'users' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left side actions column */}
             <div className="space-y-6 lg:col-span-1">
               
               {/* Create Account Form */}
               <div className="premium-card p-6">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-brand-cta" />
                 Provision New Account
-              </h3>
+              </h2>
 
               <form onSubmit={handleCreateUser} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Full Name</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Full Name</label>
                   <input
                     type="text"
                     required
@@ -1682,7 +1690,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Email Address</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Email Address</label>
                   <input
                     type="email"
                     required
@@ -1694,7 +1702,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Password</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Password</label>
                   <input
                     type="password"
                     required
@@ -1707,19 +1715,19 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">System Role</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role</label>
                     <select
                       value={userRole}
                       onChange={(e) => setUserRole(e.target.value)}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
-                      <option value="EMPLOYEE">EMPLOYEE</option>
-                      <option value="TL">TEAM LEADER</option>
-                      <option value="HR_ADMIN">HR / ADMIN</option>
+                      <option value="EMPLOYEE">Employee</option>
+                      <option value="TL">Team Leader</option>
+                      <option value="HR_ADMIN">HR / Admin</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assign Team</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team</label>
                     <select
                       value={userTeamId}
                       onChange={(e) => setUserTeamId(e.target.value)}
@@ -1732,7 +1740,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Report Manager (TL)</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Report Manager (TL)</label>
                   <select
                     value={userManagerId}
                     onChange={(e) => setUserManagerId(e.target.value)}
@@ -1757,14 +1765,14 @@ export default function AdminDashboard() {
 
               {/* Create Team Form */}
               <div className="premium-card p-6">
-                <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-brand-red" />
                   Create New Team
-                </h3>
+                </h2>
 
                 <form onSubmit={handleCreateTeam} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Team Name</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Team Name</label>
                     <input
                       type="text"
                       required
@@ -1776,7 +1784,7 @@ export default function AdminDashboard() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assign Team Leader (Optional)</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team Leader (Optional)</label>
                     <select
                       value={newTeamLeaderId}
                       onChange={(e) => setNewTeamLeaderId(e.target.value)}
@@ -1804,7 +1812,7 @@ export default function AdminDashboard() {
             {/* Accounts Directory */}
             <div className="premium-card p-6 lg:col-span-2 lg:h-[768px] flex flex-col">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shrink-0">
-                <h3 className="text-lg font-bold text-brand-navy font-heading">User Directory</h3>
+                <h2 className="text-lg font-bold text-brand-navy font-heading">User Directory</h2>
                 
                 <div className="relative w-full sm:w-64">
                   <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
@@ -1823,7 +1831,7 @@ export default function AdminDashboard() {
               <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
                   <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                       <th className="py-3 px-2 bg-transparent">Name</th>
                       <th className="py-3 px-2 bg-transparent">Role</th>
                       <th className="py-3 px-2 bg-transparent">Team</th>
@@ -1843,7 +1851,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="py-3 px-2 font-medium text-brand-navy">
                             <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">
-                              {u.role}
+                              {formatToTitleCase(u.role)}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-gray-500 font-medium">{u.team ? u.team.name : 'Unassigned'}</td>
@@ -1852,7 +1860,7 @@ export default function AdminDashboard() {
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                               isDeactivated ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
                             }`}>
-                              {isDeactivated ? 'DEACTIVATED' : 'ACTIVE'}
+                              {isDeactivated ? 'Deactivated' : 'Active'}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-center">
@@ -1880,19 +1888,19 @@ export default function AdminDashboard() {
 
         {/* TAB: Create Employee */}
         {activeTab === 'new-employee' && (
-          <div className="premium-card p-6 space-y-8">
+          <div className="premium-card p-6 space-y-6">
             <div>
-              <h3 className="text-xl font-bold text-brand-navy font-heading">Onboard & Create New Employee</h3>
+              <h2 className="text-xl font-bold text-brand-navy font-heading">Onboard & Create New Employee</h2>
               <p className="text-xs text-gray-500 mt-1">Provide employee details to generate their system account and profile record.</p>
             </div>
 
             <form onSubmit={handleCreateEmployee} className="space-y-6">
               {/* Section 1: Account Details */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h4>
+                <h3 className="text-xs font-bold tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Full Name *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Full Name *</label>
                     <input
                       type="text"
                       required
@@ -1903,7 +1911,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Official Email Address *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Official Email Address *</label>
                     <input
                       type="email"
                       required
@@ -1914,7 +1922,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Password *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Password *</label>
                     <input
                       type="password"
                       required
@@ -1928,19 +1936,19 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">System Role *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role *</label>
                     <select
                       value={employeeForm.role}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, role: e.target.value }))}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                     >
-                      <option value="EMPLOYEE">EMPLOYEE</option>
-                      <option value="TL">TEAM LEADER</option>
-                      <option value="HR_ADMIN">HR / ADMIN</option>
+                      <option value="EMPLOYEE">Employee</option>
+                      <option value="TL">Team Leader</option>
+                      <option value="HR_ADMIN">HR / Admin</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assign Team</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team</label>
                     <select
                       value={employeeForm.teamId}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, teamId: e.target.value }))}
@@ -1951,7 +1959,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Report Manager (TL)</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Report Manager (TL)</label>
                     <select
                       value={employeeForm.managerId}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, managerId: e.target.value }))}
@@ -1968,10 +1976,10 @@ export default function AdminDashboard() {
 
               {/* Section 2: Employment Profile */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-emerald-600">2. Employment Details</h4>
+                <h3 className="text-xs font-bold tracking-wider text-emerald-600">2. Employment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Date of Joining *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Joining *</label>
                     <input
                       type="date"
                       required
@@ -1981,7 +1989,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Employee Type</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Employee Type</label>
                     <select
                       value={employeeForm.employeeType}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, employeeType: e.target.value }))}
@@ -1993,7 +2001,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Department *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Department *</label>
                     <input
                       type="text"
                       required
@@ -2004,7 +2012,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Designation *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Designation *</label>
                     <input
                       type="text"
                       required
@@ -2018,7 +2026,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Grade</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Grade</label>
                     <input
                       type="text"
                       value={employeeForm.grade}
@@ -2028,7 +2036,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Work Location</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Work Location</label>
                     <input
                       type="text"
                       value={employeeForm.location}
@@ -2038,7 +2046,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Business Unit</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Business Unit</label>
                     <input
                       type="text"
                       value={employeeForm.businessUnit}
@@ -2048,7 +2056,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">HR Business Partner</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">HR Business Partner</label>
                     <input
                       type="text"
                       value={employeeForm.hrBusinessPartner}
@@ -2061,7 +2069,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Work Shift</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Work Shift</label>
                     <input
                       type="text"
                       value={employeeForm.workShift}
@@ -2071,7 +2079,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Probation Period (Months)</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Probation Period (Months)</label>
                     <input
                       type="number"
                       value={employeeForm.probationPeriod}
@@ -2080,7 +2088,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Confirmation Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Confirmation Date</label>
                     <input
                       type="date"
                       value={employeeForm.confirmationDate}
@@ -2089,7 +2097,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Employment Status</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Employment Status</label>
                     <select
                       value={employeeForm.employmentStatus}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, employmentStatus: e.target.value }))}
@@ -2102,13 +2110,13 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               </div>
-
+              
               {/* Section 3: Personal & Contact */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-600">3. Personal & Contact Info</h4>
+                <h3 className="text-xs font-bold tracking-wider text-amber-600">3. Personal & Contact Info</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Date of Birth</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Birth</label>
                     <input
                       type="date"
                       value={employeeForm.dateOfBirth}
@@ -2117,7 +2125,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Gender</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Gender</label>
                     <select
                       value={employeeForm.gender}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, gender: e.target.value }))}
@@ -2129,7 +2137,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Marital Status</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Marital Status</label>
                     <select
                       value={employeeForm.maritalStatus}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, maritalStatus: e.target.value }))}
@@ -2142,7 +2150,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Nationality</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Nationality</label>
                     <input
                       type="text"
                       value={employeeForm.nationality}
@@ -2155,7 +2163,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Personal Email</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Personal Email</label>
                     <input
                       type="email"
                       value={employeeForm.personalEmail}
@@ -2165,7 +2173,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Professional Email</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Professional Email</label>
                     <input
                       type="email"
                       value={employeeForm.professionalEmail}
@@ -2175,7 +2183,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Mobile Number</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Mobile Number</label>
                     <input
                       type="text"
                       value={employeeForm.mobileNumber}
@@ -2185,7 +2193,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Emergency Contact Info</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact Info</label>
                     <input
                       type="text"
                       value={employeeForm.emergencyContact}
@@ -2198,7 +2206,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Current Address</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
                     <textarea
                       value={employeeForm.currentAddress}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, currentAddress: e.target.value }))}
@@ -2208,7 +2216,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Permanent Address</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Permanent Address</label>
                     <textarea
                       value={employeeForm.permanentAddress}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, permanentAddress: e.target.value }))}
@@ -2222,10 +2230,10 @@ export default function AdminDashboard() {
 
               {/* Section 4: Bank & Financial Details */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h4>
+                <h3 className="text-xs font-bold tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Name</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Bank Name</label>
                     <input
                       type="text"
                       value={employeeForm.bankName}
@@ -2235,7 +2243,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Branch</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Bank Branch</label>
                     <input
                       type="text"
                       value={employeeForm.bankBranch}
@@ -2245,7 +2253,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Account Number</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Account Number</label>
                     <input
                       type="password"
                       value={employeeForm.accountNumber}
@@ -2255,7 +2263,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">IFSC Code</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">IFSC Code</label>
                     <input
                       type="text"
                       value={employeeForm.ifsc}
@@ -2268,7 +2276,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Bank Address</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Bank Address</label>
                     <input
                       type="text"
                       value={employeeForm.bankAddress}
@@ -2279,7 +2287,7 @@ export default function AdminDashboard() {
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PAN Code</label>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">PAN Code</label>
                       <input
                         type="password"
                         value={employeeForm.pan}
@@ -2289,7 +2297,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Insurance Number</label>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Insurance Number</label>
                       <input
                         type="text"
                         value={employeeForm.insuranceNumber}
@@ -2303,7 +2311,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">PF Number</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">PF Number</label>
                     <input
                       type="text"
                       value={employeeForm.pfNumber}
@@ -2313,7 +2321,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">UAN Number</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">UAN Number</label>
                     <input
                       type="text"
                       value={employeeForm.uan}
@@ -2327,10 +2335,10 @@ export default function AdminDashboard() {
 
               {/* Section 5: Joining / Perks & Custom configurations */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
-                <h4 className="text-xs font-extrabold uppercase tracking-wider text-teal-600">5. Contract Details & Perks</h4>
+                <h3 className="text-xs font-bold tracking-wider text-teal-600">5. Contract Details & Perks</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Expected End Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Expected End Date</label>
                     <input
                       type="date"
                       value={employeeForm.expectedEndDate}
@@ -2339,7 +2347,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Blood Group</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
                     <select
                       value={employeeForm.bloodGroup}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, bloodGroup: e.target.value }))}
@@ -2356,7 +2364,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Timezone Context</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Timezone Context</label>
                     <input
                       type="text"
                       value={employeeForm.timezone}
@@ -2366,7 +2374,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Increment / Perks</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Increment / Perks</label>
                     <input
                       type="text"
                       value={employeeForm.incrementPerks}
@@ -2383,14 +2391,14 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setActiveTab('users')}
-                  className="px-5 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-slate-100 text-gray-500 hover:bg-slate-200 transition-all cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 text-gray-500 hover:bg-slate-200 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-2.5 rounded-xl text-xs font-extrabold uppercase tracking-wide bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl text-xs font-extrabold tracking-wide bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
                 >
                   {loading ? 'Onboarding...' : 'Onboard Employee'}
                 </button>
@@ -2402,7 +2410,7 @@ export default function AdminDashboard() {
         {/* TAB 3: Review TL Submitted Reports */}
         {activeTab === 'reports' && (
           <div className="premium-card p-6">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Review Periodic Team Status Reports</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Review Periodic Team Status Reports</h2>
 
             <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
               {reports.length === 0 ? (
@@ -2421,12 +2429,12 @@ export default function AdminDashboard() {
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full ${
+                        <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
                           rep.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
                           rep.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
                           'bg-amber-100 text-amber-800'
                         }`}>
-                          {rep.status}
+                          {formatToTitleCase(rep.status)}
                         </span>
 
                         {rep.status === 'PENDING' && (
@@ -2464,18 +2472,18 @@ export default function AdminDashboard() {
 
         {/* TAB 4: Configure Policy & Holiday Calendars */}
         {activeTab === 'policies' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Holiday Configuration */}
             <div className="space-y-6">
               <div className="premium-card p-6">
-                <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   Configure Company Holidays
-                </h3>
+                </h2>
 
                 <form onSubmit={handleCreateHoliday} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end mb-6">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Holiday Name</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Holiday Name</label>
                     <input
                       type="text"
                       required
@@ -2486,7 +2494,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Date</label>
                     <input
                       type="date"
                       required
@@ -2532,13 +2540,13 @@ export default function AdminDashboard() {
             {/* Leave Policy Settings */}
             <div className="space-y-6">
               <div className="premium-card p-6">
-                <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                   Configure Leave Types Policy
-                </h3>
+                </h2>
 
                 <form onSubmit={handleCreateLeaveType} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end mb-6">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Leave Type Name</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Leave Type Name</label>
                     <input
                       type="text"
                       required
@@ -2549,7 +2557,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Days Allowed</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Days Allowed</label>
                     <input
                       type="number"
                       required
@@ -2599,15 +2607,15 @@ export default function AdminDashboard() {
         {/* TAB 5: System Audit Logs */}
         {activeTab === 'audit' && (
           <div className="premium-card p-6">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-brand-red shrink-0" />
               Company Audit Logs (Key System Operations)
-            </h3>
+            </h2>
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-2 bg-transparent">Timestamp</th>
                     <th className="py-3 px-2 bg-transparent">Operation Executed By</th>
                     <th className="py-3 px-2 bg-transparent">Action Type</th>
@@ -2659,26 +2667,26 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-blue-700 font-heading">{performanceCounts.BLUE}</span>
-                <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block mt-1">Blue Rating</span>
+                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Blue Rating</span>
               </div>
               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">{performanceCounts.GREEN}</span>
-                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Green Rating</span>
+                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Green Rating</span>
               </div>
               <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-amber-700 font-heading">{performanceCounts.YELLOW}</span>
-                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Yellow Rating</span>
+                <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Yellow Rating</span>
               </div>
               <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
-                <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block mt-1">Red Rating</span>
+                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Red Rating</span>
               </div>
             </div>
 
             <div className="premium-card p-6">
               <div className="flex justify-between items-center mb-6">
                 <div>
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h3>
+                  <h2 className="text-lg font-bold text-brand-navy font-heading">Employee Performance Indicator Overview</h2>
                   <p className="text-xs text-gray-400 mt-1">Automatic nightly auto-scoring with manual override capability for HR Admins.</p>
                 </div>
                 <button
@@ -2692,7 +2700,7 @@ export default function AdminDashboard() {
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-2 bg-transparent">Employee</th>
                     <th className="py-3 px-2 bg-transparent">Team</th>
                     <th className="py-3 px-2 text-center bg-transparent">Score Type</th>
@@ -2741,7 +2749,7 @@ export default function AdminDashboard() {
                             p.score.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                             'bg-red-100 text-brand-red border-red-200'
                           }`}>
-                            {p.score.rating}
+                            {formatToTitleCase(p.score.rating)}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={p.score.overrideReason || ''}>
@@ -2785,29 +2793,29 @@ export default function AdminDashboard() {
                 <span className="block text-2xl font-extrabold text-purple-700 font-heading">
                   {leaveRequests.filter(r => r.status === 'PENDING').length}
                 </span>
-                <span className="text-[10px] font-bold text-purple-800 uppercase tracking-wider block mt-1">Pending Leave Requests</span>
+                <span className="text-[10px] font-bold text-purple-800 tracking-wider block mt-1">Pending Leave Requests</span>
               </div>
               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">
                   {leaveRequests.filter(r => r.status === 'APPROVED').length}
                 </span>
-                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block mt-1">Approved Leave Requests</span>
+                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Approved Leave Requests</span>
               </div>
               <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">
                   {leaveRequests.filter(r => r.status === 'REJECTED').length}
                 </span>
-                <span className="text-[10px] font-bold text-red-800 uppercase tracking-wider block mt-1">Rejected Leave Requests</span>
+                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Rejected Leave Requests</span>
               </div>
             </div>
 
             <div className="premium-card p-6">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h2>
             
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-2 bg-transparent">Employee</th>
                     <th className="py-3 px-2 bg-transparent">Team</th>
                     <th className="py-3 px-2 bg-transparent">Leave Type</th>
@@ -2844,7 +2852,7 @@ export default function AdminDashboard() {
                             req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
                             'bg-amber-100 text-amber-800'
                           }`}>
-                            {req.status}
+                            {formatToTitleCase(req.status)}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || '-'}</td>
@@ -2883,7 +2891,7 @@ export default function AdminDashboard() {
           <div className="premium-card p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-gray-150 pb-4">
               <div>
-                <h3 className="text-lg font-bold text-brand-navy font-heading">Resignation Requests</h3>
+                <h2 className="text-lg font-bold text-brand-navy font-heading">Resignation Requests</h2>
                 <p className="text-xs text-gray-500 mt-1">Review, approve, or reject resignation requests submitted by employees.</p>
               </div>
             </div>
@@ -2891,7 +2899,7 @@ export default function AdminDashboard() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200/50 text-gray-550 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-550 font-bold tracking-wider">
                     <th className="py-3 px-3">Employee Name</th>
                     <th className="py-3 px-3">Submission Date</th>
                     <th className="py-3 px-3">Resignation Date</th>
@@ -2917,7 +2925,7 @@ export default function AdminDashboard() {
                               <span className="font-bold text-brand-navy block">
                                 {formatEmployeeName(req.user.name)}
                               </span>
-                              <span className="text-[10px] text-gray-450 block mt-0.5">
+                              <span className="text-[10px] text-gray-455 block mt-0.5">
                                 {req.user.email} {req.user.team?.name ? `| ${req.user.team.name}` : ''}
                               </span>
                             </div>
@@ -2940,7 +2948,7 @@ export default function AdminDashboard() {
                               req.status === 'REJECTED' ? 'bg-red-50 text-brand-red border-red-200/60' :
                               'bg-amber-50 text-amber-700 border-amber-200/60'
                             }`}>
-                              {req.status}
+                              {formatToTitleCase(req.status)}
                             </span>
                           </td>
                           <td className="py-3.5 px-3">
@@ -3003,7 +3011,7 @@ export default function AdminDashboard() {
           <div className="premium-card p-6 space-y-6">
             <div className="flex justify-between items-center border-b border-gray-100 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-brand-navy font-heading">Payroll Management</h3>
+                <h2 className="text-xl font-bold text-brand-navy font-heading">Payroll Management</h2>
                 <p className="text-xs text-gray-500 mt-1">Configure user salary structures and generate or approve periodic employee payroll runs.</p>
               </div>
 
@@ -3037,19 +3045,19 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-200 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-brand-navy font-heading">{payrollRuns.length}</span>
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mt-1">Total Runs Logged</span>
+                    <span className="text-[10px] font-bold text-gray-400 tracking-wider block mt-1">Total Runs Logged</span>
                   </div>
                   <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-amber-700 font-heading">
                       {payrollRuns.filter(r => r.status === 'DRAFT').length}
                     </span>
-                    <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block mt-1">Draft Payrolls</span>
+                    <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Draft Payrolls</span>
                   </div>
                   <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                     <span className="block text-2xl font-extrabold text-blue-700 font-heading">
                       {payrollRuns.filter(r => r.status === 'APPROVED').length}
                     </span>
-                    <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider block mt-1">Approved Pending Payout</span>
+                    <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Approved Pending Payout</span>
                   </div>
                 </div>
 
@@ -3057,7 +3065,7 @@ export default function AdminDashboard() {
                 <div className="bg-white/50 backdrop-blur-xs p-4 rounded-xl border border-gray-200/50 shadow-xs">
                   <form onSubmit={handleGeneratePayroll} className="flex flex-col md:flex-row md:items-end gap-4">
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Period Start Date</label>
+                      <label className="block text-[10px] font-bold text-brand-navy mb-1">Period Start Date</label>
                       <input
                         type="date"
                         required
@@ -3067,7 +3075,7 @@ export default function AdminDashboard() {
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Period End Date</label>
+                      <label className="block text-[10px] font-bold text-brand-navy mb-1">Period End Date</label>
                       <input
                         type="date"
                         required
@@ -3090,7 +3098,7 @@ export default function AdminDashboard() {
                 <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                   <table className="min-w-full text-left text-xs relative border-collapse">
                     <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                      <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                      <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                         <th className="py-3 px-2 bg-transparent">Employee</th>
                         <th className="py-3 px-2 bg-transparent">Period</th>
                         <th className="py-3 px-2 text-right bg-transparent">Gross (INR)</th>
@@ -3129,7 +3137,7 @@ export default function AdminDashboard() {
                                 run.status === 'APPROVED' ? 'bg-blue-100 text-blue-800' :
                                 'bg-amber-100 text-amber-800'
                               }`}>
-                                {run.status}
+                                {formatToTitleCase(run.status)}
                               </span>
                             </td>
                             <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
@@ -3188,7 +3196,7 @@ export default function AdminDashboard() {
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
                   <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                       <th className="py-3 px-2 bg-transparent">Employee</th>
                       <th className="py-3 px-2 bg-transparent">Department</th>
                       <th className="py-3 px-2 bg-transparent">Designation</th>
@@ -3253,17 +3261,17 @@ export default function AdminDashboard() {
 
         {/* TAB: Training Center */}
         {activeTab === 'trainings' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create Training & Assign Employees */}
             <div className="premium-card p-6 lg:col-span-1 space-y-4">
-              <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
                 <Bell className="w-5 h-5 text-brand-cta" />
                 Schedule New Training
-              </h3>
+              </h2>
 
               <form onSubmit={handleCreateTraining} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Course Name</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Course Name</label>
                   <input
                     type="text"
                     required
@@ -3275,7 +3283,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Trainer Name</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Trainer Name</label>
                   <input
                     type="text"
                     required
@@ -3288,7 +3296,7 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Planned Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Planned Date</label>
                     <input
                       type="date"
                       required
@@ -3298,7 +3306,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Duration (Hours)</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Duration (Hours)</label>
                     <input
                       type="number"
                       step="0.5"
@@ -3311,7 +3319,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Target Department</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Target Department</label>
                   <input
                     type="text"
                     value={trainingDept}
@@ -3323,7 +3331,7 @@ export default function AdminDashboard() {
 
                 {/* Checklist to assign users */}
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Assign Employees</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1.5">Assign Employees</label>
                   <div className="max-h-[160px] overflow-y-auto border border-gray-200/50 p-2.5 rounded-xl bg-white/50 backdrop-blur-xs space-y-2 shadow-xs">
                     {users.length === 0 ? (
                       <p className="text-[10px] text-gray-400">No active employees found.</p>
@@ -3361,7 +3369,7 @@ export default function AdminDashboard() {
 
             {/* Courses & Assignments review list */}
             <div className="premium-card p-6 lg:col-span-2 space-y-6">
-              <h3 className="text-lg font-bold text-brand-navy font-heading">Scheduled Trainings & Performance Results</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading">Scheduled Trainings & Performance Results</h2>
 
               <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
                 {trainings.length === 0 ? (
@@ -3382,14 +3390,14 @@ export default function AdminDashboard() {
 
                       {/* Attendee performance evaluation list */}
                       <div className="space-y-2">
-                        <p className="text-[10px] font-bold text-brand-navy uppercase tracking-wider">Attendee Status & Assessment Scores</p>
+                        <p className="text-[10px] font-bold text-brand-navy tracking-wider">Attendee Status & Assessment Scores</p>
                         {t.attendance.length === 0 ? (
                           <p className="text-[10px] text-gray-400 italic">No employees assigned to this course.</p>
                         ) : (
                           <div className="overflow-x-auto">
                             <table className="min-w-full text-left text-[11px] bg-white/40 backdrop-blur-xs rounded-xl border border-gray-200/50 shadow-xs">
                               <thead>
-                                <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase">
+                                <tr className="border-b border-gray-200/50 text-gray-500 font-bold">
                                   <th className="py-2 px-2.5 bg-transparent">Name</th>
                                   <th className="py-2 px-2.5 text-center bg-transparent">Attended</th>
                                   <th className="py-2 px-2.5 text-center bg-transparent">Certified</th>
@@ -3457,7 +3465,7 @@ export default function AdminDashboard() {
       {isOverrideModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Override Performance Rating</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Override Performance Rating</h2>
             
             {(() => {
               const uObj = performanceData.find((p) => p.user.id === overrideUserId);
@@ -3485,7 +3493,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleSaveOverride} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">New Performance Rating</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">New Performance Rating</label>
                 <select
                   required
                   value={overrideRating}
@@ -3500,7 +3508,7 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Override Score (0-100) (Optional)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Override Score (0-100) (Optional)</label>
                 <input
                   type="number"
                   min="0"
@@ -3515,14 +3523,14 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Override Reason</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Override Reason</label>
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={overrideReason}
                   onChange={(e) => setOverrideReason(e.target.value)}
                   placeholder="Enter justification for overriding automatic score calculation..."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
                 />
               </div>
 
@@ -3550,12 +3558,12 @@ export default function AdminDashboard() {
       {isSalaryModalOpen && selectedSalaryUser && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Configure Salary Structure</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Configure Salary Structure</h2>
             <p className="text-xs text-gray-500">Set base compensation values for <strong>{selectedSalaryUser.name}</strong>.</p>
 
             <form onSubmit={handleUpdateSalaryStructure} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Basic Salary (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Basic Salary (INR/Month) *</label>
                 <input
                   type="number"
                   required
@@ -3565,7 +3573,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">HRA (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">HRA (INR/Month) *</label>
                 <input
                   type="number"
                   required
@@ -3575,7 +3583,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Conveyance (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Conveyance (INR/Month) *</label>
                 <input
                   type="number"
                   required
@@ -3585,7 +3593,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Special Allowance (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Special Allowance (INR/Month) *</label>
                 <input
                   type="number"
                   required
@@ -3595,7 +3603,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Effective From *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Effective From *</label>
                 <input
                   type="date"
                   required
@@ -3633,12 +3641,12 @@ export default function AdminDashboard() {
       {isPayrollEditModalOpen && selectedRun && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Edit Payroll Extras</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Edit Payroll Extras</h2>
             <p className="text-xs text-gray-500">Adjust monthly variables for <strong>{selectedRun.user.name}</strong>.</p>
 
             <form onSubmit={handleUpdatePayrollValues} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Overtime Pay (INR)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Overtime Pay (INR)</label>
                 <input
                   type="number"
                   value={runOvertime}
@@ -3647,7 +3655,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Performance Bonus (INR)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Performance Bonus (INR)</label>
                 <input
                   type="number"
                   value={runBonus}
@@ -3656,7 +3664,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Sales/Team Incentives (INR)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Sales/Team Incentives (INR)</label>
                 <input
                   type="number"
                   value={runIncentives}
@@ -3665,7 +3673,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Loan Deduction (INR)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Loan Deduction (INR)</label>
                 <input
                   type="number"
                   value={runLoanDeduction}
@@ -3702,19 +3710,19 @@ export default function AdminDashboard() {
       {isRejectModalOpen && rejectRequestId && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
           <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Reject Leave Request</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Reject Leave Request</h2>
             <p className="text-xs text-gray-500">Provide a clear reason explaining why this leave request is being rejected.</p>
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Rejection Reason *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason *</label>
                 <textarea
                   required
-                  rows={4}
+                  rows={2}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="e.g. Project deliverable deadline conflicts with the requested dates."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs min-h-[80px]"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
                 />
               </div>
 
@@ -3746,12 +3754,12 @@ export default function AdminDashboard() {
       {isTrainingEvalModalOpen && selectedTraining && selectedAttendee && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Evaluate Training Performance</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Evaluate Training Performance</h2>
             <p className="text-xs text-gray-500">Record assessment results for <strong>{selectedAttendee.name}</strong> on course <strong>{selectedTraining.trainingName}</strong>.</p>
 
             <form onSubmit={handleRecordTrainingEval} className="space-y-4">
               <div className="flex gap-6 items-center">
-                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy uppercase cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy cursor-pointer">
                   <input
                     type="checkbox"
                     checked={evalAttended}
@@ -3760,7 +3768,7 @@ export default function AdminDashboard() {
                   />
                   Attended Course
                 </label>
-                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy uppercase cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-bold text-brand-navy cursor-pointer">
                   <input
                     type="checkbox"
                     checked={evalCertified}
@@ -3772,7 +3780,7 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assessment Score (%)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Assessment Score (%)</label>
                 <input
                   type="number"
                   min="0"
@@ -3785,13 +3793,13 @@ export default function AdminDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Trainer Feedback</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Trainer Feedback</label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={evalFeedback}
                   onChange={(e) => setEvalFeedback(e.target.value)}
                   placeholder="Enter comments about performance, strengths, or actions..."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
                 />
               </div>
 

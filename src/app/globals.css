@@ -186,3 +186,13 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 .glass-table tr:hover {
   background: rgba(248, 250, 252, 0.6) !important;
 }
+
+/* Global Table Header Customization to Logo Navy Blue */
+table thead, 
+table thead tr, 
+table thead th,
+.glass-table th {
+  background-color: var(--brand-navy) !important;
+  color: #ffffff !important;
+}
+

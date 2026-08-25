@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User as UserIcon, Bell, Check } from 'lucide-react';
+import { LogOut, User as UserIcon, Bell, Check, Lock } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface UserSession {
@@ -23,6 +23,16 @@ export default function Header() {
   const [userRating, setUserRating] = useState<string | null>(null);
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
+  // Dropdown & Password Change Modal States
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmNewPass, setConfirmNewPass] = useState('');
+  const [submittingPass, setSubmittingPass] = useState(false);
+  const [modalError, setModalError] = useState('');
+  const [modalSuccess, setModalSuccess] = useState('');
+
   function formatEmployeeName(nameVal: string | null | undefined): string {
     if (!nameVal) return '-';
     const capitalized = nameVal
@@ -38,6 +48,16 @@ export default function Header() {
       return parts.join(' ');
     }
     return capitalized;
+  }
+
+  function formatToTitleCase(text: string | null | undefined): string {
+    if (!text) return '';
+    if (text === 'TL') return 'Team Leader';
+    if (text === 'HR_ADMIN') return 'HR / Admin';
+    return text
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
   }
 
   useEffect(() => {
@@ -63,9 +83,22 @@ export default function Header() {
       fetchPerformance();
       fetchProfileImage();
       
+      const handleImageUpdateEvent = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail) {
+          setProfileImage(customEvent.detail);
+        } else {
+          fetchProfileImage();
+        }
+      };
+      window.addEventListener('profileImageUpdated', handleImageUpdateEvent);
+
       // Setup interval for notifications polling (every 30s is fine)
       const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        window.removeEventListener('profileImageUpdated', handleImageUpdateEvent);
+      };
     }
   }, [user]);
 
@@ -74,8 +107,8 @@ export default function Header() {
       const res = await fetch('/api/users/profile');
       if (res.ok) {
         const data = await res.json();
-        if (data.profileImage) {
-          setProfileImage(data.profileImage);
+        if (data.profile && data.profile.profileImage) {
+          setProfileImage(data.profile.profileImage);
         } else {
           setProfileImage(null);
         }
@@ -170,6 +203,42 @@ export default function Header() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setModalError('');
+    setModalSuccess('');
+
+    if (newPass !== confirmNewPass) {
+      setModalError('New passwords do not match');
+      return;
+    }
+
+    setSubmittingPass(true);
+    try {
+      const res = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: currentPass, newPassword: newPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to change password');
+      }
+      setModalSuccess('Password updated successfully!');
+      setCurrentPass('');
+      setNewPass('');
+      setConfirmNewPass('');
+      setTimeout(() => {
+        setIsPassModalOpen(false);
+        setModalSuccess('');
+      }, 1500);
+    } catch (err: any) {
+      setModalError(err.message || 'Error changing password');
+    } finally {
+      setSubmittingPass(false);
+    }
+  };
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'HR_ADMIN':
@@ -261,7 +330,7 @@ export default function Header() {
               {isNotifOpen && (
                 <div className="absolute right-0 mt-2.5 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl z-50 overflow-hidden py-1">
                   <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100">
-                    <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Notifications</span>
+                    <span className="text-xs font-extrabold text-brand-navy tracking-wider">Notifications</span>
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllRead}
@@ -303,39 +372,144 @@ export default function Header() {
               )}
             </div>
 
-            <div className="flex items-center gap-2.5">
-              {profileImage ? (
-                <img 
-                  src={profileImage} 
-                  alt={user.name} 
-                  className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-brand-navy/80">
-                  <UserIcon className="w-4 h-4" />
+            <div className="relative">
+              <button
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer outline-none text-left"
+              >
+                <div className="flex flex-col text-right items-end hidden sm:flex">
+                  <span className="text-xs font-bold text-brand-navy flex items-center gap-1">
+                    {formatEmployeeName(user.name)}
+                  </span>
+                  <span className={`text-[9px] font-extrabold tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
+                    {user.id.length > 15 ? 'NITP00021' : user.id}
+                  </span>
+                </div>
+                {profileImage ? (
+                  <img 
+                    src={profileImage} 
+                    alt={user.name} 
+                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-brand-navy/80">
+                    <UserIcon className="w-4 h-4" />
+                  </div>
+                )}
+              </button>
+
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2.5 w-48 bg-white rounded-xl border border-gray-200 shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-150">
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      router.push('/employee?tab=profile');
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-slate-50 text-brand-navy flex items-center gap-2 cursor-pointer"
+                  >
+                    <UserIcon className="w-4 h-4 text-brand-navy/60" />
+                    My Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      setIsPassModalOpen(true);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-slate-50 text-brand-navy flex items-center gap-2 cursor-pointer"
+                  >
+                    <Lock className="w-4 h-4 text-brand-navy/60" />
+                    Change Password
+                  </button>
+                  <div className="border-t border-gray-100 my-1.5"></div>
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-red-50 text-brand-red flex items-center gap-2 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 text-brand-red/60" />
+                    Logout
+                  </button>
                 </div>
               )}
-              <div className="flex flex-col text-right items-end hidden sm:flex">
-                <span className="text-xs font-bold text-brand-navy flex items-center gap-1">
-                  {formatEmployeeName(user.name)} ({user.id.slice(-3).toUpperCase()})
-                </span>
-                <span className={`text-[9px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
-                  {user.role.replace('_', ' ')}
-                </span>
-              </div>
             </div>
-            <button
-              onClick={handleLogout}
-              className="rounded-xl bg-slate-50 text-brand-navy hover:bg-slate-100 font-bold text-xs sm:text-sm px-4 py-2 hover:shadow-md border border-slate-200 transition-all flex items-center gap-2 cursor-pointer shadow-xs"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
           </>
         ) : (
-          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Internal App</span>
+          <span className="text-xs text-gray-400 font-semibold tracking-wider">Internal App</span>
         )}
       </div>
+
+      {isPassModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-brand-navy font-heading">Change Password</h3>
+              <p className="text-xs text-gray-500 mt-1">Verify current credentials to update your password.</p>
+            </div>
+
+            {modalError && <p className="text-xs text-brand-red font-semibold">{modalError}</p>}
+            {modalSuccess && <p className="text-xs text-emerald-600 font-semibold">{modalSuccess}</p>}
+
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold text-brand-navy mb-1">Current Password</label>
+                <input
+                  type="password"
+                  required
+                  value={currentPass}
+                  onChange={(e) => setCurrentPass(e.target.value)}
+                  className="block w-full rounded-xl border border-gray-250 py-2 px-3 text-xs text-brand-gray bg-white/70 outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-brand-navy mb-1">New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  className="block w-full rounded-xl border border-gray-250 py-2 px-3 text-xs text-brand-gray bg-white/70 outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-brand-navy mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmNewPass}
+                  onChange={(e) => setConfirmNewPass(e.target.value)}
+                  className="block w-full rounded-xl border border-gray-250 py-2 px-3 text-xs text-brand-gray bg-white/70 outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPassModalOpen(false);
+                    setCurrentPass('');
+                    setNewPass('');
+                    setConfirmNewPass('');
+                    setModalError('');
+                    setModalSuccess('');
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold px-4 py-2 rounded-xl transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPass}
+                  className="bg-brand-cta hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
+                >
+                  {submittingPass ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

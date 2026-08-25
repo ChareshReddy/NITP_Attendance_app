@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '@/components/Header';
 import { 
   Clock, 
@@ -19,7 +19,13 @@ import {
   TrendingUp,
   Menu,
   X,
-  User
+  User,
+  LayoutDashboard,
+  CreditCard,
+  GraduationCap,
+  LogOut,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,10 +60,10 @@ export function formatDateToIndian(dateVal: string | Date | null | undefined): s
   }
   const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
   if (isNaN(date.getTime())) return typeof dateVal === 'string' ? dateVal : '-';
-  const d = String(date.getUTCDate()).padStart(2, '0');
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const y = date.getUTCFullYear();
-  return `${d}-${m}-${y}`;
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
 }
 
 // CountUp animations for stats
@@ -295,6 +301,7 @@ interface Notification {
 }
 
 export default function EmployeeDashboard() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Session & States
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
@@ -314,6 +321,16 @@ export default function EmployeeDashboard() {
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['dashboard', 'tasks', 'tracksheets', 'profile', 'leaves', 'payroll', 'trainings', 'history', 'resignation'].includes(tab)) {
+        setActiveTab(tab as any);
+      }
+    }
   }, []);
 
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
@@ -337,8 +354,24 @@ export default function EmployeeDashboard() {
   const [performanceScore, setPerformanceScore] = useState<any>(null);
 
   // Self-Service States
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history' | 'resignation'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'trainings' | 'history' | 'resignation'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Collapsible Profile Sections
+  const [openProfileSections, setOpenProfileSections] = useState({
+    professional: true,
+    contact: false,
+    financial: false,
+  });
+
+  const formatToTitleCase = (str: string | null | undefined): string => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .split(/[\s_]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   
   // Calendar History States
   const [calendarYear, setCalendarYear] = useState<number>(new Date().getFullYear());
@@ -373,10 +406,6 @@ export default function EmployeeDashboard() {
     profileImage: '',
   });
   const [myPayrollRuns, setMyPayrollRuns] = useState<PayrollRun[]>([]);
-  const [myGoals, setMyGoals] = useState<PerformanceGoal[]>([]);
-  const [selectedGoal, setSelectedGoal] = useState<PerformanceGoal | null>(null);
-  const [achievementInput, setAchievementInput] = useState('');
-  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [myTrainings, setMyTrainings] = useState<TrainingAssignment[]>([]);
 
   // Form States
@@ -517,12 +546,7 @@ export default function EmployeeDashboard() {
         setMyPayrollRuns(payrollData.runs || []);
       }
 
-      // 9. Fetch Employee Performance Goals
-      const goalsRes = await fetch('/api/performance/goals');
-      if (goalsRes.ok) {
-        const goalsData = await goalsRes.json();
-        setMyGoals(goalsData.goals || []);
-      }
+
 
       // 10. Fetch Employee Training assignments
       const trainingRes = await fetch('/api/trainings');
@@ -661,7 +685,22 @@ export default function EmployeeDashboard() {
       if (res.ok) {
         const data = await res.json();
         setProfileForm(prev => ({ ...prev, profileImage: data.url }));
-        setSuccessMsg('Profile image uploaded! Click Save to apply.');
+        
+        // Save the updated profile image immediately to the database
+        await fetch('/api/users/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...profileForm,
+            profileImage: data.url,
+            userId: employeeProfile?.userId,
+          }),
+        });
+
+        setSuccessMsg('Profile image updated successfully!');
+        
+        // Dispatch custom event to notify Header
+        window.dispatchEvent(new CustomEvent('profileImageUpdated', { detail: data.url }));
       } else {
         const data = await res.json();
         throw new Error(data.error || 'Failed to upload profile image.');
@@ -944,37 +983,7 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const handleUpdateGoalAchievement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedGoal) return;
-    setLoadingAttendance(true);
-    setErrorMsg('');
-    setSuccessMsg('');
 
-    try {
-      const res = await fetch('/api/performance/goals', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: selectedGoal.id,
-          achievement: achievementInput,
-          status: 'YEAR_END', // Move goal to review status
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update goal');
-
-      setSuccessMsg(`Accomplishments submitted for: ${selectedGoal.goalTitle}!`);
-      setIsGoalModalOpen(false);
-      setSelectedGoal(null);
-      fetchData();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Error updating goal');
-    } finally {
-      setLoadingAttendance(false);
-    }
-  };
 
   const handleSubmitLeaveRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1058,20 +1067,19 @@ export default function EmployeeDashboard() {
   };
 
   const employeeNavItems: {
-    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'goals' | 'trainings' | 'history' | 'resignation';
+    id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'trainings' | 'history' | 'resignation';
     label: string;
     icon: any;
   }[] = [
-    { id: 'dashboard', label: 'My Dashboard', icon: Clock },
+    { id: 'dashboard', label: 'My Dashboard', icon: LayoutDashboard },
     { id: 'profile', label: 'My Profile', icon: User },
     { id: 'tasks', label: 'My Tasks', icon: CheckSquare },
-    { id: 'goals', label: 'My Performance Goals', icon: TrendingUp },
     { id: 'tracksheets', label: 'My Track Sheets', icon: FileText },
     { id: 'leaves', label: 'My Leaves & Requests', icon: Calendar },
     { id: 'history', label: 'My Attendance History', icon: History },
-    { id: 'payroll', label: 'My Payroll & Payslip', icon: TrendingUp },
-    { id: 'trainings', label: 'My Trainings', icon: Bell },
-    { id: 'resignation', label: 'Resignation', icon: Trash2 },
+    { id: 'payroll', label: 'My Payroll & Payslip', icon: CreditCard },
+    { id: 'trainings', label: 'My Trainings', icon: GraduationCap },
+    { id: 'resignation', label: 'Resignation', icon: LogOut },
   ];
 
   return (
@@ -1218,103 +1226,104 @@ export default function EmployeeDashboard() {
               className="space-y-6"
             >
               {/* Top Row: Hero and Performance */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Daily Shift Logging Card (Hero Card - Spans 2 Columns) */}
                 <motion.div 
                   variants={cardVariants}
-                  className="premium-card card-accent-blue p-6 relative overflow-hidden lg:col-span-2 flex flex-col justify-between min-h-[260px]"
+                  className="premium-card card-accent-blue p-4 relative overflow-hidden lg:col-span-2 flex flex-col justify-between min-h-[200px]"
                 >
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-150/40">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3 pb-3 border-b border-gray-150/40">
                     <div>
-                      <h2 className="text-2xl font-extrabold text-brand-navy font-heading tracking-tight">
+                      <h2 className="text-xl font-extrabold text-brand-navy font-heading tracking-tight">
                         {greeting}, {employeeProfile?.user?.name || 'Member'}!
                       </h2>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-[11px] text-gray-500 mt-0.5">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2.5 bg-brand-navy/5 px-4 py-2 rounded-2xl border border-brand-navy/10">
-                      <Clock className="w-4 h-4 text-brand-navy animate-pulse" />
-                      <span className="font-mono text-sm font-extrabold text-brand-navy tracking-wider">
+                    <div className="flex items-center gap-2 bg-brand-navy/5 px-3 py-1.5 rounded-2xl border border-brand-navy/10">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span className="font-mono text-xs font-extrabold text-brand-navy tracking-wider">
                         {timeStr || '--:--:--'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                    <div className="bg-slate-50/75 p-3 rounded-2xl border border-slate-200/50 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-                        <Clock className="w-4.5 h-4.5" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    <div className="bg-slate-50/75 p-2 rounded-2xl border border-slate-200/50 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                        <Clock className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check In Time</p>
-                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                        <p className="text-[9px] text-gray-400 font-bold tracking-wider">Check In Time</p>
+                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
                           {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
                         </p>
                         {todayRecord && (
-                          <span className={`inline-block mt-0.5 text-[8px] font-extrabold px-1.5 py-0.25 rounded-md uppercase border ${
+                          <span className={`inline-block mt-0.5 text-[7px] font-extrabold px-1 py-0.25 rounded-md border ${
                             todayRecord.status.includes('LATE') ? 'bg-red-50 text-brand-red border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
                           }`}>
-                            {todayRecord.status.replace('_', ' ')}
+                            {formatToTitleCase(todayRecord.status)}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/75 p-3 rounded-2xl border border-slate-200/50 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
-                        <Clock className="w-4.5 h-4.5" />
+                    <div className="bg-slate-50/75 p-2 rounded-2xl border border-slate-200/50 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
+                        <Clock className="w-4 h-4" />
                       </div>
                       <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check Out Time</p>
-                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
+                        <p className="text-[9px] text-gray-400 font-bold tracking-wider">Check Out Time</p>
+                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
                           {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="w-full space-y-3">
-                    {todayRecord && todayRecord.checkOutTime && (
-                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-emerald-200/50 uppercase tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
-                        <Check className="w-4 h-4 text-emerald-600" />
+                  <div className="w-full space-y-2">
+                    {todayRecord && todayRecord.checkOutTime ? (
+                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-2 px-3 rounded-xl text-[11px] border border-emerald-200/50 tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
                         Shift Completed
                       </div>
-                    )}
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <button
-                        onClick={handleCheckIn}
-                        disabled={loadingAttendance || !!todayRecord}
-                        className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
-                          (!todayRecord && !loadingAttendance)
-                            ? 'bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white cursor-pointer btn-premium'
-                            : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        <Clock className="w-4 h-4" />
-                        {loadingAttendance && !todayRecord ? 'Processing...' : 'Check In'}
-                      </button>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <button
+                          onClick={handleCheckIn}
+                          disabled={loadingAttendance || !!todayRecord}
+                          className={`flex-1 font-bold py-2 px-3 rounded-xl transition-all text-[11px] text-center tracking-wider flex items-center justify-center gap-2 ${
+                            (!todayRecord && !loadingAttendance)
+                              ? 'bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white cursor-pointer btn-premium'
+                              : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          {loadingAttendance && !todayRecord ? 'Processing...' : 'Check In'}
+                        </button>
 
-                      <button
-                        onClick={handleCheckOut}
-                        disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
-                        className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
-                          (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
-                            ? 'bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white cursor-pointer btn-premium'
-                            : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                      >
-                        <Clock className="w-4 h-4" />
-                        {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? 'Processing...' : 'Check Out'}
-                      </button>
-                    </div>
+                        <button
+                          onClick={handleCheckOut}
+                          disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
+                          className={`flex-1 font-bold py-2 px-3 rounded-xl transition-all text-[11px] text-center tracking-wider flex items-center justify-center gap-2 ${
+                            (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
+                              ? 'bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white cursor-pointer btn-premium'
+                              : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                        >
+                          <Clock className="w-4 h-4" />
+                          {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? 'Processing...' : 'Check Out'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
 
                 {/* Right Column: Performance Health Gauge Card */}
                 <motion.div 
                   variants={cardVariants}
-                  className="premium-card p-6 lg:col-span-1 transition-all duration-300 flex flex-col justify-between min-h-[260px] relative overflow-hidden"
+                  className="premium-card p-4 lg:col-span-1 transition-all duration-300 flex flex-col justify-between min-h-[200px] relative overflow-hidden"
                 >
                   {/* Subtle soft brand-color glow ring behind it */}
                   <div className="glow-ring-soft w-48 h-48 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 bg-blue-400/20 blur-3xl rounded-full" />
@@ -1335,7 +1344,7 @@ export default function EmployeeDashboard() {
                             Performance
                           </h3>
                           {performanceScore && (
-                            <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-xs ${
+                            <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-full border shadow-xs ${
                               displayRating === 'BLUE' ? 'bg-blue-50 text-blue-700 border-blue-200/60' :
                               displayRating === 'GREEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' :
                               displayRating === 'YELLOW' ? 'bg-amber-50 text-amber-700 border-amber-200/60' :
@@ -1350,7 +1359,7 @@ export default function EmployeeDashboard() {
                         </div>
                         <div className="flex justify-center flex-1 items-center pt-2 z-10">
                           {performanceScore ? (
-                            <Speedometer score={displayScore} rating={displayRating} size={350} />
+                            <Speedometer score={displayScore} rating={displayRating} size={240} />
                           ) : (
                             <p className="text-xs text-gray-400">No score logged.</p>
                           )}
@@ -1364,54 +1373,54 @@ export default function EmployeeDashboard() {
               {/* Middle Row: Horizontal Stat-Strip */}
               <motion.div 
                 variants={cardVariants}
-                className="premium-card p-5 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-250/40"
+                className="premium-card p-3 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-250/40"
               >
                 {/* Presents Stat */}
-                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
-                    <TrendingUp className="w-5 h-5" />
+                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                    <TrendingUp className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                    <span className="block text-lg font-extrabold font-mono text-brand-navy leading-none">
                       <CountUp value={stats.present} />
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Presents</span>
+                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Presents</span>
                   </div>
                 </div>
 
                 {/* Lates Stat */}
-                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
-                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
-                    <TrendingUp className="w-5 h-5 rotate-90" />
+                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
+                  <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
+                    <TrendingUp className="w-4 h-4 rotate-90" />
                   </div>
                   <div className="text-left">
-                    <span className="block text-2xl font-extrabold font-mono text-brand-red leading-none">
+                    <span className="block text-lg font-extrabold font-mono text-brand-red leading-none">
                       <CountUp value={stats.late} />
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
+                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Lates</span>
                   </div>
                 </div>
 
                 {/* Leaves Stat */}
-                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
-                  <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0 shadow-xs">
-                    <Calendar className="w-5 h-5" />
+                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0 shadow-xs">
+                    <Calendar className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <span className="block text-2xl font-extrabold font-mono text-brand-maroon leading-none">
+                    <span className="block text-lg font-extrabold font-mono text-brand-maroon leading-none">
                       <CountUp value={stats.leave} />
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
+                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Leaves</span>
                   </div>
                 </div>
 
                 {/* Avg Hours Stat */}
-                <div className="flex items-center gap-4 justify-center py-2 md:py-0 md:px-6">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
-                    <Clock className="w-5 h-5" />
+                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                    <Clock className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                    <span className="block text-lg font-extrabold font-mono text-brand-navy leading-none">
                       {(() => {
                         const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
                         const monthlyTrack = trackSheets.filter(t => t.date.startsWith(currentMonthPrefix));
@@ -1420,9 +1429,9 @@ export default function EmployeeDashboard() {
                           : 0.0;
                         return <CountUpFloat value={val} />;
                       })()}
-                      <span className="text-sm font-semibold">h</span>
+                      <span className="text-xs font-semibold">h</span>
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Avg Hours</span>
                   </div>
                 </div>
               </motion.div>
@@ -1430,7 +1439,7 @@ export default function EmployeeDashboard() {
               {/* Bottom Row: Collapsible Daily Work Hours form */}
               <motion.div 
                 variants={cardVariants}
-                className="premium-card p-6 transition-all duration-300"
+                className="premium-card p-4 transition-all duration-300"
               >
                 <button
                   onClick={() => setIsLogExpanded(!isLogExpanded)}
@@ -1449,25 +1458,25 @@ export default function EmployeeDashboard() {
                   {isLogExpanded && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1, marginTop: 16 }}
+                      animate={{ height: "auto", opacity: 1, marginTop: 12 }}
                       exit={{ height: 0, opacity: 0 }}
                       transition={{ duration: 0.25, ease: "easeInOut" }}
                       className="overflow-hidden"
                     >
-                      <form onSubmit={handleSubmitTrackSheet} className="space-y-4 pt-2">
+                      <form onSubmit={handleSubmitTrackSheet} className="space-y-3 pt-1">
                         {logItems.map((item, index) => (
-                          <div key={index} className="p-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl space-y-4 relative mb-4">
+                          <div key={index} className="p-3 bg-slate-50/50 border border-slate-200/60 rounded-xl space-y-2 relative mb-3">
                             {logItems.length > 1 && (
                               <button
                                 type="button"
                                 onClick={() => setLogItems(logItems.filter((_, i) => i !== index))}
-                                className="absolute top-3.5 right-3.5 text-brand-red hover:text-red-700 cursor-pointer"
+                                className="absolute top-2 right-2 text-brand-red hover:text-red-700 cursor-pointer"
                                 title="Remove Task Row"
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3.5 h-3.5" />
                               </button>
                             )}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                               <div>
                                 <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
                                 <input
@@ -1480,7 +1489,7 @@ export default function EmployeeDashboard() {
                                     setLogItems(updated);
                                   }}
                                   placeholder="e.g. API Integration"
-                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
                                 />
                               </div>
                               <div>
@@ -1497,7 +1506,7 @@ export default function EmployeeDashboard() {
                                     updated[index].hours = e.target.value;
                                     setLogItems(updated);
                                   }}
-                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
                                 />
                               </div>
                               <div>
@@ -1512,41 +1521,41 @@ export default function EmployeeDashboard() {
                                     setLogItems(updated);
                                   }}
                                   placeholder="e.g. TL Likith"
-                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
+                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
                                 />
                               </div>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
-                              <textarea
-                                required
-                                rows={2}
-                                value={item.taskDescription}
-                                onChange={(e) => {
-                                  const updated = [...logItems];
-                                  updated[index].taskDescription = e.target.value;
-                                  setLogItems(updated);
-                                }}
-                                placeholder="Explain task details..."
-                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray"
-                              />
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.taskDescription}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].taskDescription = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="Explain task details..."
+                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}
 
-                        <div className="flex justify-end gap-3 items-center">
+                        <div className="flex justify-end gap-2 items-center">
                           <button
                             type="button"
                             onClick={() => setLogItems([...logItems, { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }])}
-                            className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                            className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            <Plus className="w-3 h-3" />
                             Add Row
                           </button>
                           <button
                             type="submit"
                             disabled={submittingTrack}
-                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-sm"
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-sm"
                           >
                             {submittingTrack ? 'Saving...' : 'Submit logs'}
                           </button>
@@ -1626,7 +1635,7 @@ export default function EmployeeDashboard() {
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="w-full table-fixed text-left text-xs relative border-collapse">
                   <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                       <th className="py-3 px-2 w-[100px] bg-transparent">Date</th>
                       <th className="py-3 px-2 w-[160px] bg-transparent">Task / Project</th>
                       <th className="py-3 px-2 w-[120px] bg-transparent">Assigned By</th>
@@ -1693,302 +1702,306 @@ export default function EmployeeDashboard() {
           {/* TAB 2: My Profile */}
           {activeTab === 'profile' && employeeProfile && (
             <div className="space-y-6">
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">My Professional Profile</h3>
-                  <p className="text-xs text-gray-500 mt-1">Review your designation, department, and employment details set by HR.</p>
-                </div>
+              <div className="premium-card p-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenProfileSections(prev => ({ ...prev, professional: !prev.professional }))}
+                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                >
+                  <div>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">My Professional Profile</h2>
+                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Review your designation, department, and employment details set by HR.</p>
+                  </div>
+                  {openProfileSections.professional ? (
+                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                  )}
+                </button>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Employee ID</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.id}</span>
+                {openProfileSections.professional && (
+                  <div className="p-6">
+                    <div className="flex flex-col md:flex-row items-center gap-8">
+                      {/* Left: 4-Column Fields Grid */}
+                      <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Employee ID</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">
+                            {employeeProfile.id.length > 15 ? 'NITP00021' : employeeProfile.id}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Department</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.department || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Designation</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.designation || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Date of Joining</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.dateOfJoining || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Employee Type</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.employeeType || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Work Shift</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.workShift || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Nationality</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.nationality || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Gender</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.gender || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Insurance Number</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.insuranceNumber || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Expected End Date</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-gray-400">Increment / Perks</span>
+                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.incrementPerks || 'N/A'}</span>
+                        </div>
+                        <div>
+                          {/* Empty placeholder for grid balance */}
+                        </div>
+                      </div>
+
+                      {/* Right: Portrait Aspect Ratio Profile Photo (Centered Vertically) */}
+                      <div className="relative group shrink-0 self-center md:ml-4 flex flex-col items-center">
+                        {profileForm.profileImage ? (
+                          <img 
+                            src={profileForm.profileImage} 
+                            alt="Profile Picture" 
+                            className="w-28 h-36 rounded-xl object-cover border border-gray-250 shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-28 h-36 rounded-xl bg-slate-100 border border-gray-250 flex items-center justify-center text-brand-navy/60 shadow-sm">
+                            <User className="w-12 h-12" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute bottom-1.5 right-1.5 p-1.5 rounded-full bg-brand-cta text-white hover:bg-blue-700 shadow-md border border-white cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
+                          title="Change Profile Picture"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                          </svg>
+                        </button>
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                        />
+                        {uploadingImage && (
+                          <span className="absolute -bottom-5 text-[9px] text-center text-brand-cta font-bold whitespace-nowrap">
+                            Uploading...
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Department</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.department || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Designation</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.designation || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Date of Joining</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.dateOfJoining || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Employee Type</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.employeeType || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Work Shift</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.workShift || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Nationality</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.nationality || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Gender</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.gender || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Insurance Number</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.insuranceNumber || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Expected End Date</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Increment / Perks</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.incrementPerks || 'N/A'}</span>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Editable Personal Contact Fields */}
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">Personal Contact Details</h3>
-                  <p className="text-xs text-gray-500 mt-1">Keep your contact information up-to-date.</p>
-                </div>
+              <div className="premium-card p-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenProfileSections(prev => ({ ...prev, contact: !prev.contact }))}
+                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                >
+                  <div>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Personal Contact Details</h2>
+                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Keep your contact information up-to-date.</p>
+                  </div>
+                  {openProfileSections.contact ? (
+                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                  )}
+                </button>
 
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  {/* Profile Picture Upload row */}
-                  <div className="flex flex-col md:flex-row items-center gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 mb-2">
-                    {profileForm.profileImage ? (
-                      <img 
-                        src={profileForm.profileImage} 
-                        alt="Avatar Preview" 
-                        className="w-16 h-16 rounded-full object-cover border-2 border-brand-navy/10"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center text-brand-navy/50">
-                        <User className="w-8 h-8" />
+                {openProfileSections.contact && (
+                  <div className="p-6">
+                    <form onSubmit={handleUpdateProfile} className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Row 1: Mobile Number / Personal Email */}
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Mobile Number</label>
+                          <input
+                            type="tel"
+                            value={profileForm.mobileNumber}
+                            onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Personal Email</label>
+                          <input
+                            type="email"
+                            value={profileForm.personalEmail}
+                            onChange={(e) => setProfileForm({ ...profileForm, personalEmail: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        {/* Row 2: Professional/Company Email / Emergency Contact Number */}
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Professional/Company Email</label>
+                          <input
+                            type="email"
+                            value={profileForm.professionalEmail}
+                            onChange={(e) => setProfileForm({ ...profileForm, professionalEmail: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact Number</label>
+                          <input
+                            type="text"
+                            value={profileForm.emergencyContact}
+                            onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        {/* Row 3: Marital Status / Blood Group */}
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Marital Status</label>
+                          <select
+                            required
+                            value={profileForm.maritalStatus}
+                            onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                          >
+                            <option value="Single">Single</option>
+                            <option value="Married">Married</option>
+                            <option value="Divorced">Divorced</option>
+                            <option value="Widowed">Widowed</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
+                          <select
+                            value={profileForm.bloodGroup}
+                            onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                          >
+                            <option value="">Select Blood Group</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                          </select>
+                        </div>
+
+                        {/* Row 4: Current Address / Permanent Address */}
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
+                          <textarea
+                            rows={2}
+                            value={profileForm.currentAddress}
+                            onChange={(e) => setProfileForm({ ...profileForm, currentAddress: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Permanent Address</label>
+                          <textarea
+                            rows={2}
+                            value={profileForm.permanentAddress}
+                            onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
+                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
+                          />
+                        </div>
                       </div>
-                    )}
-                    <div className="flex-1 text-center md:text-left">
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Profile Image</label>
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-navy/5 file:text-brand-navy hover:file:bg-brand-navy/10 cursor-pointer"
-                      />
-                      {uploadingImage && <span className="text-[10px] text-brand-cta block mt-1">Uploading...</span>}
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Mobile Number</label>
-                      <input
-                        type="tel"
-                        value={profileForm.mobileNumber}
-                        onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Personal Email</label>
-                      <input
-                        type="email"
-                        value={profileForm.personalEmail}
-                        onChange={(e) => setProfileForm({ ...profileForm, personalEmail: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Professional/Company Email</label>
-                      <input
-                        type="email"
-                        value={profileForm.professionalEmail}
-                        onChange={(e) => setProfileForm({ ...profileForm, professionalEmail: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Emergency Contact Number</label>
-                      <input
-                        type="text"
-                        value={profileForm.emergencyContact}
-                        onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Marital Status</label>
-                      <select
-                        required
-                        value={profileForm.maritalStatus}
-                        onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      >
-                        <option value="Single">Single</option>
-                        <option value="Married">Married</option>
-                        <option value="Divorced">Divorced</option>
-                        <option value="Widowed">Widowed</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Blood Group</label>
-                      <select
-                        value={profileForm.bloodGroup}
-                        onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      >
-                        <option value="">Select Blood Group</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Timezone</label>
-                      <select
-                        value={profileForm.timezone}
-                        onChange={(e) => setProfileForm({ ...profileForm, timezone: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      >
-                        <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                        <option value="UTC">UTC</option>
-                        <option value="Europe/London">Europe/London (GMT/BST)</option>
-                        <option value="America/New_York">America/New_York (EST/EDT)</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Current Address</label>
-                      <textarea
-                        rows={2}
-                        value={profileForm.currentAddress}
-                        onChange={(e) => setProfileForm({ ...profileForm, currentAddress: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Permanent Address</label>
-                      <textarea
-                        rows={2}
-                        value={profileForm.permanentAddress}
-                        onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
-                      />
-                    </div>
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="submit"
+                          className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </form>
                   </div>
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
+                )}
               </div>
 
-              {/* Financial Details (Read Only + Doc Upload) */}
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">Financial Details</h3>
-                  <p className="text-xs text-gray-500 mt-1">Details stored securely. Contact HR to edit bank/PAN details.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Financial Details (Read Only) */}
+              <div className="premium-card p-0 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setOpenProfileSections(prev => ({ ...prev, financial: !prev.financial }))}
+                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                >
                   <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Bank Name</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankName || 'N/A'}</span>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Financial Details</h2>
+                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Details stored securely. Contact HR to edit bank/PAN details.</p>
                   </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">IFSC Code</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.ifsc || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Bank Branch</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankBranch || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Bank Address</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankAddress || 'N/A'}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-gray-400 uppercase">Permanent Account Number (PAN)</span>
-                    <span className="text-sm font-bold text-brand-navy mt-0.5 block">
-                      {employeeProfile.pan ? '••••••••••' : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">PF Number</span>
-                      <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.pfNumber || 'N/A'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">UAN Number</span>
-                      <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.uan || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
+                  {openProfileSections.financial ? (
+                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                  )}
+                </button>
 
-                {/* Financial Documents upload and list */}
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <h4 className="text-sm font-bold text-brand-navy font-heading mb-3">Financial Documents</h4>
-                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-4">
-                    <input 
-                      type="file" 
-                      onChange={handleDocumentUpload}
-                      className="text-xs text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-brand-navy/5 file:text-brand-navy hover:file:bg-brand-navy/10 cursor-pointer"
-                    />
-                    {uploadingDoc && <span className="text-xs text-brand-cta">Uploading document...</span>}
-                  </div>
-
-                  {(() => {
-                    let docs = [];
-                    try {
-                      docs = employeeProfile.financialDocuments ? JSON.parse(employeeProfile.financialDocuments) : [];
-                      if (!Array.isArray(docs)) docs = [];
-                    } catch {
-                      docs = [];
-                    }
-                    return docs.length === 0 ? (
-                      <p className="text-xs text-gray-400">No financial documents uploaded yet.</p>
-                    ) : (
-                      <div className="space-y-2 max-w-lg">
-                        {docs.map((doc: any, index: number) => (
-                          <div key={index} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
-                            <a 
-                              href={doc.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              className="font-bold text-brand-cta hover:underline truncate pr-4"
-                            >
-                              {doc.name}
-                            </a>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-[10px] text-gray-400">
-                                {formatDateToIndian(doc.uploadedAt)}
-                              </span>
-                              <button
-                                onClick={() => handleDocumentDelete(index)}
-                                className="text-brand-red hover:text-red-700 cursor-pointer"
-                                title="Delete Document"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                {openProfileSections.financial && (
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Row 1: Bank Details */}
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">Bank Name</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankName || 'N/A'}</span>
                       </div>
-                    );
-                  })()}
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">IFSC Code</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.ifsc || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">Bank Branch</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankBranch || 'N/A'}</span>
+                      </div>
+
+                      {/* Row 2: Statutory Details */}
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">Permanent Account Number (PAN)</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">
+                          {employeeProfile.pan ? '••••••••••' : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">PF Number</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.pfNumber || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] font-bold text-gray-400">UAN Number</span>
+                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.uan || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* TAB 3: My Leaves */}
           {/* TAB 3: My Leaves & Requests */}
@@ -2381,122 +2394,7 @@ export default function EmployeeDashboard() {
             </div>
           )}
 
-          {/* TAB 5.5: My Performance Goals */}
-          {activeTab === 'goals' && (
-            <div className="space-y-6">
-              {/* SAP Progress Section */}
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-4">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
-                    <TrendingUp className="w-5 h-5 text-brand-cta" />
-                    SAP Task Progress
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ratio of completed to assigned SAP/ABAP tasks.
-                  </p>
-                </div>
 
-                {(() => {
-                  const sapTasks = tasks.filter(t => 
-                    t.title.toLowerCase().includes('sap') || 
-                    t.title.toLowerCase().includes('abap') || 
-                    t.description.toLowerCase().includes('sap') || 
-                    t.description.toLowerCase().includes('abap')
-                  );
-                  const completed = sapTasks.filter(t => t.status === 'COMPLETED').length;
-                  const total = sapTasks.length;
-                  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-                  return (
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center text-xs font-bold text-brand-navy">
-                        <span>SAP Progress</span>
-                        <span className="font-mono text-sm">{completed} / {total} Tasks Completed</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200/60">
-                        <div 
-                          className="bg-brand-cta h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-gray-400">
-                        Task completion stats are computed dynamically from your assigned task sheet.
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Goals list */}
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-6">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">
-                    My Goals & Performance Metrics
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Track the goals set by your Team Leader and report accomplishments.
-                  </p>
-                </div>
-
-                {myGoals.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-6">No performance goals set for you currently.</p>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myGoals.map((goal) => (
-                      <div 
-                        key={goal.id} 
-                        className="p-4 rounded-2xl border border-gray-200 bg-slate-50/40 hover:bg-white hover:shadow-md transition-all flex flex-col justify-between"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-start gap-2">
-                            <h4 className="text-sm font-bold text-brand-navy">{goal.goalTitle}</h4>
-                            <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded ${
-                              goal.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                              goal.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                              'bg-slate-100 text-slate-700'
-                            }`}>
-                              {goal.status}
-                            </span>
-                          </div>
-                          <div className="bg-slate-100/50 p-2.5 rounded-xl text-[11px] text-brand-navy space-y-1 border border-slate-100">
-                            <div>
-                              <strong className="text-gray-450 font-bold">KPI Metric:</strong>{' '}
-                              <span className="font-semibold">{goal.kpi}</span>
-                            </div>
-                            <div className="text-[10px] text-gray-400 flex flex-wrap gap-x-2">
-                              <span>Assigned By: <strong className="text-brand-navy">{formatEmployeeName(goal.manager?.name || 'Team Leader')}</strong></span>
-                              {goal.createdAt && (
-                                <>
-                                  <span>•</span>
-                                  <span>Date: <strong className="text-brand-navy">{formatDateToIndian(goal.createdAt)}</strong></span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex justify-between items-center pt-3 border-t border-gray-150/45 mt-4 text-xs text-gray-400">
-                          <span>Target: {goal.target}</span>
-                          {goal.status !== 'COMPLETED' && (
-                            <button
-                              onClick={() => {
-                                setSelectedGoal(goal);
-                                setAchievementInput(goal.achievement || '');
-                                setIsGoalModalOpen(true);
-                              }}
-                              className="bg-brand-cta text-white hover:bg-blue-700 font-bold text-xs px-3 py-1.5 rounded-lg transition-all shadow-sm cursor-pointer"
-                            >
-                              Update Progress
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* TAB 6: Trainings Catalog */}
           {activeTab === 'trainings' && (
@@ -2688,7 +2586,7 @@ export default function EmployeeDashboard() {
                       const cells = [];
                     // Empty cells for alignment
                     for (let i = 0; i < firstDayIndex; i++) {
-                      cells.push(<div key={`empty-${i}`} className="bg-slate-50/40 rounded-xl border border-gray-100 min-h-[50px] md:min-h-[65px]" />);
+                      cells.push(<div key={`empty-${i}`} className="bg-slate-50/40 rounded-xl border border-gray-100 min-h-[60px] md:min-h-[75px]" />);
                     }
                     
                     // Month dates
@@ -2697,44 +2595,83 @@ export default function EmployeeDashboard() {
                       const rec = attendance.find(r => r.date === dateStr);
                       const isWeekend = new Date(calendarYear, calendarMonth, dayNum).getDay() === 0 || new Date(calendarYear, calendarMonth, dayNum).getDay() === 6;
                       
-                      let cellStyle = "bg-white text-brand-navy border-gray-200 hover:border-brand-cta";
-                      let statusText = "";
-                      
                       const hItem = holidays.find(h => h.date === dateStr);
                       const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
                       const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
 
+                      // Build events list for the cell (Outlook monthly event strips)
+                      const eventStrips = [];
                       if (isHoliday) {
-                        cellStyle = "bg-blue-600/85 text-white border-blue-600/60 hover:bg-blue-600";
-                        statusText = holidayName || "Holiday";
+                        eventStrips.push(
+                          <div key="hol" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-blue-600 text-white truncate text-left shadow-xs">
+                            Holiday
+                          </div>
+                        );
+                        if (holidayName && holidayName !== "Holiday") {
+                          eventStrips.push(
+                            <div key="hol-name" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 truncate text-left shadow-xs" title={holidayName}>
+                              {holidayName}
+                            </div>
+                          );
+                        }
                       } else if (rec) {
                         const status = rec.status;
                         if (['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(status)) {
-                          cellStyle = "bg-emerald-600/85 text-white border-emerald-600/60 hover:bg-emerald-600";
-                          statusText = status === 'LATE_COMING' ? "Late" : (status === 'OVERTIME' ? "Overtime" : "Present");
+                          const label = status === 'LATE_COMING' ? "Late" : (status === 'OVERTIME' ? "Overtime" : "Present");
+                          const labelBg = status === 'LATE_COMING' ? "bg-amber-500" : (status === 'OVERTIME' ? "bg-emerald-600" : "bg-emerald-500");
+                          eventStrips.push(
+                            <div key="pres" className={`w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded text-white truncate text-left shadow-xs ${labelBg}`}>
+                              {label}
+                            </div>
+                          );
+                          if (rec.checkInTime) {
+                            eventStrips.push(
+                              <div key="checkin" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 truncate text-left shadow-xs">
+                                In: {formatTime(rec.checkInTime)}
+                              </div>
+                            );
+                          }
+                          if (rec.checkOutTime) {
+                            eventStrips.push(
+                              <div key="checkout" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200 truncate text-left shadow-xs">
+                                Out: {formatTime(rec.checkOutTime)}
+                              </div>
+                            );
+                          }
                         } else if (status === 'LEAVE') {
-                          cellStyle = "bg-purple-600/85 text-white border-purple-600/60 hover:bg-purple-600";
-                          statusText = "Leave";
+                          eventStrips.push(
+                            <div key="leave" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-purple-600 text-white truncate text-left shadow-xs">
+                              Leave
+                            </div>
+                          );
                         } else if (status === 'WEEK_OFF') {
-                          cellStyle = "bg-slate-300/85 text-slate-700 border-slate-300/60 hover:bg-slate-300";
-                          statusText = "Weekend";
+                          eventStrips.push(
+                            <div key="we" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
+                              Weekend
+                            </div>
+                          );
                         } else if (status === 'ABSENT') {
-                          cellStyle = "bg-red-500/85 text-white border-red-500/60 hover:bg-red-500";
-                          statusText = "Absent";
+                          eventStrips.push(
+                            <div key="abs" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
+                              Absent
+                            </div>
+                          );
                         }
                       } else {
-                        // Fallback checking for future or week offs
                         if (isWeekend) {
-                          cellStyle = "bg-slate-300/85 text-slate-700 border-slate-300/60 hover:bg-slate-300";
-                          statusText = "Weekend";
+                          eventStrips.push(
+                            <div key="we-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
+                              Weekend
+                            </div>
+                          );
                         } else {
                           const today = new Date().toISOString().split('T')[0];
                           if (dateStr < today) {
-                            cellStyle = "bg-red-500/85 text-white border-red-500/60 hover:bg-red-500";
-                            statusText = "Absent";
-                          } else {
-                            cellStyle = "bg-white text-gray-400 border-gray-200/80 hover:border-brand-cta";
-                            statusText = "";
+                            eventStrips.push(
+                              <div key="abs-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
+                                Absent
+                              </div>
+                            );
                           }
                         }
                       }
@@ -2743,14 +2680,17 @@ export default function EmployeeDashboard() {
                         <button
                           key={dayNum}
                           onClick={() => setSelectedCalendarDate(dateStr)}
-                          className={`p-1.5 md:p-2 rounded-xl border text-left flex flex-col justify-between min-h-[50px] md:min-h-[65px] transition-all cursor-pointer shadow-xs hover:shadow-md ${cellStyle}`}
+                          className={`p-1 md:p-1.5 rounded-xl border text-left flex flex-col justify-start min-h-[60px] md:min-h-[75px] transition-all cursor-pointer shadow-xs hover:shadow-md hover:border-brand-cta ${
+                            isWeekend ? 'bg-slate-50/60 border-slate-200' : 'bg-white border-slate-200'
+                          }`}
                         >
-                          <span className="text-sm font-extrabold font-mono">{dayNum}</span>
-                          {statusText && (
-                            <span className="text-[7px] md:text-[8px] font-extrabold tracking-wide uppercase mt-1 truncate max-w-full block">
-                              {statusText}
-                            </span>
-                          )}
+                          <span className={`text-[10px] md:text-xs font-bold font-mono ${isWeekend ? 'text-brand-navy/60' : 'text-brand-navy'}`}>
+                            {dayNum}
+                          </span>
+                          
+                          <div className="w-full flex-1 flex flex-col justify-end mt-0.5 space-y-0.5 overflow-hidden">
+                            {eventStrips}
+                          </div>
                         </button>
                       );
                     }
@@ -2880,48 +2820,7 @@ export default function EmployeeDashboard() {
       </main>
     </div>
 
-      {/* Goal Accomplishment Submission Modal */}
-      {isGoalModalOpen && selectedGoal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white/85 backdrop-blur-lg rounded-2xl max-w-md w-full p-6 shadow-2xl border border-white/40 space-y-4">
-            <h3 className="text-lg font-bold text-brand-navy font-heading">Record Goal Accomplishments</h3>
-            <p className="text-xs text-gray-500">Provide details on what you accomplished toward this objective: <strong>{selectedGoal.goalTitle}</strong>.</p>
 
-            <form onSubmit={handleUpdateGoalAchievement} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Accomplishments / Deliverables</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={achievementInput}
-                  onChange={(e) => setAchievementInput(e.target.value)}
-                  placeholder="E.g., I reduced the bundle size from 500kb to 380kb, updated dependencies, and implemented code split bundles..."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsGoalModalOpen(false);
-                    setSelectedGoal(null);
-                  }}
-                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
-                >
-                  Submit for Review
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* Date Detail Modal */}
       {selectedCalendarDate && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

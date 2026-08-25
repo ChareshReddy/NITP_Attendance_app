@@ -185,6 +185,15 @@ export default function TeamLeaderDashboard() {
     return [...fullWords, ...initials].join(' ');
   };
 
+  const formatToTitleCase = (str: string | null | undefined): string => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .split(/[\s_]+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   // Status message states
   const [errorMsg, setErrorMsgState] = useState('');
   const [successMsg, setSuccessMsgState] = useState('');
@@ -632,7 +641,7 @@ export default function TeamLeaderDashboard() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">
+          <span className="text-xs font-extrabold text-brand-navy tracking-wider">
             {tlNavItems.find(item => item.id === activeTab)?.label}
           </span>
         </div>
@@ -776,14 +785,14 @@ export default function TeamLeaderDashboard() {
         {/* Dashboard Title & KPIs */}
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-100 pb-6">
           <div>
-            <h2 className="text-2xl font-extrabold text-brand-navy font-heading">
+            <h1 className="text-2xl font-extrabold text-brand-navy font-heading">
               {team ? team.name : 'Team Leader Board'}
-            </h2>
+            </h1>
             <p className="text-sm text-gray-500 mt-1">Manage attendance, log reviews, and track deliverables.</p>
           </div>
           {allTeams.length > 0 && (
             <div className="flex items-center gap-2 premium-card px-4 py-2.5 shadow-sm border border-gray-200/50 self-start md:self-center">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Inspect Team:</span>
+              <span className="text-xs font-bold text-gray-500 tracking-wider">Inspect Team:</span>
               <select
                 value={selectedTeamId}
                 onChange={(e) => {
@@ -855,13 +864,13 @@ export default function TeamLeaderDashboard() {
         {activeTab === 'attendance' && (
           <div className="space-y-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-brand-navy font-heading">Attendance Status</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading">Attendance Status</h2>
             </div>
 
             <div className="premium-card p-6 overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-3">Employee Name</th>
                     <th className="py-3 px-3">Emp No</th>
                     <th className="py-3 px-3 text-center">Status</th>
@@ -890,23 +899,23 @@ export default function TeamLeaderDashboard() {
                         >
                           <td className="py-3.5 px-3">
                             <div>
-                              <span className="font-bold text-brand-navy block">{formatEmployeeName(member.name)}</span>
+                               <span className="font-bold text-brand-navy block">{formatEmployeeName(member.name)}</span>
                               <span className="text-[10px] text-gray-400 block mt-0.5">{member.role}</span>
                             </div>
                           </td>
                           <td className="py-3.5 px-3 font-semibold text-brand-navy">
-                            #{member.id.slice(-4).toUpperCase()}
+                            #{member.id.slice(-4)}
                           </td>
                           <td className="py-3.5 px-3 text-center">
                             {hasCheckedIn ? (
                               <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
                                 isLate ? 'bg-red-50 text-brand-red border-red-200/60' : 'bg-emerald-50 text-emerald-700 border-emerald-200/60'
                               }`}>
-                                {todayAtt.status.replace('_', ' ')}
+                                {formatToTitleCase(todayAtt.status)}
                               </span>
                             ) : (
                               <span className="inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border bg-slate-100 text-slate-500 border-slate-200">
-                                ABSENT
+                                Absent
                               </span>
                             )}
                           </td>
@@ -938,7 +947,7 @@ export default function TeamLeaderDashboard() {
         {activeTab === 'tracksheets' && (
           <div className="premium-card p-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-brand-navy font-heading">Team Track Sheets Review</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading">Team Track Sheets Review</h2>
               
               {/* Filters */}
               <div className="flex items-center gap-3 w-full md:w-auto">
@@ -969,7 +978,7 @@ export default function TeamLeaderDashboard() {
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="w-full table-fixed text-left text-xs relative border-collapse min-w-[800px]">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-2 bg-transparent w-[120px]">Member</th>
                     <th className="py-3 px-2 bg-transparent w-[90px]">Date</th>
                     <th className="py-3 px-2 bg-transparent w-[130px]">Task</th>
@@ -1014,7 +1023,7 @@ export default function TeamLeaderDashboard() {
                             sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
                             'bg-amber-100 text-amber-800'
                           }`}>
-                            {sheet.status}
+                            {formatToTitleCase(sheet.status)}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center">
@@ -1061,17 +1070,17 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB 3: Tasks Assignment & Board */}
         {activeTab === 'tasks' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create Task Form */}
             <div className="premium-card p-6 lg:col-span-1">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-brand-cta" />
                 Assign New Task
-              </h3>
+              </h2>
               
               <form onSubmit={handleCreateTask} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Assignee</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Assignee</label>
                   <select
                     value={taskAssignee}
                     onChange={(e) => setTaskAssignee(e.target.value)}
@@ -1082,7 +1091,7 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Task Title</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Task Title</label>
                   <input
                     type="text"
                     required
@@ -1094,20 +1103,20 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Task Description</label>
                   <textarea
                     required
-                    rows={3}
+                    rows={2}
                     value={taskDesc}
                     onChange={(e) => setTaskDesc(e.target.value)}
                     placeholder="Describe detail instructions and outputs expected."
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[50px]"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Due Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Due Date</label>
                     <input
                       type="date"
                       required
@@ -1117,15 +1126,15 @@ export default function TeamLeaderDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Priority</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Priority</label>
                     <select
                       value={taskPriority}
                       onChange={(e) => setTaskPriority(e.target.value)}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
                     >
-                      <option value="LOW">LOW</option>
-                      <option value="MEDIUM">MEDIUM</option>
-                      <option value="HIGH">HIGH</option>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
                     </select>
                   </div>
                 </div>
@@ -1142,7 +1151,7 @@ export default function TeamLeaderDashboard() {
 
             {/* Active Tasks List */}
             <div className="premium-card p-6 lg:col-span-2">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Team Task Board</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Team Task Board</h2>
               
               <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar-container pr-1">
                 {tasks.length === 0 ? (
@@ -1169,14 +1178,14 @@ export default function TeamLeaderDashboard() {
                             task.priority === 'HIGH' ? 'bg-red-100 text-brand-red' : 
                             task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
                           }`}>
-                            {task.priority}
+                            {formatToTitleCase(task.priority)}
                           </span>
                           <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                             task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
                             task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-brand-cta' :
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {task.status.replace('_', ' ')}
+                            {formatToTitleCase(task.status)}
                           </span>
                         </div>
                       </div>
@@ -1194,18 +1203,18 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB 4: Team Reports to HR */}
         {activeTab === 'reports' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create Report Form */}
             <div className="premium-card p-6 lg:col-span-1">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-brand-cta" />
                 Submit Team Report to HR
-              </h3>
+              </h2>
               
               <form onSubmit={handleSubmitReport} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Start Date</label>
                     <input
                       type="date"
                       required
@@ -1215,7 +1224,7 @@ export default function TeamLeaderDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">End Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">End Date</label>
                     <input
                       type="date"
                       required
@@ -1227,14 +1236,14 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Status Summary</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Status Summary</label>
                   <textarea
                     required
-                    rows={5}
+                    rows={3}
                     value={reportSummary}
                     onChange={(e) => setReportSummary(e.target.value)}
                     placeholder="Provide a periodic summary of team attendance, task completion rates, SAP deployment progress, roadblocks, or notes..."
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[60px]"
                   />
                 </div>
 
@@ -1251,7 +1260,7 @@ export default function TeamLeaderDashboard() {
 
             {/* Reports Log */}
             <div className="premium-card p-6 lg:col-span-2">
-              <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Past Submitted Reports</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Past Submitted Reports</h2>
               
               <div className="space-y-4">
                 {reports.length === 0 ? (
@@ -1265,12 +1274,12 @@ export default function TeamLeaderDashboard() {
                           {new Date(rep.periodStart).toLocaleDateString()} - {new Date(rep.periodEnd).toLocaleDateString()}
                         </span>
                         
-                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                           rep.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
                           rep.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
                           'bg-amber-100 text-amber-800'
                         }`}>
-                          {rep.status}
+                          {formatToTitleCase(rep.status)}
                         </span>
                       </div>
 
@@ -1293,12 +1302,12 @@ export default function TeamLeaderDashboard() {
         {/* TAB 5: Leave Requests Review */}
         {activeTab === 'leaves' && (
           <div className="premium-card p-6">
-            <h3 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h3>
+            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h2>
             
             <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                     <th className="py-3 px-2 bg-transparent">Employee</th>
                     <th className="py-3 px-2 bg-transparent">Leave Type</th>
                     <th className="py-3 px-2 bg-transparent">Duration</th>
@@ -1325,7 +1334,7 @@ export default function TeamLeaderDashboard() {
                         </td>
                         <td className="py-3 px-2 text-center">
                           <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                            {req.status}
+                            {formatToTitleCase(req.status)}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
@@ -1362,7 +1371,7 @@ export default function TeamLeaderDashboard() {
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                       <th className="py-3 px-2">Employee</th>
                       <th className="py-3 px-2">Leave Type</th>
                       <th className="py-3 px-2">Duration</th>
@@ -1391,7 +1400,7 @@ export default function TeamLeaderDashboard() {
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                               req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
                             }`}>
-                              {req.status}
+                              {formatToTitleCase(req.status)}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || 'System'}</td>
@@ -1407,17 +1416,17 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB: Team Goals & KPIs */}
         {activeTab === 'goals' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create Goal Form */}
             <div className="premium-card p-6 lg:col-span-1 space-y-4">
-              <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+              <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
                 <CheckSquare className="w-5 h-5 text-brand-cta" />
                 Assign Performance Goal
-              </h3>
+              </h2>
 
               <form onSubmit={handleCreateGoal} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Team Member</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Team Member</label>
                   <select
                     required
                     value={goalUser}
@@ -1432,7 +1441,7 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Goal Title</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Goal Title</label>
                   <input
                     type="text"
                     required
@@ -1444,7 +1453,7 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">KPI / Metric Description</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">KPI / Metric Description</label>
                   <textarea
                     required
                     rows={2}
@@ -1456,7 +1465,7 @@ export default function TeamLeaderDashboard() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Target Threshold</label>
+                  <label className="block text-xs font-bold text-brand-navy mb-1">Target Threshold</label>
                   <input
                     type="text"
                     required
@@ -1469,7 +1478,7 @@ export default function TeamLeaderDashboard() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Weight (%)</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Weight (%)</label>
                     <input
                       type="number"
                       required
@@ -1481,7 +1490,7 @@ export default function TeamLeaderDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Appraisal Period</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Appraisal Period</label>
                     <select
                       value={goalPeriod}
                       onChange={(e) => setGoalPeriod(e.target.value)}
@@ -1505,12 +1514,12 @@ export default function TeamLeaderDashboard() {
 
             {/* Goals review list grid */}
             <div className="premium-card p-6 lg:col-span-2 space-y-4">
-              <h3 className="text-lg font-bold text-brand-navy font-heading">Team Performance Goals</h3>
+              <h2 className="text-lg font-bold text-brand-navy font-heading">Team Performance Goals</h2>
 
               <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
                 <table className="min-w-full text-left text-xs relative border-collapse">
                   <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
                       <th className="py-3 px-2 bg-transparent">Employee</th>
                       <th className="py-3 px-2 bg-transparent">Goal Description</th>
                       <th className="py-3 px-2 text-center bg-transparent">Weight</th>
@@ -1535,7 +1544,7 @@ export default function TeamLeaderDashboard() {
                             <div className="text-[10px] italic">Target: {g.target}</div>
                             {g.achievement && (
                               <div className="mt-1.5 p-1.5 bg-white rounded border border-gray-200 text-[10px]">
-                                <span className="font-bold block text-[9px] text-gray-400 uppercase">Accomplishment:</span>
+                                <span className="font-bold block text-[9px] text-gray-400">Accomplishment:</span>
                                 {g.achievement}
                               </div>
                             )}
@@ -1551,7 +1560,7 @@ export default function TeamLeaderDashboard() {
                               g.status === 'MANAGER_APPROVED' ? 'bg-blue-100 text-blue-800' :
                               'bg-amber-100 text-amber-800'
                             }`}>
-                              {g.status}
+                              {formatToTitleCase(g.status)}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-center">
@@ -1586,14 +1595,14 @@ export default function TeamLeaderDashboard() {
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Rejection Reason *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason *</label>
                 <textarea
                   required
-                  rows={4}
+                  rows={2}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   placeholder="e.g. Project deliverable deadline conflicts with the requested dates."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs min-h-[80px]"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
                 />
               </div>
 
@@ -1630,7 +1639,7 @@ export default function TeamLeaderDashboard() {
 
             <form onSubmit={handleUpdateGoalStatusRating} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Manager Rating (1.0 to 5.0)</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Manager Rating (1.0 to 5.0)</label>
                 <input
                   type="number"
                   step="0.1"
@@ -1644,17 +1653,17 @@ export default function TeamLeaderDashboard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Status</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Status</label>
                 <select
                   value={goalStatusInput}
                   onChange={(e) => setGoalStatusInput(e.target.value)}
                   className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                 >
-                  <option value="DRAFT">DRAFT</option>
-                  <option value="MID_YEAR">MID_YEAR</option>
-                  <option value="YEAR_END">YEAR_END</option>
-                  <option value="MANAGER_APPROVED">MANAGER_APPROVED</option>
-                  <option value="HR_REVIEWED">HR_REVIEWED</option>
+                  <option value="DRAFT">Draft</option>
+                  <option value="MID_YEAR">Mid Year</option>
+                  <option value="YEAR_END">Year End</option>
+                  <option value="MANAGER_APPROVED">Manager Approved</option>
+                  <option value="HR_REVIEWED">Hr Reviewed</option>
                 </select>
               </div>
 
@@ -1718,7 +1727,7 @@ export default function TeamLeaderDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-normal">
               {/* Section 1: Personal Profile */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl">
-                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Personal Profile</h4>
+                <h4 className="font-extrabold text-[10px] text-gray-400 tracking-wider mb-2">Personal Profile</h4>
                 <div className="space-y-2">
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Gender:</strong>
@@ -1747,7 +1756,7 @@ export default function TeamLeaderDashboard() {
 
               {/* Section 2: Contact Details */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl">
-                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Contact Info</h4>
+                <h4 className="font-extrabold text-[10px] text-gray-400 tracking-wider mb-2">Contact Info</h4>
                 <div className="space-y-2">
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Mobile Number:</strong>
@@ -1770,7 +1779,7 @@ export default function TeamLeaderDashboard() {
 
               {/* Section 3: Professional Info */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
-                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Employment & Job Profile</h4>
+                <h4 className="font-extrabold text-[10px] text-gray-400 tracking-wider mb-2">Employment & Job Profile</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Date of Joining:</strong>
@@ -1817,7 +1826,7 @@ export default function TeamLeaderDashboard() {
 
               {/* Section 4: Address Details */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
-                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Address Details</h4>
+                <h4 className="font-extrabold text-[10px] text-gray-400 tracking-wider mb-2">Address Details</h4>
                 <div className="space-y-2">
                   <div>
                     <strong className="text-gray-500 block mb-0.5">Current Address:</strong>
@@ -1832,7 +1841,7 @@ export default function TeamLeaderDashboard() {
 
               {/* Section 5: Financial Details */}
               <div className="space-y-3 p-4 bg-slate-50/50 border border-slate-200/50 rounded-2xl md:col-span-2">
-                <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Financial Details</h4>
+                <h4 className="font-extrabold text-[10px] text-gray-400 tracking-wider mb-2">Financial Details</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Bank Name:</strong>
@@ -1897,14 +1906,14 @@ export default function TeamLeaderDashboard() {
 
             <form onSubmit={handleSaveComment} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Feedback Comment</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Feedback Comment</label>
                 <textarea
                   required
-                  rows={4}
+                  rows={2}
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="E.g. Excellent work, verify edge cases in production..."
-                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs min-h-[80px]"
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
                 />
               </div>
 
