@@ -22,7 +22,11 @@ import {
   Filter,
   Menu,
   TrendingUp,
-  Info
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -75,6 +79,7 @@ interface TeamTrackSheet {
   notes: string | null;
   assignedByName: string | null;
   tlComment?: string | null;
+  referenceLink?: string | null;
   user: {
     id: string;
     name: string;
@@ -128,6 +133,7 @@ export default function TeamLeaderDashboard() {
   const [team, setTeam] = useState<{ id: string; name: string } | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [trackSheets, setTrackSheets] = useState<TeamTrackSheet[]>([]);
+  const [expandedSheets, setExpandedSheets] = useState<Record<string, boolean>>({});
   const [tasks, setTasks] = useState<TeamTask[]>([]);
   const [reports, setReports] = useState<TeamReport[]>([]);
   const [allTeams, setAllTeams] = useState<any[]>([]);
@@ -748,7 +754,7 @@ export default function TeamLeaderDashboard() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
+        <main className="flex-1 p-4 md:pt-4 md:px-8 md:pb-12 w-full max-w-7xl mx-auto">
         
         {/* Alerts Center */}
         {errorMsg && (
@@ -976,91 +982,151 @@ export default function TeamLeaderDashboard() {
             </div>
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-              <table className="w-full table-fixed text-left text-xs relative border-collapse min-w-[800px]">
+              <table className="w-full table-fixed text-left text-xs relative border-collapse">
                 <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
                   <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                    <th className="py-3 px-2 bg-transparent w-[120px]">Member</th>
-                    <th className="py-3 px-2 bg-transparent w-[90px]">Date</th>
-                    <th className="py-3 px-2 bg-transparent w-[130px]">Task</th>
-                    <th className="py-3 px-2 bg-transparent w-[110px]">Assigned By</th>
-                    <th className="py-3 px-2 bg-transparent">Task Description</th>
-                    <th className="py-3 px-2 text-center bg-transparent w-[60px]">Hours</th>
-                    <th className="py-3 px-2 text-center bg-transparent w-[60px]">Notes</th>
-                    <th className="py-3 px-2 text-center bg-transparent w-[90px]">Status</th>
-                    <th className="py-3 px-2 text-center bg-transparent w-[85px]">Actions</th>
+                    <th className="py-3 px-2 bg-transparent w-[14%]">Member</th>
+                    <th className="py-3 px-2 bg-transparent w-[10%]">Date</th>
+                    <th className="py-3 px-2 bg-transparent w-[20%]">Task / Project</th>
+                    <th className="py-3 px-2 bg-transparent w-[16%]">Assigned By</th>
+                    <th className="py-3 px-2 bg-transparent w-[14%]">Work Link</th>
+                    <th className="py-3 px-2 bg-transparent w-[12%]">Hours</th>
+                    <th className="py-3 px-2 bg-transparent w-[10%]">Status</th>
+                    <th className="py-3 px-2 text-center bg-transparent w-[4%]"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredTrackSheets.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-6 text-gray-400">No track sheets found.</td>
+                      <td colSpan={8} className="text-center py-6 text-gray-400">No track sheets found.</td>
                     </tr>
                   ) : (
-                    filteredTrackSheets.map((sheet) => (
-                      <tr key={sheet.id} className="hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-bold text-brand-navy truncate" title={sheet.user.name}>{sheet.user.name}</td>
-                        <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">{sheet.date}</td>
-                        <td className="py-3 px-2 font-medium text-brand-navy truncate" title={sheet.project}>{sheet.project}</td>
-                        <td className="py-3 px-2 text-brand-navy font-semibold truncate" title={sheet.assignedByName || 'N/A'}>
-                          {sheet.assignedByName || '-'}
-                        </td>
-                        <td className="py-3 px-2 text-gray-500 break-words leading-relaxed" title={sheet.taskDescription}>
-                          {sheet.taskDescription}
-                        </td>
-                        <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{sheet.hours}h</td>
-                        <td className="py-3 px-2 text-center">
-                          {sheet.notes ? (
-                            <span className="inline-block cursor-help text-brand-cta hover:text-blue-700 transition-colors" title={sheet.notes}>
-                              <Info className="w-4 h-4 inline" />
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 font-semibold">-</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                            sheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                            sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
-                            {formatToTitleCase(sheet.status)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <div className="flex flex-col gap-1.5 justify-center items-center">
-                            {sheet.status === 'PENDING' ? (
-                              <div className="flex gap-1 justify-center">
-                                <button
-                                  onClick={() => handleReviewTrackSheet(sheet.id, 'APPROVED')}
-                                  className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 p-1 rounded cursor-pointer transition-colors"
-                                  title="Approve Log"
+                    filteredTrackSheets.map((sheet) => {
+                      const isExpanded = !!expandedSheets[sheet.id];
+                      return (
+                        <React.Fragment key={sheet.id}>
+                          <tr 
+                            className={`hover:bg-gray-50/50 cursor-pointer transition-colors ${
+                              isExpanded ? 'bg-slate-50/40' : ''
+                            }`}
+                            onClick={() => setExpandedSheets(prev => ({ ...prev, [sheet.id]: !prev[sheet.id] }))}
+                          >
+                            <td className="py-3 px-2 font-bold text-brand-navy truncate" title={sheet.user.name}>{sheet.user.name}</td>
+                            <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">{sheet.date}</td>
+                            <td className="py-3 px-2 font-medium text-brand-navy truncate" title={sheet.project}>{sheet.project}</td>
+                            <td className="py-3 px-2 text-brand-navy font-semibold truncate" title={sheet.assignedByName || 'N/A'}>
+                              {sheet.assignedByName || '-'}
+                            </td>
+                            <td className="py-3 px-2">
+                              {sheet.referenceLink ? (
+                                <a
+                                  href={sheet.referenceLink.startsWith('http') ? sheet.referenceLink : `https://${sheet.referenceLink}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-brand-cta hover:underline font-bold"
+                                  onClick={(e) => e.stopPropagation()}
                                 >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleReviewTrackSheet(sheet.id, 'REJECTED')}
-                                  className="bg-red-100 text-brand-red hover:bg-red-200 p-1 rounded cursor-pointer transition-colors"
-                                  title="Reject Log"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400 text-[10px] font-semibold">Reviewed</span>
-                            )}
-                            <button
-                              onClick={() => {
-                                setCommentingTrackSheet(sheet);
-                                setCommentText(sheet.tlComment || '');
-                              }}
-                              className="text-[9px] bg-brand-cta/15 text-brand-cta border border-brand-cta/25 px-1.5 py-0.5 rounded font-extrabold hover:bg-brand-cta/25 transition-all cursor-pointer"
-                            >
-                              {sheet.tlComment ? 'Edit Feedback' : 'Add Feedback'}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                                  View
+                                </a>
+                              ) : (
+                                <span className="text-gray-400 font-semibold">-</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-2 font-extrabold text-brand-navy">{sheet.hours}h</td>
+                            <td className="py-3 px-2">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                sheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                                'bg-amber-100 text-amber-800'
+                              }`}>
+                                {formatToTitleCase(sheet.status)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <ChevronDown className={`w-4 h-4 text-gray-400 mx-auto transition-transform duration-200 ${
+                                isExpanded ? 'rotate-180 text-brand-cta' : ''
+                              }`} />
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={8} className="p-0 border-t-0 bg-transparent">
+                              <AnimatePresence initial={false}>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.18, ease: 'easeInOut' }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="px-6 py-4 bg-slate-50/60 rounded-xl m-2 border border-slate-100/50 text-xs text-brand-navy space-y-3">
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes / Blockers</p>
+                                          <p className="text-brand-navy mt-0.5 font-medium">{sheet.notes || 'N/A'}</p>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Task Description</p>
+                                        <p className="text-gray-600 mt-0.5 whitespace-pre-wrap leading-relaxed">{sheet.taskDescription}</p>
+                                      </div>
+                                      {sheet.tlComment && (
+                                        <div>
+                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TL Feedback / Comment</p>
+                                          <p className="text-brand-navy mt-0.5 italic">"{sheet.tlComment}"</p>
+                                        </div>
+                                      )}
+                                      <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/50">
+                                        <div className="flex items-center gap-2">
+                                          {sheet.status === 'PENDING' ? (
+                                            <>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleReviewTrackSheet(sheet.id, 'APPROVED');
+                                                }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold transition-colors cursor-pointer text-xs"
+                                                title="Approve Log"
+                                              >
+                                                <Check className="w-3.5 h-3.5" />
+                                                Approve
+                                              </button>
+                                              <button
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleReviewTrackSheet(sheet.id, 'REJECTED');
+                                                }}
+                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-brand-red hover:bg-red-200 font-bold transition-colors cursor-pointer text-xs"
+                                                title="Reject Log"
+                                              >
+                                                <X className="w-3.5 h-3.5" />
+                                                Reject
+                                              </button>
+                                            </>
+                                          ) : (
+                                            <span className="text-gray-400 text-xs font-semibold">Reviewed</span>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setCommentingTrackSheet(sheet);
+                                            setCommentText(sheet.tlComment || '');
+                                          }}
+                                          className="text-xs bg-brand-cta/15 text-brand-cta border border-brand-cta/25 px-3 py-1.5 rounded-lg font-extrabold hover:bg-brand-cta/25 transition-all cursor-pointer inline-flex items-center gap-1"
+                                        >
+                                          {sheet.tlComment ? 'Edit Feedback' : 'Add Feedback'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1899,9 +1965,22 @@ export default function TeamLeaderDashboard() {
             <p className="text-xs text-gray-550 leading-relaxed">
               Add review comments or instructions on completed task log by <strong>{formatEmployeeName(commentingTrackSheet.user.name)}</strong>:
             </p>
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 text-xs text-slate-600">
-              <strong>Task:</strong> {commentingTrackSheet.project} <br/>
-              <strong>Desc:</strong> {commentingTrackSheet.taskDescription}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 text-xs text-slate-600 space-y-1">
+              <div><strong>Task:</strong> {commentingTrackSheet.project}</div>
+              <div><strong>Desc:</strong> {commentingTrackSheet.taskDescription}</div>
+              {commentingTrackSheet.referenceLink && (
+                <div>
+                  <strong>Work Link:</strong>{' '}
+                  <a
+                    href={commentingTrackSheet.referenceLink.startsWith('http') ? commentingTrackSheet.referenceLink : `https://${commentingTrackSheet.referenceLink}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-cta hover:underline font-bold"
+                  >
+                    View Link
+                  </a>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSaveComment} className="space-y-4">

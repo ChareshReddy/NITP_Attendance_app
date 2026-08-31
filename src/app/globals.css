@@ -187,12 +187,32 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   background: rgba(248, 250, 252, 0.6) !important;
 }
 
-/* Global Table Header Customization to Logo Navy Blue */
+/* Global Table Header Customization to Slate-100 Grey with Navy Text */
 table thead, 
 table thead tr, 
 table thead th,
 .glass-table th {
-  background-color: var(--brand-navy) !important;
-  color: #ffffff !important;
+  background-color: #f1f5f9 !important; /* bg-slate-100 */
+  color: var(--brand-navy) !important; /* text-brand-navy */
+  border-bottom: 2px solid #e2e8f0 !important;
+  font-weight: 800 !important;
+}
+
+/* Automatically append a red asterisk to labels of required inputs */
+label:has(+ input:required)::after,
+label:has(+ select:required)::after,
+label:has(+ textarea:required)::after,
+label:has(+ div > input:required)::after,
+label:has(+ div > select:required)::after,
+label:has(+ div > textarea:required)::after,
+div:has(> input:required) > label::after,
+div:has(> select:required) > label::after,
+div:has(> textarea:required) > label::after,
+div:has(> div > input:required) > label::after,
+div:has(> div > select:required) > label::after,
+div:has(> div > textarea:required) > label::after {
+  content: " *";
+  color: #ef4444 !important;
+  font-weight: bold;
 }
 

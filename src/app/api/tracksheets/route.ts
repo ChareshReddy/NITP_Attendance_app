@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
     // Validate all logs first
     for (const log of logs) {
-      const { date, project, taskDescription, hours, assignedByName } = log;
+      const { date, project, taskDescription, hours, assignedByName, referenceLink } = log;
       if (!date || !project || !taskDescription || !hours || !assignedByName) {
         return NextResponse.json({ error: 'Missing required fields (Date, Project, Description, Hours, Assigned By)' }, { status: 400 });
       }
@@ -76,11 +76,20 @@ export async function POST(request: Request) {
       if (isNaN(hoursFloat) || hoursFloat <= 0 || hoursFloat > 24) {
         return NextResponse.json({ error: 'Hours must be a positive number between 0 and 24' }, { status: 400 });
       }
+
+      if (referenceLink) {
+        try {
+          const tempUrl = referenceLink.startsWith('http://') || referenceLink.startsWith('https://') ? referenceLink : `https://${referenceLink}`;
+          new URL(tempUrl);
+        } catch (_) {
+          return NextResponse.json({ error: 'Reference Link must be a valid URL' }, { status: 400 });
+        }
+      }
     }
 
     const createdLogs = [];
     for (const log of logs) {
-      const { date, project, taskDescription, hours, notes, assignedByName } = log;
+      const { date, project, taskDescription, hours, notes, assignedByName, referenceLink } = log;
       const hoursFloat = parseFloat(hours);
       const trackSheet = await prisma.trackSheet.create({
         data: {
@@ -92,6 +101,7 @@ export async function POST(request: Request) {
           notes: notes || null,
           status: 'PENDING',
           assignedByName,
+          referenceLink: referenceLink || null,
         },
       });
       createdLogs.push(trackSheet);
@@ -120,7 +130,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id, project, taskDescription, hours, notes, status, tlComment, supportingDocuments } = await request.json();
+    const { id, project, taskDescription, hours, notes, status, tlComment, supportingDocuments, referenceLink } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'Track sheet ID is required' }, { status: 400 });
@@ -156,6 +166,17 @@ export async function PUT(request: Request) {
       }
       if (notes !== undefined) updateData.notes = notes;
       if (supportingDocuments !== undefined) updateData.supportingDocuments = supportingDocuments;
+      if (referenceLink !== undefined) {
+        if (referenceLink) {
+          try {
+            const tempUrl = referenceLink.startsWith('http://') || referenceLink.startsWith('https://') ? referenceLink : `https://${referenceLink}`;
+            new URL(tempUrl);
+          } catch (_) {
+            return NextResponse.json({ error: 'Reference Link must be a valid URL' }, { status: 400 });
+          }
+        }
+        updateData.referenceLink = referenceLink || null;
+      }
     } else {
       // TL or HR can update everything + comments & status
       if (project) updateData.project = project;
@@ -169,6 +190,17 @@ export async function PUT(request: Request) {
           return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
         }
         updateData.status = status;
+      }
+      if (referenceLink !== undefined) {
+        if (referenceLink) {
+          try {
+            const tempUrl = referenceLink.startsWith('http://') || referenceLink.startsWith('https://') ? referenceLink : `https://${referenceLink}`;
+            new URL(tempUrl);
+          } catch (_) {
+            return NextResponse.json({ error: 'Reference Link must be a valid URL' }, { status: 400 });
+          }
+        }
+        updateData.referenceLink = referenceLink || null;
       }
     }
 

@@ -1271,7 +1271,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
+        <main className="flex-1 p-4 md:pt-4 md:px-8 md:pb-12 w-full max-w-7xl mx-auto">
         
         {/* Status Alerts */}
         {errorMsg && (

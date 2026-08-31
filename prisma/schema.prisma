@@ -133,6 +133,7 @@ model TrackSheet {
   assignedByName  String?          @map("assigned_by_name")
   tlComment       String?          @map("tl_comment")
   supportingDocuments String?       @map("supporting_documents")
+  referenceLink       String?       @map("reference_link")
   
   @@index([userId, date])
   @@index([project])
@@ -295,6 +296,7 @@ model EmployeeProfile {
   designation       String?
   grade             String?
   location          String?
+  workLocationStatus String?  @map("work_location_status")
   businessUnit      String?  @map("business_unit")
   hrBusinessPartner String?  @map("hr_business_partner")
   employmentStatus  String?  @default("Active") @map("employment_status")

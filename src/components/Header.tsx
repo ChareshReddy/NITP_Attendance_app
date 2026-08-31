@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { LogOut, User as UserIcon, Bell, Check, Lock } from 'lucide-react';
@@ -25,7 +25,26 @@ export default function Header() {
 
   // Dropdown & Password Change Modal States
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+
+  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmNewPass, setConfirmNewPass] = useState('');
@@ -242,24 +261,27 @@ export default function Header() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'HR_ADMIN':
-        return 'bg-purple-50 text-purple-700 border border-purple-200/60';
+        return 'bg-purple-500/35 text-purple-100 border border-purple-400/40';
       case 'TL':
-        return 'bg-blue-50 text-blue-700 border border-blue-200/60';
+        return 'bg-blue-500/35 text-blue-100 border border-blue-400/40';
       default:
-        return 'bg-emerald-50 text-emerald-700 border border-emerald-200/60';
+        return 'bg-emerald-500/35 text-emerald-100 border border-emerald-400/40';
     }
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-white px-6 py-3.5 shadow-sm border-b border-gray-200 flex items-center justify-between text-brand-navy">
+    <header className="sticky top-0 z-50 w-full bg-brand-navy px-6 py-3.5 shadow-md flex items-center justify-between text-white">
       {/* Brand logo image */}
-      <Link href="/" className="select-none flex items-center transition-all">
+      <a 
+        href={user ? (user.role === 'HR_ADMIN' ? '/admin' : user.role === 'TL' ? '/employee' : '/employee') : '/'} 
+        className="select-none flex items-center transition-all bg-white px-3 py-1 rounded-xl shadow-xs cursor-pointer"
+      >
         <img 
           src="/logo.png" 
           alt="Next IT Point Logo" 
-          className="h-9 w-auto object-contain"
+          className="h-8 w-auto object-contain"
         />
-      </Link>
+      </a>
 
       {/* Navigation */}
       {user && (
@@ -268,16 +290,16 @@ export default function Header() {
             <>
               <Link
                 href="/admin"
-                className={`hover:text-brand-navy transition-colors pb-1 ${
-                  pathname.startsWith('/admin') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                className={`transition-colors pb-1 ${
+                  pathname.startsWith('/admin') ? 'text-white border-b-2 border-white' : 'text-white/70 hover:text-white'
                 }`}
               >
                 HR Panel
               </Link>
               <Link
                 href="/tl"
-                className={`hover:text-brand-navy transition-colors pb-1 ${
-                  pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                className={`transition-colors pb-1 ${
+                  pathname.startsWith('/tl') ? 'text-white border-b-2 border-white' : 'text-white/70 hover:text-white'
                 }`}
               >
                 TL Board
@@ -289,16 +311,16 @@ export default function Header() {
             <>
               <Link
                 href="/employee"
-                className={`hover:text-brand-navy transition-colors pb-1 ${
-                  pathname.startsWith('/employee') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                className={`transition-colors pb-1 ${
+                  pathname.startsWith('/employee') ? 'text-white border-b-2 border-white' : 'text-white/70 hover:text-white'
                 }`}
               >
                 My Portal
               </Link>
               <Link
                 href="/tl"
-                className={`hover:text-brand-navy transition-colors pb-1 ${
-                  pathname.startsWith('/tl') ? 'text-brand-navy border-b-2 border-brand-navy' : 'text-brand-navy/70 hover:text-brand-navy'
+                className={`transition-colors pb-1 ${
+                  pathname.startsWith('/tl') ? 'text-white border-b-2 border-white' : 'text-white/70 hover:text-white'
                 }`}
               >
                 Team Leader Board
@@ -309,17 +331,17 @@ export default function Header() {
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 mr-4 md:mr-6">
         {user ? (
           <>
             {/* Notification Bell */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                className={`relative p-2 text-brand-navy/70 hover:text-brand-navy hover:bg-slate-100 rounded-lg transition-colors cursor-pointer outline-none border border-slate-200 ${unreadCount > 0 ? 'notif-pulse' : ''}`}
+                className={`relative p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer outline-none border border-white/15 ${unreadCount > 0 ? 'notif-pulse' : ''}`}
                 aria-label="Notifications"
               >
-                <Bell className="w-4 h-4" />
+                <Bell className="w-5 h-5 text-white" />
                 {unreadCount > 0 && (
                   <span className="absolute top-1 right-1 min-w-[14px] h-[14px] bg-brand-red text-white text-[8px] font-extrabold flex items-center justify-center rounded-full px-0.5">
                     {unreadCount}
@@ -348,7 +370,7 @@ export default function Header() {
                     ) : (
                       notifications.map((n) => (
                         <div 
-                          key={n.id} 
+                           key={n.id} 
                           className={`p-3 text-left transition-colors flex flex-col gap-1 relative ${!n.read ? 'bg-blue-50/40' : ''}`}
                         >
                           <div className="flex items-start justify-between gap-1.5">
@@ -372,16 +394,16 @@ export default function Header() {
               )}
             </div>
 
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100 cursor-pointer outline-none text-left"
+                className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-white/10 transition-colors border border-transparent hover:border-white/10 cursor-pointer outline-none text-left"
               >
                 <div className="flex flex-col text-right items-end hidden sm:flex">
-                  <span className="text-xs font-bold text-brand-navy flex items-center gap-1">
+                  <span className="text-sm font-bold text-white flex items-center gap-1">
                     {formatEmployeeName(user.name)}
                   </span>
-                  <span className={`text-[9px] font-extrabold tracking-wide px-2 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
+                  <span className={`text-[10px] font-extrabold tracking-wide px-2.5 py-0.5 rounded-full mt-0.5 ${getRoleBadge(user.role)}`}>
                     {user.id.length > 15 ? 'NITP00021' : user.id}
                   </span>
                 </div>
@@ -389,11 +411,11 @@ export default function Header() {
                   <img 
                     src={profileImage} 
                     alt={user.name} 
-                    className="w-8 h-8 rounded-full object-cover border border-slate-200"
+                    className="w-[36px] h-[36px] rounded-full object-cover border-2 border-white/60"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center border border-slate-200 text-brand-navy/80">
-                    <UserIcon className="w-4 h-4" />
+                  <div className="w-[36px] h-[36px] rounded-full bg-white/20 flex items-center justify-center border border-white/30 text-white">
+                    <UserIcon className="w-5 h-5 text-white" />
                   </div>
                 )}
               </button>
@@ -424,7 +446,7 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setIsProfileDropdownOpen(false);
-                      handleLogout();
+                      setIsLogoutConfirmOpen(true);
                     }}
                     className="w-full text-left px-4 py-2.5 text-xs font-bold hover:bg-red-50 text-brand-red flex items-center gap-2 cursor-pointer"
                   >
@@ -507,6 +529,39 @@ export default function Header() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isLogoutConfirmOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-gray-200 space-y-4 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-brand-red mx-auto shadow-xs">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-extrabold text-brand-navy uppercase tracking-wider">Confirm Logout</h3>
+              <p className="text-xs text-gray-500 font-semibold leading-relaxed">Are you sure you want to log out of your session?</p>
+            </div>
+            <div className="flex gap-3 justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => setIsLogoutConfirmOpen(false)}
+                className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs w-24"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsLogoutConfirmOpen(false);
+                  handleLogout();
+                }}
+                className="bg-brand-red hover:bg-red-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md w-24"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       )}

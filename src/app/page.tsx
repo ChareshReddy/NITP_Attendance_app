@@ -60,7 +60,7 @@ export default function Home() {
       if (role === 'HR_ADMIN') {
         router.push('/admin');
       } else if (role === 'TL') {
-        router.push('/tl');
+        router.push('/employee');
       } else if (role === 'EMPLOYEE') {
         router.push('/employee');
       } else {

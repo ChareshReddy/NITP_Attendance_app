@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { 
   Clock, 
@@ -25,7 +26,10 @@ import {
   GraduationCap,
   LogOut,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  ArrowRight,
+  UserMinus,
+  ExternalLink
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -172,6 +176,7 @@ interface TrackSheet {
   status: string;
   notes: string | null;
   assignedByName: string | null;
+  referenceLink?: string | null;
 }
 
 interface EmployeeProfile {
@@ -214,11 +219,15 @@ interface EmployeeProfile {
   pfNumber?: string | null;
   bloodGroup?: string | null;
   timezone?: string | null;
+  workLocationStatus?: string | null;
   user?: {
     id: string;
     name: string;
     email: string;
     role: string;
+    manager?: {
+      name: string;
+    } | null;
   };
 }
 
@@ -301,13 +310,23 @@ interface Notification {
 }
 
 export default function EmployeeDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-500 font-semibold font-mono">Loading portal...</div>}>
+      <EmployeeDashboardContent />
+    </Suspense>
+  );
+}
+
+function EmployeeDashboardContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Session & States
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [holidays, setHolidays] = useState<any[]>([]);
   const [timeStr, setTimeStr] = useState('');
   const [greeting, setGreeting] = useState('');
-  const [isLogExpanded, setIsLogExpanded] = useState(false);
+
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
 
   useEffect(() => {
     const updateTime = () => {
@@ -324,19 +343,20 @@ export default function EmployeeDashboard() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get('tab');
-      if (tab && ['dashboard', 'tasks', 'tracksheets', 'profile', 'leaves', 'payroll', 'trainings', 'history', 'resignation'].includes(tab)) {
-        setActiveTab(tab as any);
-      }
+    if (tabParam && ['dashboard', 'tasks', 'tracksheets', 'profile', 'leaves', 'payroll', 'trainings', 'history', 'resignation'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
     }
-  }, []);
+  }, [tabParam]);
 
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [stats, setStats] = useState({ present: 0, late: 0, absent: 0, leave: 0 });
   
   const [trackSheets, setTrackSheets] = useState<TrackSheet[]>([]);
+  const [filterTrackDate, setFilterTrackDate] = useState('');
+  const [filterTrackHours, setFilterTrackHours] = useState('');
+  const [filterTrackStatus, setFilterTrackStatus] = useState('');
+  const [filterTrackSearch, setFilterTrackSearch] = useState('');
+  const [expandedSheets, setExpandedSheets] = useState<Record<string, boolean>>({});
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -349,6 +369,14 @@ export default function EmployeeDashboard() {
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
   const [submittingLeave, setSubmittingLeave] = useState(false);
+  const [activeLeaveFormTab, setActiveLeaveFormTab] = useState<'leave' | 'regularisation'>('leave');
+  const [activeTrackSheetTab, setActiveTrackSheetTab] = useState<'log' | 'fill'>('fill');
+  const [openLeaveHistorySections, setOpenLeaveHistorySections] = useState({
+    leaveHistory: true,
+    regularisationHistory: false,
+  });
+  const [openLeaveBalances, setOpenLeaveBalances] = useState(false);
+  const [openHolidays, setOpenHolidays] = useState(false);
 
   // Performance Score States
   const [performanceScore, setPerformanceScore] = useState<any>(null);
@@ -404,7 +432,10 @@ export default function EmployeeDashboard() {
     bloodGroup: '',
     timezone: 'Asia/Kolkata',
     profileImage: '',
+    gender: '',
+    nationality: '',
   });
+  const [isSameAddress, setIsSameAddress] = useState(false);
   const [myPayrollRuns, setMyPayrollRuns] = useState<PayrollRun[]>([]);
   const [myTrainings, setMyTrainings] = useState<TrainingAssignment[]>([]);
 
@@ -415,7 +446,8 @@ export default function EmployeeDashboard() {
     hours: string;
     notes: string;
     assignedByName: string;
-  }>>([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }]);
+    referenceLink: string;
+  }>>([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }]);
 
   // Status handlers
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -501,7 +533,7 @@ export default function EmployeeDashboard() {
       }
 
       // 5. Fetch Leave requests
-      const leaveRes = await fetch('/api/leave-requests');
+      const leaveRes = await fetch('/api/leave-requests?userId=self');
       if (leaveRes.ok) {
         const leaveData = await leaveRes.json();
         setLeaveRequests(leaveData.requests || []);
@@ -523,6 +555,9 @@ export default function EmployeeDashboard() {
         const profileData = await profileRes.json();
         if (profileData.profile) {
           setEmployeeProfile(profileData.profile);
+          const sameAddr = !!profileData.profile.currentAddress && 
+                           profileData.profile.currentAddress === profileData.profile.permanentAddress;
+          setIsSameAddress(sameAddr);
           setProfileForm({
             mobileNumber: profileData.profile.mobileNumber || '',
             personalEmail: profileData.profile.personalEmail || '',
@@ -535,6 +570,8 @@ export default function EmployeeDashboard() {
             bloodGroup: profileData.profile.bloodGroup || '',
             timezone: profileData.profile.timezone || 'Asia/Kolkata',
             profileImage: profileData.profile.profileImage || '',
+            gender: profileData.profile.gender || '',
+            nationality: profileData.profile.nationality || '',
           });
         }
       }
@@ -625,6 +662,20 @@ export default function EmployeeDashboard() {
     setSuccessMsg('');
 
     try {
+      // Client-side URL validation if reference link is filled
+      for (const item of logItems) {
+        if (item.referenceLink) {
+          try {
+            const tempUrl = item.referenceLink.startsWith('http://') || item.referenceLink.startsWith('https://') 
+              ? item.referenceLink 
+              : `https://${item.referenceLink}`;
+            new URL(tempUrl);
+          } catch (_) {
+            throw new Error('Please enter a valid Reference Link URL.');
+          }
+        }
+      }
+
       const todayStr = new Date().toISOString().split('T')[0];
       const payload = logItems.map(item => ({
         ...item,
@@ -641,7 +692,7 @@ export default function EmployeeDashboard() {
       if (!res.ok) throw new Error(data.error || 'Failed to log hours');
 
       setSuccessMsg('Track sheet entries created successfully!');
-      setLogItems([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }]);
+      setLogItems([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }]);
       fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error saving track sheet');
@@ -1066,6 +1117,19 @@ export default function EmployeeDashboard() {
     return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isCheckInLate = (isoString: string | null) => {
+    if (!isoString) return false;
+    try {
+      const date = new Date(isoString);
+      const options = { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false } as const;
+      const timeStr = new Intl.DateTimeFormat('en-US', options).format(date);
+      const [hour, minute] = timeStr.split(':').map(Number);
+      return hour > 9 || (hour === 9 && minute > 30);
+    } catch (e) {
+      return false;
+    }
+  };
+
   const employeeNavItems: {
     id: 'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'trainings' | 'history' | 'resignation';
     label: string;
@@ -1179,7 +1243,7 @@ export default function EmployeeDashboard() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-8 w-full max-w-7xl mx-auto pb-12">
+        <main className="flex-1 p-4 md:pt-4 md:px-8 md:pb-12 w-full max-w-7xl mx-auto">
 
         {/* Tab Content Panels */}
         <div className="flex-1 space-y-6">
@@ -1226,41 +1290,41 @@ export default function EmployeeDashboard() {
               className="space-y-6"
             >
               {/* Top Row: Hero and Performance */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Daily Shift Logging Card (Hero Card - Spans 2 Columns) */}
                 <motion.div 
                   variants={cardVariants}
-                  className="premium-card card-accent-blue p-4 relative overflow-hidden lg:col-span-2 flex flex-col justify-between min-h-[200px]"
+                  className="premium-card p-6 relative overflow-hidden lg:col-span-2 flex flex-col justify-between min-h-[285px]"
                 >
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2 mb-3 pb-3 border-b border-gray-150/40">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-gray-150/40">
                     <div>
-                      <h2 className="text-xl font-extrabold text-brand-navy font-heading tracking-tight">
+                      <h2 className="text-2xl font-extrabold text-brand-navy font-heading tracking-tight">
                         {greeting}, {employeeProfile?.user?.name || 'Member'}!
                       </h2>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
+                      <p className="text-xs text-gray-500 mt-1">
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 bg-brand-navy/5 px-3 py-1.5 rounded-2xl border border-brand-navy/10">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span className="font-mono text-xs font-extrabold text-brand-navy tracking-wider">
+                    <div className="flex items-center gap-2.5 bg-brand-navy/5 px-4 py-2 rounded-2xl border border-brand-navy/10">
+                      <Clock className="w-4 h-4 text-brand-navy animate-pulse" />
+                      <span className="font-mono text-sm font-extrabold text-brand-navy tracking-wider">
                         {timeStr || '--:--:--'}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                    <div className="bg-slate-50/75 p-2 rounded-2xl border border-slate-200/50 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-                        <Clock className="w-4 h-4" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div className="bg-slate-100 p-3 rounded-2xl border border-slate-200 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+                        <Clock className="w-4.5 h-4.5" />
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-400 font-bold tracking-wider">Check In Time</p>
-                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check In Time</p>
+                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
                           {todayRecord ? formatTime(todayRecord.checkInTime) : '--:--'}
                         </p>
                         {todayRecord && (
-                          <span className={`inline-block mt-0.5 text-[7px] font-extrabold px-1 py-0.25 rounded-md border ${
+                          <span className={`inline-block mt-0.5 text-[8px] font-extrabold px-1.5 py-0.25 rounded-md uppercase border ${
                             todayRecord.status.includes('LATE') ? 'bg-red-50 text-brand-red border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
                           }`}>
                             {formatToTitleCase(todayRecord.status)}
@@ -1269,31 +1333,31 @@ export default function EmployeeDashboard() {
                       </div>
                     </div>
 
-                    <div className="bg-slate-50/75 p-2 rounded-2xl border border-slate-200/50 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
-                        <Clock className="w-4 h-4" />
+                    <div className="bg-slate-100 p-3 rounded-2xl border border-slate-200 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
+                        <Clock className="w-4.5 h-4.5" />
                       </div>
                       <div>
-                        <p className="text-[9px] text-gray-400 font-bold tracking-wider">Check Out Time</p>
-                        <p className="text-xs font-extrabold text-brand-navy mt-0.5">
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Check Out Time</p>
+                        <p className="text-sm font-extrabold text-brand-navy mt-0.5">
                           {todayRecord && todayRecord.checkOutTime ? formatTime(todayRecord.checkOutTime) : '--:--'}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="w-full space-y-2">
+                  <div className="w-full space-y-3">
                     {todayRecord && todayRecord.checkOutTime ? (
-                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-2 px-3 rounded-xl text-[11px] border border-emerald-200/50 tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-emerald-200/50 uppercase tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
+                        <Check className="w-4 h-4 text-emerald-600" />
                         Shift Completed
                       </div>
                     ) : (
-                      <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={handleCheckIn}
                           disabled={loadingAttendance || !!todayRecord}
-                          className={`flex-1 font-bold py-2 px-3 rounded-xl transition-all text-[11px] text-center tracking-wider flex items-center justify-center gap-2 ${
+                          className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
                             (!todayRecord && !loadingAttendance)
                               ? 'bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white cursor-pointer btn-premium'
                               : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
@@ -1306,7 +1370,7 @@ export default function EmployeeDashboard() {
                         <button
                           onClick={handleCheckOut}
                           disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
-                          className={`flex-1 font-bold py-2 px-3 rounded-xl transition-all text-[11px] text-center tracking-wider flex items-center justify-center gap-2 ${
+                          className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
                             (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
                               ? 'bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white cursor-pointer btn-premium'
                               : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
@@ -1323,7 +1387,7 @@ export default function EmployeeDashboard() {
                 {/* Right Column: Performance Health Gauge Card */}
                 <motion.div 
                   variants={cardVariants}
-                  className="premium-card p-4 lg:col-span-1 transition-all duration-300 flex flex-col justify-between min-h-[200px] relative overflow-hidden"
+                  className="premium-card p-6 lg:col-span-1 transition-all duration-300 flex flex-col justify-between min-h-[285px] relative overflow-hidden"
                 >
                   {/* Subtle soft brand-color glow ring behind it */}
                   <div className="glow-ring-soft w-48 h-48 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 bg-blue-400/20 blur-3xl rounded-full" />
@@ -1344,7 +1408,7 @@ export default function EmployeeDashboard() {
                             Performance
                           </h3>
                           {performanceScore && (
-                            <span className={`px-2 py-0.5 text-[9px] font-extrabold rounded-full border shadow-xs ${
+                            <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-full border shadow-xs ${
                               displayRating === 'BLUE' ? 'bg-blue-50 text-blue-700 border-blue-200/60' :
                               displayRating === 'GREEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60' :
                               displayRating === 'YELLOW' ? 'bg-amber-50 text-amber-700 border-amber-200/60' :
@@ -1359,7 +1423,7 @@ export default function EmployeeDashboard() {
                         </div>
                         <div className="flex justify-center flex-1 items-center pt-2 z-10">
                           {performanceScore ? (
-                            <Speedometer score={displayScore} rating={displayRating} size={240} />
+                            <Speedometer score={displayScore} rating={displayRating} size={440} />
                           ) : (
                             <p className="text-xs text-gray-400">No score logged.</p>
                           )}
@@ -1370,214 +1434,120 @@ export default function EmployeeDashboard() {
                 </motion.div>
               </div>
 
-              {/* Middle Row: Horizontal Stat-Strip */}
+              {/* Middle Row: Horizontal Stat-Strip & Navigation to History */}
               <motion.div 
                 variants={cardVariants}
-                className="premium-card p-3 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-250/40"
+                className="premium-card p-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-gray-250/40"
               >
-                {/* Presents Stat */}
-                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
-                    <TrendingUp className="w-4 h-4" />
+                  {/* Presents Stat */}
+                  <div className="flex items-center gap-5 justify-center py-2 md:py-0 md:px-8">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                      <TrendingUp className="w-6 h-6" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-3xl font-extrabold font-mono text-brand-navy leading-none">
+                        <CountUp value={stats.present} />
+                      </span>
+                      <span className="text-[11px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Presents</span>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <span className="block text-lg font-extrabold font-mono text-brand-navy leading-none">
-                      <CountUp value={stats.present} />
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Presents</span>
-                  </div>
-                </div>
 
-                {/* Lates Stat */}
-                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
-                  <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
-                    <TrendingUp className="w-4 h-4 rotate-90" />
+                  {/* Lates Stat */}
+                  <div className="flex items-center gap-5 justify-center py-2 md:py-0 md:px-8">
+                    <div className="w-12 h-12 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
+                      <TrendingUp className="w-6 h-6 rotate-90" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-3xl font-extrabold font-mono text-brand-red leading-none">
+                        <CountUp value={stats.late} />
+                      </span>
+                      <span className="text-[11px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Lates</span>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <span className="block text-lg font-extrabold font-mono text-brand-red leading-none">
-                      <CountUp value={stats.late} />
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Lates</span>
-                  </div>
-                </div>
 
-                {/* Leaves Stat */}
-                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
-                  <div className="w-8 h-8 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0 shadow-xs">
-                    <Calendar className="w-4 h-4" />
+                  {/* Leaves Stat */}
+                  <div className="flex items-center gap-5 justify-center py-2 md:py-0 md:px-8">
+                    <div className="w-12 h-12 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0 shadow-xs">
+                      <Calendar className="w-6 h-6" />
+                    </div>
+                    <div className="text-left">
+                      <span className="block text-3xl font-extrabold font-mono text-brand-maroon leading-none">
+                        <CountUp value={stats.leave} />
+                      </span>
+                      <span className="text-[11px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Leaves</span>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <span className="block text-lg font-extrabold font-mono text-brand-maroon leading-none">
-                      <CountUp value={stats.leave} />
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Leaves</span>
-                  </div>
-                </div>
 
-                {/* Avg Hours Stat */}
-                <div className="flex items-center gap-2 justify-center py-1 md:py-0 md:px-4">
-                  <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <span className="block text-lg font-extrabold font-mono text-brand-navy leading-none">
-                      {(() => {
-                        const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
-                        const monthlyTrack = trackSheets.filter(t => t.date.startsWith(currentMonthPrefix));
-                        const val = monthlyTrack.length > 0 
-                          ? Number((monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1))
-                          : 0.0;
-                        return <CountUpFloat value={val} />;
-                      })()}
-                      <span className="text-xs font-semibold">h</span>
-                    </span>
-                    <span className="text-[9px] font-bold text-gray-400 mt-0.5 block uppercase tracking-wider">Avg Hours</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Bottom Row: Collapsible Daily Work Hours form */}
-              <motion.div 
-                variants={cardVariants}
-                className="premium-card p-4 transition-all duration-300"
-              >
-                <button
-                  onClick={() => setIsLogExpanded(!isLogExpanded)}
-                  className="w-full flex justify-between items-center outline-none cursor-pointer"
-                >
-                  <h3 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-brand-cta" />
-                    Log Daily Work Hours
-                  </h3>
-                  <span className="text-xs font-bold text-brand-cta hover:underline">
-                    {isLogExpanded ? 'Collapse Form' : 'Expand Form'}
-                  </span>
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {isLogExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1, marginTop: 12 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.25, ease: "easeInOut" }}
-                      className="overflow-hidden"
+                  {/* Avg Hours Stat */}
+                  <div className="flex items-center justify-between py-2 md:py-0 md:pl-8 md:pr-4">
+                    <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                        <Clock className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <span className="flex items-baseline gap-0.5 text-3xl font-extrabold font-mono text-brand-navy leading-none">
+                          <span>
+                            {(() => {
+                              const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
+                              const monthlyTrack = trackSheets.filter(t => t.date.startsWith(currentMonthPrefix));
+                              const val = monthlyTrack.length > 0 
+                                ? Number((monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1))
+                                : 0.0;
+                              return <CountUpFloat value={val} />;
+                            })()}
+                          </span>
+                          <span className="text-sm font-semibold text-brand-navy">h</span>
+                        </span>
+                        <span className="text-[11px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Avg Hours</span>
+                      </div>
+                    </div>
+                    {/* Interactive Arrow Button inside the card with shadow */}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('history')}
+                      className="w-10 h-10 rounded-xl bg-white border border-gray-200/60 shadow-xs flex items-center justify-center text-brand-navy hover:text-brand-cta cursor-pointer transition-all hover:scale-105 active:scale-95 group shrink-0 ml-4 hover:shadow-md"
+                      title="View Attendance History"
                     >
-                      <form onSubmit={handleSubmitTrackSheet} className="space-y-3 pt-1">
-                        {logItems.map((item, index) => (
-                          <div key={index} className="p-3 bg-slate-50/50 border border-slate-200/60 rounded-xl space-y-2 relative mb-3">
-                            {logItems.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => setLogItems(logItems.filter((_, i) => i !== index))}
-                                className="absolute top-2 right-2 text-brand-red hover:text-red-700 cursor-pointer"
-                                title="Remove Task Row"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={item.project}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].project = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  placeholder="e.g. API Integration"
-                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours Worked</label>
-                                <input
-                                  type="number"
-                                  step="0.5"
-                                  min="0.5"
-                                  max="24"
-                                  required
-                                  value={item.hours}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].hours = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Assigned By</label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={item.assignedByName}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].assignedByName = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  placeholder="e.g. TL Likith"
-                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={item.taskDescription}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].taskDescription = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  placeholder="Explain task details..."
-                                  className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                      <ArrowRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                </motion.div>
 
-                        <div className="flex justify-end gap-2 items-center">
-                          <button
-                            type="button"
-                            onClick={() => setLogItems([...logItems, { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '' }])}
-                            className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
-                          >
-                            <Plus className="w-3 h-3" />
-                            Add Row
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={submittingTrack}
-                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-sm"
-                          >
-                            {submittingTrack ? 'Saving...' : 'Submit logs'}
-                          </button>
-                        </div>
-                      </form>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+              {/* Fill sheet navigation button */}
+              <div className="flex justify-center mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('tracksheets');
+                    setActiveTrackSheetTab('fill');
+                  }}
+                  className="flex items-center gap-2 px-8 py-3 rounded-full bg-brand-cta text-white font-extrabold uppercase tracking-wider text-xs shadow-md transition-all hover:bg-blue-700 hover:scale-105 cursor-pointer"
+                >
+                  <ArrowRight className="w-4.5 h-4.5" />
+                  Fill sheet
+                </button>
+              </div>
+
+
             </motion.div>
           )}
 
           {/* TAB 1.1: My Tasks Page */}
           {activeTab === 'tasks' && (
-            <div className="premium-card p-6 space-y-6">
-              <div className="border-b border-gray-100 pb-4">
-                <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-brand-cta" />
+            <div className="premium-card p-0 overflow-hidden space-y-0">
+              {/* Header Title strip with Navy Blue background */}
+              <div className="bg-brand-navy px-5 py-3 text-white">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <CheckSquare className="w-4.5 h-4.5 text-white" />
                   My Assigned Tasks
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">View and complete tasks assigned to you by your Team Leader.</p>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  View and complete tasks assigned to you by your Team Leader.
+                </p>
               </div>
+
+              {/* Card Body */}
+              <div className="p-6 space-y-6">
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-1">
                 {tasks.length === 0 ? (
@@ -1589,7 +1559,7 @@ export default function EmployeeDashboard() {
                   tasks.map((task) => (
                     <div 
                       key={task.id} 
-                      className="p-4 rounded-xl border border-gray-150 bg-gray-50/50 hover:bg-white hover:shadow-md hover:border-gray-250 transition-all flex flex-col justify-between min-h-[160px]"
+                      className="p-4 rounded-xl border border-slate-200 bg-slate-100 hover:bg-white hover:shadow-md hover:border-gray-250 transition-all flex flex-col justify-between min-h-[160px]"
                     >
                       <div>
                         <div className="flex justify-between items-start gap-2 mb-2">
@@ -1619,452 +1589,849 @@ export default function EmployeeDashboard() {
                 )}
               </div>
             </div>
+          </div>
           )}
 
           {/* TAB 1.2: My Track Sheets Page */}
           {activeTab === 'tracksheets' && (
-            <div className="premium-card p-6 space-y-6">
-              <div className="border-b border-gray-100 pb-4">
-                <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-brand-cta" />
-                  My Track Sheets Log
+            <div className="premium-card p-0 overflow-hidden space-y-0">
+              {/* Header Title strip with Navy Blue background */}
+              <div className="bg-brand-navy px-5 py-3 text-white">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-white" />
+                  My Track Sheets
                 </h3>
-                <p className="text-xs text-gray-500 mt-1">Review your submitted work hours logs and their current approval status.</p>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  {activeTrackSheetTab === 'log'
+                    ? 'Review your submitted work hours logs and their current approval status.'
+                    : 'Log your daily work hours and task details.'}
+                </p>
               </div>
 
-              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                <table className="w-full table-fixed text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                      <th className="py-3 px-2 w-[100px] bg-transparent">Date</th>
-                      <th className="py-3 px-2 w-[160px] bg-transparent">Task / Project</th>
-                      <th className="py-3 px-2 w-[120px] bg-transparent">Assigned By</th>
-                      <th className="py-3 px-2 bg-transparent">Description</th>
-                      <th className="py-3 px-2 text-center w-[80px] bg-transparent">Hours</th>
-                      <th className="py-3 px-2 text-center w-[100px] bg-transparent">Status</th>
-                      <th className="py-3 px-2 text-center w-[80px] bg-transparent">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {trackSheets.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-12 text-gray-400">
-                          <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                          No work logged yet. Use the Dashboard form to log work hours.
-                        </td>
-                      </tr>
-                    ) : (
-                      trackSheets.map((item) => (
-                        <tr 
-                          key={item.id} 
-                          className="hover:bg-gray-50/50 cursor-pointer"
-                          onClick={() => setSelectedTrackSheet(item)}
-                        >
-                          <td className="py-3 px-2 font-semibold text-brand-navy truncate">{formatDateToIndian(item.date)}</td>
-                          <td className="py-3 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
-                          <td className="py-3 px-2 text-brand-navy font-medium truncate" title={item.assignedByName || 'N/A'}>
-                            {formatEmployeeName(item.assignedByName)}
-                          </td>
-                          <td className="py-3 px-2 text-gray-500 break-words whitespace-normal leading-normal">{item.taskDescription}</td>
-                          <td className="py-3 px-2 text-center font-extrabold text-brand-navy">{item.hours}h</td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
-                              item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
-                              item.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
-                              'bg-amber-100 text-amber-800 border-amber-250'
-                            }`}>
-                              {item.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            {item.status === 'PENDING' ? (
+              {/* Card Body */}
+              <div className="p-6 space-y-6">
+                {/* Tab Switch Headers (placed below the header) */}
+                <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-2xs w-full max-w-lg mx-auto">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTrackSheetTab('fill')}
+                    className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                      activeTrackSheetTab === 'fill'
+                        ? 'bg-brand-navy text-white'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Track sheet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTrackSheetTab('log')}
+                    className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                      activeTrackSheetTab === 'log'
+                        ? 'bg-brand-navy text-white'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    Sheets History
+                  </button>
+                </div>
+
+                {/* TAB 1: Fill Track Sheet */}
+                {activeTrackSheetTab === 'fill' && (
+                  <div className="animate-in fade-in duration-200 max-w-lg mx-auto w-full text-left">
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                      {/* Name of the form section */}
+                      <div className="bg-slate-100 border-b border-slate-200 px-5 py-3">
+                        <h4 className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Daily Track Sheet Form</h4>
+                      </div>
+
+                      <form onSubmit={handleSubmitTrackSheet} className="p-5 space-y-4">
+                        {logItems.map((item, index) => (
+                          <div key={index} className="p-5 bg-slate-100 border border-slate-250/85 rounded-xl space-y-4 relative mb-4">
+                            {logItems.length > 1 && (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteTrackSheet(item.id);
-                                }}
-                                className="text-brand-red hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-all cursor-pointer inline-flex items-center justify-center border border-transparent hover:border-red-100"
-                                title="Delete Log"
+                                type="button"
+                                onClick={() => setLogItems(logItems.filter((_, i) => i !== index))}
+                                className="absolute top-3 right-3 text-brand-red hover:text-red-700 cursor-pointer p-1 rounded-lg hover:bg-red-200/50 transition-colors"
+                                title="Remove Task Row"
                               >
-                                <Trash2 className="w-3.5 h-3.5 inline" />
+                                <X className="w-4 h-4" />
                               </button>
-                            ) : '-'}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                            )}
+                            
+                            {/* Row 1: Task / Project */}
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
+                              <input
+                                type="text"
+                                required
+                                value={item.project}
+                                onChange={(e) => {
+                                  const updated = [...logItems];
+                                  updated[index].project = e.target.value;
+                                  setLogItems(updated);
+                                }}
+                                placeholder="e.g. API Integration"
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                              />
+                            </div>
+
+                            {/* Row 2: Hours and Assigned By Side by Side */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours</label>
+                                <input
+                                  type="number"
+                                  step="0.5"
+                                  min="0.5"
+                                  max="24"
+                                  required
+                                  value={item.hours}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].hours = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Assigned By</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.assignedByName}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].assignedByName = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="e.g. TL Likith"
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Row 3: Task Description */}
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                              <textarea
+                                rows={3}
+                                required
+                                value={item.taskDescription}
+                                onChange={(e) => {
+                                  const updated = [...logItems];
+                                  updated[index].taskDescription = e.target.value;
+                                  setLogItems(updated);
+                                }}
+                                placeholder="Explain task details..."
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white resize-y min-h-[60px]"
+                              />
+                            </div>
+
+                            {/* Row 4: Work Link (optional) */}
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Work Link (optional)</label>
+                              <input
+                                type="text"
+                                value={item.referenceLink}
+                                onChange={(e) => {
+                                  const updated = [...logItems];
+                                  updated[index].referenceLink = e.target.value;
+                                  setLogItems(updated);
+                                }}
+                                placeholder="e.g. https://github.com/myorg/repo/pull/1"
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                              />
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Action buttons */}
+                        <div className="flex justify-end gap-3 items-center pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setLogItems([...logItems, { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }])}
+                            className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Row
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingTrack}
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-md"
+                          >
+                            {submittingTrack ? 'Saving...' : 'Submit logs'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: Track Sheets Log */}
+                {activeTrackSheetTab === 'log' && (
+                  <div className="space-y-6 animate-in fade-in duration-200">
+                    {/* Filters Bar */}
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
+                      {/* Date Filter */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Date</label>
+                        <input
+                          type="date"
+                          value={filterTrackDate}
+                          onChange={(e) => setFilterTrackDate(e.target.value)}
+                          className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                        />
+                      </div>
+
+                      {/* Search Text Box */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Search Description / Assigned By</label>
+                        <input
+                          type="text"
+                          placeholder="Type to search..."
+                          value={filterTrackSearch}
+                          onChange={(e) => setFilterTrackSearch(e.target.value)}
+                          className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                        />
+                      </div>
+
+                      {/* Hours Filter */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Hours</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0.5"
+                          placeholder="e.g. 8"
+                          value={filterTrackHours}
+                          onChange={(e) => setFilterTrackHours(e.target.value)}
+                          className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                        />
+                      </div>
+
+                      {/* Status Filter */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Status</label>
+                        <select
+                          value={filterTrackStatus}
+                          onChange={(e) => setFilterTrackStatus(e.target.value)}
+                          className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white cursor-pointer"
+                        >
+                          <option value="">All Status</option>
+                          <option value="PENDING">Pending</option>
+                          <option value="APPROVED">Approved</option>
+                          <option value="REJECTED">Rejected</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                      <table className="w-full table-fixed text-left text-xs relative border-collapse">
+                        <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                          <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                            <th className="py-3 px-2 w-[14%] bg-transparent">Date</th>
+                            <th className="py-3 px-2 w-[22%] bg-transparent">Task / Project</th>
+                            <th className="py-3 px-2 w-[18%] bg-transparent">Assigned By</th>
+                            <th className="py-3 px-2 w-[16%] bg-transparent">Work Link</th>
+                            <th className="py-3 px-2 w-[14%] bg-transparent">Hours</th>
+                            <th className="py-3 px-2 w-[12%] bg-transparent">Status</th>
+                            <th className="py-3 px-2 text-center w-[4%] bg-transparent"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {(() => {
+                            const filteredTrackSheets = trackSheets.filter((item) => {
+                              // Date filter
+                              if (filterTrackDate) {
+                                if (item.date !== filterTrackDate) {
+                                  return false;
+                                }
+                              }
+                              
+                              // Hours filter
+                              if (filterTrackHours) {
+                                if (item.hours !== parseFloat(filterTrackHours)) {
+                                  return false;
+                                }
+                              }
+                              
+                              // Status filter
+                              if (filterTrackStatus) {
+                                if (item.status !== filterTrackStatus) {
+                                  return false;
+                                }
+                              }
+                              
+                              // Search filter (assignedByName or taskDescription)
+                              if (filterTrackSearch) {
+                                const query = filterTrackSearch.toLowerCase();
+                                const assigned = (item.assignedByName || '').toLowerCase();
+                                const taskDesc = (item.taskDescription || '').toLowerCase();
+                                const project = (item.project || '').toLowerCase();
+                                if (!assigned.includes(query) && !taskDesc.includes(query) && !project.includes(query)) {
+                                  return false;
+                                }
+                              }
+                              
+                              return true;
+                            });
+
+                            if (filteredTrackSheets.length === 0) {
+                              return (
+                                <tr>
+                                  <td colSpan={7} className="text-center py-12 text-gray-400">
+                                    <History className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                    {trackSheets.length === 0 
+                                      ? "No work logged yet. Use the Log Work Hours tab to log work hours."
+                                      : "No work logs match your filter criteria."
+                                    }
+                                  </td>
+                                </tr>
+                              );
+                            }
+
+                            return filteredTrackSheets.map((item) => {
+                              const isExpanded = !!expandedSheets[item.id];
+                              return (
+                                <React.Fragment key={item.id}>
+                                  <tr 
+                                    className={`hover:bg-gray-50/50 cursor-pointer transition-colors ${
+                                      isExpanded ? 'bg-slate-50/40' : ''
+                                    }`}
+                                    onClick={() => setExpandedSheets(prev => ({ ...prev, [item.id]: !prev[item.id] }))}
+                                  >
+                                    <td className="py-3 px-2 font-semibold text-brand-navy truncate">{formatDateToIndian(item.date)}</td>
+                                    <td className="py-3 px-2 font-semibold text-brand-navy break-words">{item.project}</td>
+                                    <td className="py-3 px-2 text-brand-navy font-medium truncate" title={item.assignedByName || 'N/A'}>
+                                      {formatEmployeeName(item.assignedByName)}
+                                    </td>
+                                    <td className="py-3 px-2">
+                                      {item.referenceLink ? (
+                                        <a
+                                          href={item.referenceLink.startsWith('http') ? item.referenceLink : `https://${item.referenceLink}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-brand-cta hover:underline font-bold"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          View
+                                        </a>
+                                      ) : (
+                                        <span className="text-gray-400 font-semibold">-</span>
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-2 font-extrabold text-brand-navy">{item.hours}h</td>
+                                    <td className="py-3 px-2">
+                                      <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                        item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                        item.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                        'bg-amber-100 text-amber-800 border-amber-250'
+                                      }`}>
+                                        {item.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2 text-center">
+                                      <ChevronDown className={`w-4 h-4 text-gray-400 mx-auto transition-transform duration-200 ${
+                                        isExpanded ? 'rotate-180 text-brand-cta' : ''
+                                      }`} />
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td colSpan={7} className="p-0 border-t-0 bg-transparent">
+                                      <AnimatePresence initial={false}>
+                                        {isExpanded && (
+                                          <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.18, ease: 'easeInOut' }}
+                                            className="overflow-hidden"
+                                          >
+                                            <div className="px-6 py-4 bg-slate-50/60 rounded-xl m-2 border border-slate-100/50 text-xs text-brand-navy space-y-3">
+                                              <div>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Task Description</p>
+                                                <p className="text-gray-600 mt-0.5 whitespace-pre-wrap leading-relaxed">{item.taskDescription}</p>
+                                              </div>
+                                              {item.status === 'PENDING' && (
+                                                <div className="pt-2 flex items-center gap-3 border-t border-slate-200/40">
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      handleDeleteTrackSheet(item.id);
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-brand-red/20 text-brand-red bg-red-50/50 hover:bg-red-50 hover:text-red-700 text-xs font-bold transition-all cursor-pointer"
+                                                    title="Delete Log"
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    Delete Log
+                                                  </button>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    </td>
+                                  </tr>
+                                </React.Fragment>
+                              );
+                            });
+                          })()}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {/* TAB 2: My Profile */}
           {activeTab === 'profile' && employeeProfile && (
-            <div className="space-y-6">
-              <div className="premium-card p-0 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenProfileSections(prev => ({ ...prev, professional: !prev.professional }))}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                >
-                  <div>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">My Professional Profile</h2>
-                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Review your designation, department, and employment details set by HR.</p>
-                  </div>
-                  {openProfileSections.professional ? (
-                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                  )}
-                </button>
+            <div className="w-full space-y-6 max-w-5xl mx-auto">
+              {/* Profile Cards Block */}
+              <div className="space-y-6">
+                <div className="premium-card p-0 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOpenProfileSections(prev => ({ ...prev, professional: !prev.professional }))}
+                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                  >
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">My Professional Details</h2>
+                    </div>
+                    {openProfileSections.professional ? (
+                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                    )}
+                  </button>
 
-                {openProfileSections.professional && (
-                  <div className="p-6">
-                    <div className="flex flex-col md:flex-row items-center gap-8">
-                      {/* Left: 4-Column Fields Grid */}
-                      <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-4 gap-6">
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Employee ID</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">
-                            {employeeProfile.id.length > 15 ? 'NITP00021' : employeeProfile.id}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Department</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.department || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Designation</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.designation || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Date of Joining</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.dateOfJoining || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Employee Type</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.employeeType || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Work Shift</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.workShift || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Nationality</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.nationality || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Gender</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.gender || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Insurance Number</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.insuranceNumber || 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Expected End Date</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-bold text-gray-400">Increment / Perks</span>
-                          <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.incrementPerks || 'N/A'}</span>
-                        </div>
-                        <div>
-                          {/* Empty placeholder for grid balance */}
-                        </div>
-                      </div>
+                  {openProfileSections.professional && (
+                    <div className="p-6">
+                      <div className="flex flex-col md:flex-row gap-12 items-center md:items-start">
+                        {/* Left Column: Professional Details Grid (2 columns of tables) */}
+                        <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4 order-2 md:order-1">
+                          {/* Sub-table 1: Basic employment specs */}
+                          <table className="w-full text-left text-xs border-collapse">
+                            <tbody>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Employee ID</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">
+                                  {employeeProfile.id.length > 15 ? 'NITP00021' : employeeProfile.id}
+                                </td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Official Email</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2 break-all">
+                                  {employeeProfile.professionalEmail || employeeProfile.user?.email || 'N/A'}
+                                </td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Department</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.department || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Designation</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.designation || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Team Leader / Reporting Manager</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">
+                                  {employeeProfile.user?.manager?.name || 'N/A'}
+                                </td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Date of Joining</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.dateOfJoining || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100 last:border-b-0 lg:last:border-b-0">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Employee Type</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.employeeType || 'N/A'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
 
-                      {/* Right: Portrait Aspect Ratio Profile Photo (Centered Vertically) */}
-                      <div className="relative group shrink-0 self-center md:ml-4 flex flex-col items-center">
-                        {profileForm.profileImage ? (
-                          <img 
-                            src={profileForm.profileImage} 
-                            alt="Profile Picture" 
-                            className="w-28 h-36 rounded-xl object-cover border border-gray-250 shadow-sm"
-                          />
-                        ) : (
-                          <div className="w-28 h-36 rounded-xl bg-slate-100 border border-gray-250 flex items-center justify-center text-brand-navy/60 shadow-sm">
-                            <User className="w-12 h-12" />
+                          {/* Sub-table 2: Details & Identifications */}
+                          <table className="w-full text-left text-xs border-collapse">
+                            <tbody>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Shift</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workShift || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Location Status</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workLocationStatus || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Office Location / Branch</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.location || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">UAN Number</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.uan || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">PF Number</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.pfNumber || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Expected End Date</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100 last:border-b-0">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Increment / Perks</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.incrementPerks || 'N/A'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Right Column: Profile Photo & Name */}
+                        <div className="flex flex-col items-center shrink-0 w-44 order-1 md:order-2">
+                          <div className="relative group flex flex-col items-center">
+                            {profileForm.profileImage ? (
+                              <img 
+                                src={profileForm.profileImage} 
+                                alt="Profile Picture" 
+                                className="w-32 h-32 rounded-full object-cover border border-gray-250 shadow-sm"
+                              />
+                            ) : (
+                              <div className="w-32 h-32 rounded-full bg-slate-100 border border-gray-250 flex items-center justify-center text-brand-navy/60 shadow-sm">
+                                <User className="w-16 h-16" />
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-cta text-white hover:bg-blue-700 shadow-md border border-white cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
+                              title="Change Profile Picture"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                              </svg>
+                            </button>
+                            <input 
+                              type="file" 
+                              ref={fileInputRef}
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              className="hidden"
+                            />
+                            {uploadingImage && (
+                              <span className="absolute -bottom-5 text-[9px] text-center text-brand-cta font-bold whitespace-nowrap">
+                                Uploading...
+                              </span>
+                            )}
                           </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="absolute bottom-1.5 right-1.5 p-1.5 rounded-full bg-brand-cta text-white hover:bg-blue-700 shadow-md border border-white cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
-                          title="Change Profile Picture"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                          </svg>
-                        </button>
-                        <input 
-                          type="file" 
-                          ref={fileInputRef}
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          className="hidden"
-                        />
-                        {uploadingImage && (
-                          <span className="absolute -bottom-5 text-[9px] text-center text-brand-cta font-bold whitespace-nowrap">
-                            Uploading...
-                          </span>
-                        )}
+                          
+                          {/* Employee Name */}
+                          <h3 className="mt-4 text-base font-extrabold text-brand-navy font-heading text-center">
+                            {formatEmployeeName(employeeProfile?.user?.name)}
+                          </h3>
+                          {employeeProfile.designation && (
+                            <p className="text-xs text-gray-500 font-medium text-center mt-1">
+                              {employeeProfile.designation}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Editable Personal Contact Fields */}
-              <div className="premium-card p-0 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenProfileSections(prev => ({ ...prev, contact: !prev.contact }))}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                >
-                  <div>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Personal Contact Details</h2>
-                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Keep your contact information up-to-date.</p>
-                  </div>
-                  {openProfileSections.contact ? (
-                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
                   )}
-                </button>
+                </div>
 
-                {openProfileSections.contact && (
-                  <div className="p-6">
-                    <form onSubmit={handleUpdateProfile} className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Row 1: Mobile Number / Personal Email */}
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Mobile Number</label>
-                          <input
-                            type="tel"
-                            value={profileForm.mobileNumber}
-                            onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Personal Email</label>
-                          <input
-                            type="email"
-                            value={profileForm.personalEmail}
-                            onChange={(e) => setProfileForm({ ...profileForm, personalEmail: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
+                {/* Editable Personal Contact Fields */}
+                <div className="premium-card p-0 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOpenProfileSections(prev => ({ ...prev, contact: !prev.contact }))}
+                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                  >
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Personal Contact Details</h2>
+                    </div>
+                    {openProfileSections.contact ? (
+                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                    )}
+                  </button>
+
+                  {openProfileSections.contact && (
+                    <div className="p-6">
+                      <form onSubmit={handleUpdateProfile} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Left Column: All Text Inputs */}
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Personal Email</label>
+                              <input
+                                type="email"
+                                required
+                                value={profileForm.personalEmail}
+                                onChange={(e) => setProfileForm({ ...profileForm, personalEmail: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Mobile Number</label>
+                              <input
+                                type="tel"
+                                required
+                                value={profileForm.mobileNumber}
+                                onChange={(e) => setProfileForm({ ...profileForm, mobileNumber: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact Number</label>
+                              <input
+                                type="text"
+                                required
+                                value={profileForm.emergencyContact}
+                                onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Nationality</label>
+                              <input
+                                type="text"
+                                required
+                                value={profileForm.nationality}
+                                onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                placeholder="e.g. Indian"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Insurance Number</label>
+                              <input
+                                type="text"
+                                required
+                                value={profileForm.insuranceNumber}
+                                onChange={(e) => setProfileForm({ ...profileForm, insuranceNumber: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                placeholder="e.g. INS123456"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Right Column: All Dropdowns & Addresses */}
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Gender</label>
+                              <select
+                                required
+                                value={profileForm.gender}
+                                onChange={(e) => setProfileForm({ ...profileForm, gender: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                              >
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Marital Status</label>
+                              <select
+                                value={profileForm.maritalStatus}
+                                onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                              >
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Divorced">Divorced</option>
+                                <option value="Widowed">Widowed</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
+                              <select
+                                required
+                                value={profileForm.bloodGroup}
+                                onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                              >
+                                <option value="">Select Blood Group</option>
+                                <option value="A+">A+</option>
+                                <option value="A-">A-</option>
+                                <option value="B+">B+</option>
+                                <option value="B-">B-</option>
+                                <option value="AB+">AB+</option>
+                                <option value="AB-">AB-</option>
+                                <option value="O+">O+</option>
+                                <option value="O-">O-</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
+                              <textarea
+                                rows={2}
+                                required
+                                value={profileForm.currentAddress}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setProfileForm(prev => ({
+                                    ...prev,
+                                    currentAddress: val,
+                                    permanentAddress: isSameAddress ? val : prev.permanentAddress
+                                  }));
+                                }}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 py-1">
+                              <input
+                                type="checkbox"
+                                id="sameAsCurrent"
+                                checked={isSameAddress}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setIsSameAddress(checked);
+                                  if (checked) {
+                                    setProfileForm(prev => ({
+                                      ...prev,
+                                      permanentAddress: prev.currentAddress
+                                    }));
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded border-gray-300 text-brand-cta focus:ring-brand-cta cursor-pointer"
+                              />
+                              <label htmlFor="sameAsCurrent" className="text-[10px] font-bold text-brand-navy cursor-pointer select-none">
+                                Permanent Address same as Current Address
+                              </label>
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Permanent Address</label>
+                              <textarea
+                                rows={2}
+                                required
+                                disabled={isSameAddress}
+                                value={profileForm.permanentAddress}
+                                onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px] disabled:bg-slate-100/50 disabled:text-gray-400 disabled:cursor-not-allowed"
+                              />
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Row 2: Professional/Company Email / Emergency Contact Number */}
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Professional/Company Email</label>
-                          <input
-                            type="email"
-                            value={profileForm.professionalEmail}
-                            onChange={(e) => setProfileForm({ ...profileForm, professionalEmail: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact Number</label>
-                          <input
-                            type="text"
-                            value={profileForm.emergencyContact}
-                            onChange={(e) => setProfileForm({ ...profileForm, emergencyContact: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-
-                        {/* Row 3: Marital Status / Blood Group */}
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Marital Status</label>
-                          <select
-                            required
-                            value={profileForm.maritalStatus}
-                            onChange={(e) => setProfileForm({ ...profileForm, maritalStatus: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="submit"
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                           >
-                            <option value="Single">Single</option>
-                            <option value="Married">Married</option>
-                            <option value="Divorced">Divorced</option>
-                            <option value="Widowed">Widowed</option>
-                          </select>
+                            Save
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
-                          <select
-                            value={profileForm.bloodGroup}
-                            onChange={(e) => setProfileForm({ ...profileForm, bloodGroup: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                          >
-                            <option value="">Select Blood Group</option>
-                            <option value="A+">A+</option>
-                            <option value="A-">A-</option>
-                            <option value="B+">B+</option>
-                            <option value="B-">B-</option>
-                            <option value="AB+">AB+</option>
-                            <option value="AB-">AB-</option>
-                            <option value="O+">O+</option>
-                            <option value="O-">O-</option>
-                          </select>
-                        </div>
-
-                        {/* Row 4: Current Address / Permanent Address */}
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
-                          <textarea
-                            rows={2}
-                            value={profileForm.currentAddress}
-                            onChange={(e) => setProfileForm({ ...profileForm, currentAddress: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">Permanent Address</label>
-                          <textarea
-                            rows={2}
-                            value={profileForm.permanentAddress}
-                            onChange={(e) => setProfileForm({ ...profileForm, permanentAddress: e.target.value })}
-                            className="block w-full md:w-1/2 rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end pt-2">
-                        <button
-                          type="submit"
-                          className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
-                        >
-                          Save
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-              </div>
-
-              {/* Financial Details (Read Only) */}
-              <div className="premium-card p-0 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setOpenProfileSections(prev => ({ ...prev, financial: !prev.financial }))}
-                  className="w-full flex items-center justify-between px-6 py-4 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                >
-                  <div>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Financial Details</h2>
-                    <p className="text-[10px] text-slate-200 font-normal mt-0.5">Details stored securely. Contact HR to edit bank/PAN details.</p>
-                  </div>
-                  {openProfileSections.financial ? (
-                    <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                      </form>
+                    </div>
                   )}
-                </button>
+                </div>
 
-                {openProfileSections.financial && (
-                  <div className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {/* Row 1: Bank Details */}
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">Bank Name</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankName || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">IFSC Code</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.ifsc || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">Bank Branch</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.bankBranch || 'N/A'}</span>
-                      </div>
+                {/* Financial Details (Read Only) */}
+                <div className="premium-card p-0 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOpenProfileSections(prev => ({ ...prev, financial: !prev.financial }))}
+                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                  >
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Financial Details</h2>
+                    </div>
+                    {openProfileSections.financial ? (
+                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                    )}
+                  </button>
 
-                      {/* Row 2: Statutory Details */}
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">Permanent Account Number (PAN)</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">
-                          {employeeProfile.pan ? '••••••••••' : 'N/A'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">PF Number</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.pfNumber || 'N/A'}</span>
-                      </div>
-                      <div>
-                        <span className="block text-[10px] font-bold text-gray-400">UAN Number</span>
-                        <span className="text-sm font-bold text-brand-navy mt-0.5 block">{employeeProfile.uan || 'N/A'}</span>
+                  {openProfileSections.financial && (
+                    <div className="p-6">
+                      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
+                        {/* Sub-table 1: Bank Details */}
+                        <table className="w-full text-left text-xs border-collapse">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Bank Name</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.bankName || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">IFSC Code</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.ifsc || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100 last:border-b-0">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Bank Branch</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.bankBranch || 'N/A'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+
+                        {/* Sub-table 2: Statutory Details */}
+                        <table className="w-full text-left text-xs border-collapse">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Permanent Account Number (PAN)</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2 text-slate-800">
+                                {employeeProfile.pan ? '••••••••••' : 'N/A'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">PF Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.pfNumber || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">UAN Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.uan || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100 last:border-b-0">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Insurance Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.insuranceNumber || 'N/A'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           )}
 
           {/* TAB 3: My Leaves */}
           {/* TAB 3: My Leaves & Requests */}
+          {/* TAB 1.3: Leaves & Time-off Requests */}
           {activeTab === 'leaves' && (
-            <div className="space-y-6">
-              <div className="premium-card p-6">
-                <h3 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-brand-cta" />
-                  Leave Balances & Time-off Requests
-                </h3>
+            <div className="space-y-6 animate-in fade-in duration-300">
+              
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Left Column: Balances, Holidays, History */}
-                  <div className="lg:col-span-2 space-y-6">
-                    {/* Balances grid */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Leave Balance Status</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {leaveBalances.map((bal) => (
-                          <div key={bal.id} className="p-3.5 rounded-xl border border-gray-250 bg-gray-50/80 shadow-xs">
-                            <p className="text-xs font-bold text-brand-navy">{bal.name}</p>
-                            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px] text-gray-500 font-semibold text-center">
-                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                                <span className="block text-xs font-extrabold text-brand-navy">{bal.daysAllowed}</span>
-                                Allotted
-                              </div>
-                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                                <span className="block text-xs font-extrabold text-brand-red">{bal.daysUsed}</span>
-                                Used
-                              </div>
-                              <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-xs">
-                                <span className="block text-xs font-extrabold text-emerald-600">{bal.daysRemaining}</span>
-                                Remaining
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column: History, Balances, Holidays */}
+                <div className="lg:col-span-2 space-y-6">
+                  
+                  {/* Panel 1: Leave Requests History */}
+                  <div className="premium-card p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, leaveHistory: !prev.leaveHistory }))}
+                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
+                    >
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Request History</h4>
                       </div>
-                    </div>
-
-                    {/* Upcoming Company Holidays */}
-                    <div className="pt-6 border-t border-gray-150/45">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Upcoming Company Holidays</h4>
-                      {holidays.length === 0 ? (
-                        <p className="text-xs text-gray-400">No upcoming holidays scheduled.</p>
+                      {openLeaveHistorySections.leaveHistory ? (
+                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
                       ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                          {holidays.map((h, idx) => (
-                            <div key={idx} className="p-2.5 rounded-xl border border-slate-200/60 bg-slate-50/50 flex flex-col justify-between text-xs">
-                              <span className="font-bold text-brand-navy">{h.name}</span>
-                              <span className="text-[10px] text-gray-400 font-semibold font-mono mt-1">
-                                {formatDateToIndian(h.date)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
                       )}
-                    </div>
+                    </button>
 
-                    {/* Leave request history */}
-                    <div className="pt-6 border-t border-gray-150">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Leave Request History</h4>
-                      <div className="overflow-x-auto">
+                    {openLeaveHistorySections.leaveHistory && (
+                      <div className="p-6 overflow-x-auto">
                         <table className="min-w-full text-left text-xs">
                           <thead>
                             <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
@@ -2078,7 +2445,7 @@ export default function EmployeeDashboard() {
                           <tbody className="divide-y divide-gray-100">
                             {leaveRequests.length === 0 ? (
                               <tr>
-                                <td colSpan={5} className="text-center py-4 text-gray-400">No leave requests found.</td>
+                                <td colSpan={5} className="text-center py-8 text-gray-400">No leave requests found.</td>
                               </tr>
                             ) : (
                               leaveRequests.map((req) => (
@@ -2091,10 +2458,10 @@ export default function EmployeeDashboard() {
                                     {req.reason}
                                   </td>
                                   <td className="py-3 px-2 text-center">
-                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                                      'bg-amber-100 text-amber-800'
+                                    <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                      'bg-amber-100 text-amber-800 border-amber-250'
                                     }`}>
                                       {req.status}
                                     </span>
@@ -2108,12 +2475,28 @@ export default function EmployeeDashboard() {
                           </tbody>
                         </table>
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    {/* Regularisation Request History */}
-                    <div className="pt-6 border-t border-gray-150">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider mb-3">Attendance Regularisation History</h4>
-                      <div className="overflow-x-auto">
+                  {/* Panel 2: Regularisation History */}
+                  <div className="premium-card p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, regularisationHistory: !prev.regularisationHistory }))}
+                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
+                    >
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Attendance Regularisation History</h4>
+                      </div>
+                      {openLeaveHistorySections.regularisationHistory ? (
+                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                      )}
+                    </button>
+
+                    {openLeaveHistorySections.regularisationHistory && (
+                      <div className="p-6 overflow-x-auto">
                         <table className="min-w-full text-left text-xs">
                           <thead>
                             <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
@@ -2128,7 +2511,7 @@ export default function EmployeeDashboard() {
                           <tbody className="divide-y divide-gray-100">
                             {regularisationRequests.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="text-center py-4 text-gray-400">No regularisation requests found.</td>
+                                <td colSpan={6} className="text-center py-8 text-gray-400">No regularisation requests found.</td>
                               </tr>
                             ) : (
                               regularisationRequests.map((req) => (
@@ -2140,10 +2523,10 @@ export default function EmployeeDashboard() {
                                     {req.reason}
                                   </td>
                                   <td className="py-3 px-2 text-center">
-                                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                                      'bg-amber-100 text-amber-800'
+                                    <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                      'bg-amber-100 text-amber-800 border-amber-250'
                                     }`}>
                                       {req.status}
                                     </span>
@@ -2157,136 +2540,279 @@ export default function EmployeeDashboard() {
                           </tbody>
                         </table>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  {/* Right Column: Time Off & Regularisation Forms */}
-                  <div className="space-y-6 lg:col-span-1">
-                    {/* Apply Form */}
-                    <div className="premium-card p-4 space-y-3 border border-gray-200/50">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
-                      <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
+                  {/* Leave Balances Card */}
+                  <div className="premium-card p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenLeaveBalances(!openLeaveBalances)}
+                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
+                    >
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Balance Status</h4>
+                      {openLeaveBalances ? (
+                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                      )}
+                    </button>
+                    {openLeaveBalances && (
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {leaveBalances.map((bal, idx) => {
+                            const balanceAccents = [
+                              'bg-amber-50 border-amber-250/50 text-amber-600',
+                              'bg-emerald-50 border-emerald-250/50 text-emerald-600',
+                              'bg-blue-50 border-blue-200/50 text-brand-cta',
+                              'bg-purple-50 border-purple-250/50 text-purple-600'
+                            ];
+                            const accentClass = balanceAccents[idx % balanceAccents.length];
+
+                            return (
+                              <div key={bal.id} className="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
+                                <div className={`w-10 h-11 rounded-lg border flex flex-col items-center justify-center font-heading leading-none shrink-0 ${accentClass}`}>
+                                  <span className="text-[7px] uppercase font-bold tracking-wider">Days</span>
+                                  <span className="text-sm font-extrabold font-mono mt-0.5">{bal.daysRemaining}</span>
+                                </div>
+                                <div className="flex flex-col text-left overflow-hidden min-w-0">
+                                  <span className="font-extrabold text-brand-navy text-xs truncate" title={bal.name}>{bal.name}</span>
+                                  <span className="text-[9px] text-gray-400 font-semibold font-mono mt-0.5">
+                                    Used: {bal.daysUsed} / {bal.daysAllowed} days
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Upcoming Company Holidays Card */}
+                  <div className="premium-card p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenHolidays(!openHolidays)}
+                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
+                    >
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">List of Company Holidays</h4>
+                      {openHolidays ? (
+                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                      )}
+                    </button>
+                    {openHolidays && (
+                      <div className="p-6">
+                        {holidays.length === 0 ? (
+                          <p className="text-xs text-gray-400 py-4 text-center">No upcoming holidays scheduled.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {holidays.map((h, idx) => {
+                              const dateObj = new Date(h.date);
+                              const monthStr = dateObj.toLocaleDateString('en-US', { month: 'short' });
+                              const dayStr = dateObj.toLocaleDateString('en-US', { day: '2-digit' });
+                              
+                              const holidayAccents = [
+                                'bg-blue-50 border-blue-200/50 text-brand-cta',
+                                'bg-emerald-50 border-emerald-250/50 text-emerald-600',
+                                'bg-amber-50 border-amber-250/50 text-amber-600',
+                                'bg-purple-50 border-purple-250/50 text-purple-600'
+                              ];
+                              const accentClass = holidayAccents[idx % holidayAccents.length];
+
+                              return (
+                                <div key={idx} className="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
+                                  <div className={`w-10 h-11 rounded-lg border flex flex-col items-center justify-center font-heading leading-none shrink-0 ${accentClass}`}>
+                                    <span className="text-[9px] uppercase font-bold tracking-wider">{monthStr}</span>
+                                    <span className="text-sm font-extrabold font-mono mt-0.5">{dayStr}</span>
+                                  </div>
+                                  <div className="flex flex-col text-left overflow-hidden min-w-0">
+                                    <span className="font-extrabold text-brand-navy text-xs truncate" title={h.name}>{h.name}</span>
+                                    <span className="text-[9px] text-gray-400 font-semibold font-mono mt-0.5">
+                                      {formatDateToIndian(h.date)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+
+                {/* Right Column: Unified Form with Tab Switch */}
+                <div className="lg:col-span-1 space-y-6">
+                  <div className="premium-card p-6 border border-gray-200/50 space-y-4">
+                    {/* Tab Switch Headers */}
+                    <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('leave')}
+                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'leave'
+                            ? 'bg-brand-navy text-white'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        Request Leave
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('regularisation')}
+                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'regularisation'
+                            ? 'bg-brand-navy text-white'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        Regularisation
+                      </button>
+                    </div>
+
+                    {/* Leave Request Tab Content */}
+                    {activeLeaveFormTab === 'leave' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
                         <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Category</label>
-                          <select
-                            required
-                            value={leaveTypeId}
-                            onChange={(e) => setLeaveTypeId(e.target.value)}
-                            className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Submit a new request for planned leaves.</p>
+                        </div>
+                        <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Category</label>
+                            <select
+                              required
+                              value={leaveTypeId}
+                              onChange={(e) => setLeaveTypeId(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                            >
+                              <option value="">Select leave type</option>
+                              {leaveBalances.map((bal) => (
+                                <option key={bal.id} value={bal.id}>
+                                  {bal.name} ({bal.daysRemaining} left)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={leaveStartDate}
+                                onChange={(e) => setLeaveStartDate(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={leaveEndDate}
+                                onChange={(e) => setLeaveEndDate(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={leaveReason}
+                              onChange={(e) => setLeaveReason(e.target.value)}
+                              placeholder="State reason..."
+                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingLeave}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
                           >
-                            <option value="">Select leave type</option>
-                            {leaveBalances.map((bal) => (
-                              <option key={bal.id} value={bal.id}>
-                                {bal.name} ({bal.daysRemaining} left)
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                            {submittingLeave ? 'Submitting...' : 'Request Leave'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
 
-                        <div className="grid grid-cols-2 gap-2">
+                    {/* Regularisation Tab Content */}
+                    {activeLeaveFormTab === 'regularisation' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div>
+                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Attendance Regularisation</h4>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Correct a missed check-in/out record for a specific date.</p>
+                        </div>
+                        <form onSubmit={handleSubmitRegularisation} className="space-y-3">
                           <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Date to Regularise</label>
                             <input
                               type="date"
                               required
-                              value={leaveStartDate}
-                              onChange={(e) => setLeaveStartDate(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              value={regDate}
+                              onChange={(e) => setRegDate(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                             />
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
-                            <input
-                              type="date"
-                              required
-                              value={leaveEndDate}
-                              onChange={(e) => setLeaveEndDate(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-in Time</label>
+                              <input
+                                type="time"
+                                required
+                                value={regCheckIn}
+                                onChange={(e) => setRegCheckIn(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-out Time</label>
+                              <input
+                                type="time"
+                                required
+                                value={regCheckOut}
+                                onChange={(e) => setRegCheckOut(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
-                          <textarea
-                            required
-                            rows={2}
-                            value={leaveReason}
-                            onChange={(e) => setLeaveReason(e.target.value)}
-                            placeholder="State reason..."
-                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={submittingLeave}
-                          className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                        >
-                          {submittingLeave ? 'Submitting...' : 'Request Leave'}
-                        </button>
-                      </form>
-                    </div>
-
-                    {/* Regularisation Form */}
-                    <div className="premium-card p-4 space-y-3 border border-gray-200/50">
-                      <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Attendance Regularisation</h4>
-                      <p className="text-[10px] text-gray-500 leading-normal">Correct a missed check-in/out record for a specific date.</p>
-                      <form onSubmit={handleSubmitRegularisation} className="space-y-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Date to Regularise</label>
-                          <input
-                            type="date"
-                            required
-                            value={regDate}
-                            onChange={(e) => setRegDate(e.target.value)}
-                            className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-in Time</label>
-                            <input
-                              type="time"
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason / Explanation</label>
+                            <textarea
                               required
-                              value={regCheckIn}
-                              onChange={(e) => setRegCheckIn(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              rows={3}
+                              value={regReason}
+                              onChange={(e) => setRegReason(e.target.value)}
+                              placeholder="E.g., forgot to check-in on arrival..."
+                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                             />
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-out Time</label>
-                            <input
-                              type="time"
-                              required
-                              value={regCheckOut}
-                              onChange={(e) => setRegCheckOut(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason / Explanation</label>
-                          <textarea
-                            required
-                            rows={2}
-                            value={regReason}
-                            onChange={(e) => setRegReason(e.target.value)}
-                            placeholder="E.g., forgot to check-in on arrival..."
-                            className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={submittingReg}
-                          className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                        >
-                          {submittingReg ? 'Submitting...' : 'Submit Request'}
-                        </button>
-                      </form>
-                    </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingReg}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                          >
+                            {submittingReg ? 'Submitting...' : 'Submit Request'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
                   </div>
                 </div>
+
               </div>
             </div>
           )}
@@ -2296,47 +2822,66 @@ export default function EmployeeDashboard() {
             <div className="space-y-6">
               {/* Salary Structure Info */}
               {employeeProfile && (
-                <div className="premium-card p-6">
-                  <div className="border-b border-gray-100 pb-4 mb-4">
-                    <h3 className="text-lg font-bold text-brand-navy font-heading">My Salary Structure Breakdown</h3>
-                    <p className="text-xs text-gray-500 mt-1">Periodic salary structure values registered under your profile account.</p>
+                <div className="premium-card p-0 overflow-hidden space-y-0">
+                  {/* Header Title strip with Navy Blue background */}
+                  <div className="bg-brand-navy px-5 py-3 text-white">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                      <CreditCard className="w-4.5 h-4.5 text-white" />
+                      My Salary Structure Breakdown
+                    </h3>
+                    <p className="text-[10px] text-white/80 mt-0.5">
+                      Periodic salary structure values registered under your profile account.
+                    </p>
                   </div>
-                  {/* Pull default values for structure if not explicitly set yet */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">Basic Salary</span>
-                      <span className="text-base font-extrabold text-brand-navy mt-1 block">
-                        {(myPayrollRuns[0]?.basicSalary || 30000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">HRA Allowance</span>
-                      <span className="text-base font-extrabold text-brand-navy mt-1 block">
-                        {(myPayrollRuns[0]?.hra || 12000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">Conveyance</span>
-                      <span className="text-base font-extrabold text-brand-navy mt-1 block">
-                        {(myPayrollRuns[0]?.conveyance || 3000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 p-3.5 rounded-xl border border-gray-200">
-                      <span className="block text-[10px] font-bold text-gray-400 uppercase">Special Allowance</span>
-                      <span className="text-base font-extrabold text-brand-navy mt-1 block">
-                        {(myPayrollRuns[0]?.specialAllowance || 5000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                      </span>
+
+                  {/* Card Body */}
+                  <div className="p-6">
+                    {/* Pull default values for structure if not explicitly set yet */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                      <div className="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase">Basic Salary</span>
+                        <span className="text-base font-extrabold text-brand-navy mt-1 block">
+                          {(myPayrollRuns[0]?.basicSalary || 30000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                        </span>
+                      </div>
+                      <div className="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase">HRA Allowance</span>
+                        <span className="text-base font-extrabold text-brand-navy mt-1 block">
+                          {(myPayrollRuns[0]?.hra || 12000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                        </span>
+                      </div>
+                      <div className="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase">Conveyance</span>
+                        <span className="text-base font-extrabold text-brand-navy mt-1 block">
+                          {(myPayrollRuns[0]?.hra || 3000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                        </span>
+                      </div>
+                      <div className="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span className="block text-[10px] font-bold text-gray-400 uppercase">Special Allowance</span>
+                        <span className="text-base font-extrabold text-brand-navy mt-1 block">
+                          {(myPayrollRuns[0]?.specialAllowance || 5000).toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* My Payslips Table */}
-              <div className="premium-card p-6">
-                <div className="border-b border-gray-100 pb-4 mb-4">
-                  <h3 className="text-lg font-bold text-brand-navy font-heading">My Monthly Payslips</h3>
-                  <p className="text-xs text-gray-500 mt-1">Download official digital Excel/PDF payslip documents generated by the HR payroll system.</p>
+              <div className="premium-card p-0 overflow-hidden space-y-0">
+                {/* Header Title strip with Navy Blue background */}
+                <div className="bg-brand-navy px-5 py-3 text-white">
+                  <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                    <FileText className="w-4.5 h-4.5 text-white" />
+                    My Monthly Payslips
+                  </h3>
+                  <p className="text-[10px] text-white/80 mt-0.5">
+                    Download official digital Excel/PDF payslip documents generated by the HR payroll system.
+                  </p>
                 </div>
+
+                {/* Card Body */}
+                <div className="p-6">
 
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-xs">
@@ -2392,428 +2937,474 @@ export default function EmployeeDashboard() {
                 </div>
               </div>
             </div>
+          </div>
           )}
 
 
 
           {/* TAB 6: Trainings Catalog */}
           {activeTab === 'trainings' && (
-            <div className="premium-card p-6">
-              <div className="border-b border-gray-100 pb-4 mb-4">
-                <h3 className="text-lg font-bold text-brand-navy font-heading">My Training Courses & Certifications</h3>
-                <p className="text-xs text-gray-500 mt-1">View specialized training sessions assigned to you and check certification status.</p>
+            <div className="premium-card p-0 overflow-hidden space-y-0">
+              {/* Header Title strip with Navy Blue background */}
+              <div className="bg-brand-navy px-5 py-3 text-white">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <GraduationCap className="w-4.5 h-4.5 text-white" />
+                  My Training Courses & Certifications
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  View specialized training sessions assigned to you and check certification status.
+                </p>
               </div>
 
-              <div className="py-8 text-center bg-gray-50/80 rounded-2xl border border-gray-200">
-                <p className="text-sm font-semibold text-brand-navy">Courses are not yet started.</p>
+              {/* Card Body */}
+              <div className="p-6">
+                <div className="py-8 text-center bg-gray-50/80 rounded-2xl border border-gray-200">
+                  <p className="text-sm font-semibold text-brand-navy">Courses are not yet started.</p>
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 7: Attendance History */}
+          {/* TAB 1.4: My Attendance History */}
           {activeTab === 'history' && (
-            <div className="space-y-6 animate-in fade-in duration-200">
-              {/* Filter Controls Card */}
-              <div className="premium-card p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
-                      <History className="w-5 h-5 text-brand-cta shrink-0" />
-                      My Attendance History
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1">Select month and year to view daily check-in patterns, leaves, and holidays.</p>
-                  </div>
+            <div className="premium-card p-0 overflow-hidden animate-in fade-in duration-200 max-w-5xl mx-auto">
+              
+              {/* Header Banner */}
+              <div className="px-6 py-3.5 bg-brand-navy text-white flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <History className="w-4 h-4 text-white shrink-0" />
+                  My Attendance History
+                </h3>
+                
+                {/* Controls */}
+                <div className="flex items-center gap-2.5">
+                  {/* Prev Month */}
+                  <button
+                    onClick={() => {
+                      if (calendarMonth === 0) {
+                        setCalendarMonth(11);
+                        setCalendarYear(calendarYear - 1);
+                      } else {
+                        setCalendarMonth(calendarMonth - 1);
+                      }
+                    }}
+                    className="p-1.5 border border-white/20 hover:bg-white/10 rounded-xl transition-all cursor-pointer text-white text-xs font-bold bg-white/5"
+                    title="Previous Month"
+                  >
+                    &larr;
+                  </button>
                   
-                  {/* Controls */}
-                  <div className="flex items-center gap-2.5">
-                    {/* Prev Month */}
-                    <button
-                      onClick={() => {
-                        if (calendarMonth === 0) {
-                          setCalendarMonth(11);
-                          setCalendarYear(calendarYear - 1);
-                        } else {
-                          setCalendarMonth(calendarMonth - 1);
-                        }
-                      }}
-                      className="p-2 border border-gray-200 hover:bg-slate-50 rounded-xl transition-all cursor-pointer text-brand-navy text-sm font-bold shadow-xs bg-white"
-                      title="Previous Month"
-                    >
-                      &larr;
-                    </button>
-                    
-                    {/* Month selector */}
-                    <select
-                      value={calendarMonth}
-                      onChange={(e) => setCalendarMonth(Number(e.target.value))}
-                      className="rounded-xl border border-gray-200 py-2 px-3 text-xs font-semibold text-brand-navy bg-white outline-none focus:border-brand-cta transition-all shadow-xs"
-                    >
-                      {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((mName, idx) => (
-                        <option key={idx} value={idx}>{mName}</option>
-                      ))}
-                    </select>
+                  {/* Month selector */}
+                  <select
+                    value={calendarMonth}
+                    onChange={(e) => setCalendarMonth(Number(e.target.value))}
+                    className="rounded-xl border border-white/20 py-1.5 px-2.5 text-xs font-semibold text-white bg-white/10 outline-none focus:border-white/40 transition-all cursor-pointer"
+                  >
+                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((mName, idx) => (
+                      <option key={idx} value={idx} className="text-brand-navy bg-white font-medium">{mName}</option>
+                    ))}
+                  </select>
 
-                    {/* Year selector */}
-                    <select
-                      value={calendarYear}
-                      onChange={(e) => setCalendarYear(Number(e.target.value))}
-                      className="rounded-xl border border-gray-200 py-2 px-3 text-xs font-semibold text-brand-navy bg-white outline-none focus:border-brand-cta transition-all shadow-xs"
-                    >
-                      {[2024, 2025, 2026, 2027].map((yr) => (
-                        <option key={yr} value={yr}>{yr}</option>
-                      ))}
-                    </select>
+                  {/* Year selector */}
+                  <select
+                    value={calendarYear}
+                    onChange={(e) => setCalendarYear(Number(e.target.value))}
+                    className="rounded-xl border border-white/20 py-1.5 px-2.5 text-xs font-semibold text-white bg-white/10 outline-none focus:border-white/40 transition-all cursor-pointer"
+                  >
+                    {[2024, 2025, 2026, 2027].map((yr) => (
+                      <option key={yr} value={yr} className="text-brand-navy bg-white font-medium">{yr}</option>
+                    ))}
+                  </select>
 
-                    {/* Next Month */}
-                    <button
-                      onClick={() => {
-                        if (calendarMonth === 11) {
-                          setCalendarMonth(0);
-                          setCalendarYear(calendarYear + 1);
-                        } else {
-                          setCalendarMonth(calendarMonth + 1);
-                        }
-                      }}
-                      className="p-2 border border-gray-200 hover:bg-slate-50 rounded-xl transition-all cursor-pointer text-brand-navy text-sm font-bold shadow-xs bg-white"
-                      title="Next Month"
-                    >
-                      &rarr;
-                    </button>
-                  </div>
+                  {/* Next Month */}
+                  <button
+                    onClick={() => {
+                      if (calendarMonth === 11) {
+                        setCalendarMonth(0);
+                        setCalendarYear(calendarYear + 1);
+                      } else {
+                        setCalendarMonth(calendarMonth + 1);
+                      }
+                    }}
+                    className="p-1.5 border border-white/20 hover:bg-white/10 rounded-xl transition-all cursor-pointer text-white text-xs font-bold bg-white/5"
+                    title="Next Month"
+                  >
+                    &rarr;
+                  </button>
                 </div>
               </div>
 
-              {/* Monthly Stats Summary Strip */}
-              {(() => {
-                const selectedYearMonth = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}`;
-                const monthlyRecords = attendance.filter(r => r.date.startsWith(selectedYearMonth));
-                const monthlyTrack = trackSheets.filter(t => t.date.startsWith(selectedYearMonth));
+              {/* Main Content Area */}
+              <div className="p-6 space-y-6">
                 
-                const presents = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(r.status)).length;
-                const lates = monthlyRecords.filter(r => r.status === 'LATE_COMING').length;
-                const leaves = monthlyRecords.filter(r => r.status === 'LEAVE').length;
-                const holidays = monthlyRecords.filter(r => r.status === 'HOLIDAY').length;
-                const absents = monthlyRecords.filter(r => r.status === 'ABSENT').length;
-                
-                const avgHrs = monthlyTrack.length > 0 
-                  ? (monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1)
-                  : '0.0';
+                {/* Stats cards strip */}
+                {(() => {
+                  const selectedYearMonth = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}`;
+                  const monthlyRecords = attendance.filter(r => r.date.startsWith(selectedYearMonth));
+                  const monthlyTrack = trackSheets.filter(t => t.date.startsWith(selectedYearMonth));
+                  
+                  const presents = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(r.status)).length;
+                  const lates = monthlyRecords.filter(r => r.status === 'LATE_COMING').length;
+                  const leaves = monthlyRecords.filter(r => r.status === 'LEAVE').length;
+                  const holidays = monthlyRecords.filter(r => r.status === 'HOLIDAY').length;
+                  const absents = monthlyRecords.filter(r => r.status === 'ABSENT').length;
+                  
+                  const avgHrs = monthlyTrack.length > 0 
+                    ? (monthlyTrack.reduce((sum, item) => sum + item.hours, 0) / monthlyTrack.length).toFixed(1)
+                    : '0.0';
 
-                return (
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    {/* Present Card */}
-                    <div className="premium-card p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
-                        <CheckCircle2 className="w-5 h-5" />
+                  return (
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {/* Present Card */}
+                      <div className="premium-card p-4 flex items-center gap-3 border border-gray-200/60 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-xl font-extrabold font-mono text-emerald-600 leading-none">
+                            <CountUp value={presents} />
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present</span>
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <span className="block text-xl font-extrabold font-mono text-emerald-600 leading-none">
-                          <CountUp value={presents} />
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Present</span>
+
+                      {/* Late Card */}
+                      <div className="premium-card p-4 flex items-center gap-3 border border-gray-200/60 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
+                          <AlertCircle className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-xl font-extrabold font-mono text-amber-600 leading-none">
+                            <CountUp value={lates} />
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
+                        </div>
+                      </div>
+
+                      {/* Leave Card */}
+                      <div className="premium-card p-4 flex items-center gap-3 border border-gray-200/60 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 shadow-xs">
+                          <Calendar className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-xl font-extrabold font-mono text-rose-600 leading-none">
+                            <CountUp value={leaves} />
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
+                        </div>
+                      </div>
+
+                      {/* Holiday Card */}
+                      <div className="premium-card p-4 flex items-center gap-3 border border-gray-200/60 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                          <Globe className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-xl font-extrabold font-mono text-brand-navy leading-none">
+                            <CountUp value={holidays} />
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Holidays</span>
+                        </div>
+                      </div>
+
+                      {/* Avg Hours Card */}
+                      <div className="premium-card p-4 flex items-center gap-3 col-span-2 md:col-span-1 border border-gray-200/60 shadow-2xs">
+                        <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-gray-600 shrink-0 shadow-xs">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div className="text-left">
+                          <span className="block text-xl font-extrabold font-mono text-brand-gray leading-none">
+                            {avgHrs}h
+                          </span>
+                          <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
+                        </div>
                       </div>
                     </div>
+                  );
+                })()}
 
-                    {/* Late Card */}
-                    <div className="premium-card p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
-                        <AlertCircle className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-xl font-extrabold font-mono text-amber-650 leading-none">
-                          <CountUp value={lates} />
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Lates</span>
-                      </div>
-                    </div>
-
-                    {/* Leave Card */}
-                    <div className="premium-card p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0 shadow-xs">
-                        <Calendar className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-xl font-extrabold font-mono text-rose-600 leading-none">
-                          <CountUp value={leaves} />
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Leaves</span>
-                      </div>
-                    </div>
-
-                    {/* Holiday Card */}
-                    <div className="premium-card p-4 flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
-                        <Globe className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-xl font-extrabold font-mono text-brand-navy leading-none">
-                          <CountUp value={holidays} />
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Holidays</span>
-                      </div>
-                    </div>
-
-                    {/* Avg Hours Card */}
-                    <div className="premium-card p-4 flex items-center gap-3 col-span-2 md:col-span-1">
-                      <div className="w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-gray-600 shrink-0 shadow-xs">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                      <div className="text-left">
-                        <span className="block text-xl font-extrabold font-mono text-brand-gray leading-none">
-                          {avgHrs}h
-                        </span>
-                        <span className="text-[9px] font-bold text-gray-400 mt-1 block uppercase tracking-wider">Avg Hours</span>
-                      </div>
-                    </div>
+                {/* Calendar Grid Section */}
+                <div className="border-t border-gray-100 pt-6">
+                  {/* Week headers */}
+                  <div className="grid grid-cols-7 gap-2 mb-3 text-center">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dHeader) => (
+                      <span key={dHeader} className="text-xs font-bold text-gray-400 uppercase tracking-wider">{dHeader}</span>
+                    ))}
                   </div>
-                );
-              })()}
 
-              {/* Calendar Grid Card */}
-              <div className="premium-card p-6">
-                {/* Week headers */}
-                <div className="grid grid-cols-7 gap-2 mb-3 text-center">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dHeader) => (
-                    <span key={dHeader} className="text-xs font-bold text-gray-400 uppercase tracking-wider">{dHeader}</span>
-                  ))}
-                </div>
-
-                {/* Grid cells */}
-                <div className="grid grid-cols-7 gap-2">
-                  {(() => {
-                    const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
-                    const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+                  {/* Grid cells */}
+                  <div className="grid grid-cols-7 gap-2">
+                    {(() => {
+                      const firstDayIndex = new Date(calendarYear, calendarMonth, 1).getDay();
+                      const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
                       const cells = [];
-                    // Empty cells for alignment
-                    for (let i = 0; i < firstDayIndex; i++) {
-                      cells.push(<div key={`empty-${i}`} className="bg-slate-50/40 rounded-xl border border-gray-100 min-h-[60px] md:min-h-[75px]" />);
-                    }
-                    
-                    // Month dates
-                    for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
-                      const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                      const rec = attendance.find(r => r.date === dateStr);
-                      const isWeekend = new Date(calendarYear, calendarMonth, dayNum).getDay() === 0 || new Date(calendarYear, calendarMonth, dayNum).getDay() === 6;
                       
-                      const hItem = holidays.find(h => h.date === dateStr);
-                      const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
-                      const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
+                      // Empty cells for alignment
+                      for (let i = 0; i < firstDayIndex; i++) {
+                        cells.push(<div key={`empty-${i}`} className="bg-slate-100/70 rounded-xl border border-slate-200/60 h-[84px] md:h-[90px]" />);
+                      }
+                      
+                      // Month dates
+                      for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+                        const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                        const rec = attendance.find(r => r.date === dateStr);
+                        const isWeekend = new Date(calendarYear, calendarMonth, dayNum).getDay() === 0;
+                        
+                        const hItem = holidays.find(h => h.date === dateStr);
+                        const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
+                        const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
 
-                      // Build events list for the cell (Outlook monthly event strips)
-                      const eventStrips = [];
-                      if (isHoliday) {
-                        eventStrips.push(
-                          <div key="hol" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-blue-600 text-white truncate text-left shadow-xs">
-                            Holiday
-                          </div>
-                        );
-                        if (holidayName && holidayName !== "Holiday") {
+                        // Build events list for the cell
+                        const eventStrips = [];
+                        if (isHoliday) {
                           eventStrips.push(
-                            <div key="hol-name" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 truncate text-left shadow-xs" title={holidayName}>
-                              {holidayName}
+                            <div key="hol" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-blue-600 text-white truncate text-left shadow-xs">
+                              Holiday
                             </div>
                           );
-                        }
-                      } else if (rec) {
-                        const status = rec.status;
-                        if (['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(status)) {
-                          const label = status === 'LATE_COMING' ? "Late" : (status === 'OVERTIME' ? "Overtime" : "Present");
-                          const labelBg = status === 'LATE_COMING' ? "bg-amber-500" : (status === 'OVERTIME' ? "bg-emerald-600" : "bg-emerald-500");
-                          eventStrips.push(
-                            <div key="pres" className={`w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded text-white truncate text-left shadow-xs ${labelBg}`}>
-                              {label}
-                            </div>
-                          );
-                          if (rec.checkInTime) {
+                          if (holidayName && holidayName !== "Holiday") {
                             eventStrips.push(
-                              <div key="checkin" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 truncate text-left shadow-xs">
-                                In: {formatTime(rec.checkInTime)}
+                              <div key="hol-name" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100 truncate text-left shadow-xs" title={holidayName}>
+                                {holidayName}
                               </div>
                             );
                           }
-                          if (rec.checkOutTime) {
+                        } else if (rec) {
+                          const status = rec.status;
+                          if (['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(status)) {
+                            const label = status === 'LATE_COMING' ? "Late" : (status === 'OVERTIME' ? "Overtime" : "Present");
+                            const labelBg = status === 'LATE_COMING' ? "bg-amber-500" : (status === 'OVERTIME' ? "bg-emerald-600" : "bg-emerald-500");
                             eventStrips.push(
-                              <div key="checkout" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200 truncate text-left shadow-xs">
-                                Out: {formatTime(rec.checkOutTime)}
+                              <div key="pres" className={`w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded text-white truncate text-left shadow-xs ${labelBg}`}>
+                                {label}
                               </div>
                             );
-                          }
-                        } else if (status === 'LEAVE') {
-                          eventStrips.push(
-                            <div key="leave" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-purple-600 text-white truncate text-left shadow-xs">
-                              Leave
-                            </div>
-                          );
-                        } else if (status === 'WEEK_OFF') {
-                          eventStrips.push(
-                            <div key="we" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
-                              Weekend
-                            </div>
-                          );
-                        } else if (status === 'ABSENT') {
-                          eventStrips.push(
-                            <div key="abs" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
-                              Absent
-                            </div>
-                          );
-                        }
-                      } else {
-                        if (isWeekend) {
-                          eventStrips.push(
-                            <div key="we-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
-                              Weekend
-                            </div>
-                          );
-                        } else {
-                          const today = new Date().toISOString().split('T')[0];
-                          if (dateStr < today) {
+                            if (rec.checkInTime) {
+                              const isLate = isCheckInLate(rec.checkInTime);
+                              eventStrips.push(
+                                <div key="checkin" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 truncate text-left shadow-xs flex items-center gap-1">
+                                  {isLate && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block animate-pulse" title="Late Check-in" />
+                                  )}
+                                  In: {formatTime(rec.checkInTime)}
+                                </div>
+                              );
+                            }
+                            if (rec.checkOutTime) {
+                              eventStrips.push(
+                                <div key="checkout" className="w-full text-[7px] md:text-[8px] font-bold px-1 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-200 truncate text-left shadow-xs">
+                                  Out: {formatTime(rec.checkOutTime)}
+                                </div>
+                              );
+                            }
+                          } else if (status === 'LEAVE') {
                             eventStrips.push(
-                              <div key="abs-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
+                              <div key="leave" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-purple-600 text-white truncate text-left shadow-xs">
+                                Leave
+                              </div>
+                            );
+                          } else if (status === 'WEEK_OFF') {
+                            eventStrips.push(
+                              <div key="we" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
+                                Weekend
+                              </div>
+                            );
+                          } else if (status === 'ABSENT') {
+                            eventStrips.push(
+                              <div key="abs" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
                                 Absent
                               </div>
                             );
                           }
+                        } else {
+                          if (isWeekend) {
+                            eventStrips.push(
+                              <div key="we-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-200 text-slate-700 truncate text-left shadow-xs">
+                                Weekend
+                              </div>
+                            );
+                          } else {
+                            const today = new Date().toISOString().split('T')[0];
+                            if (dateStr < today) {
+                              eventStrips.push(
+                                <div key="abs-fallback" className="w-full text-[8px] md:text-[9px] font-extrabold px-1 py-0.5 rounded bg-rose-500 text-white truncate text-left shadow-xs">
+                                  Absent
+                                </div>
+                              );
+                            }
+                          }
                         }
+
+                        cells.push(
+                          <button
+                            key={dayNum}
+                            onClick={() => setSelectedCalendarDate(dateStr)}
+                            className={`p-1 md:p-1.5 rounded-xl border text-left flex flex-col justify-start h-[84px] md:h-[90px] transition-all cursor-pointer shadow-xs hover:shadow-md hover:border-brand-cta ${
+                              isWeekend ? 'bg-slate-100 border-slate-250' : 'bg-white border-slate-200'
+                            }`}
+                          >
+                            <span className={`text-[10px] md:text-xs font-bold font-mono ${isWeekend ? 'text-brand-navy/60' : 'text-brand-navy'}`}>
+                              {dayNum}
+                            </span>
+                            
+                            <div className="w-full flex-1 flex flex-col justify-end mt-0.5 space-y-0.5 overflow-hidden">
+                              {eventStrips}
+                            </div>
+                          </button>
+                        );
                       }
+                      
+                      return cells;
+                    })()}
+                  </div>
 
-                      cells.push(
-                        <button
-                          key={dayNum}
-                          onClick={() => setSelectedCalendarDate(dateStr)}
-                          className={`p-1 md:p-1.5 rounded-xl border text-left flex flex-col justify-start min-h-[60px] md:min-h-[75px] transition-all cursor-pointer shadow-xs hover:shadow-md hover:border-brand-cta ${
-                            isWeekend ? 'bg-slate-50/60 border-slate-200' : 'bg-white border-slate-200'
-                          }`}
-                        >
-                          <span className={`text-[10px] md:text-xs font-bold font-mono ${isWeekend ? 'text-brand-navy/60' : 'text-brand-navy'}`}>
-                            {dayNum}
-                          </span>
-                          
-                          <div className="w-full flex-1 flex flex-col justify-end mt-0.5 space-y-0.5 overflow-hidden">
-                            {eventStrips}
-                          </div>
-                        </button>
-                      );
-                    }
-                    
-                    return cells;
-                  })()}
+                  {/* Color Legend Block */}
+                  <div className="flex flex-wrap items-center justify-center gap-6 mt-8 pt-6 border-t border-gray-100 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 rounded-md bg-emerald-600/85 border border-emerald-600/60 block" />
+                      <span className="font-semibold text-brand-gray">Present / Overtime</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 rounded-md bg-purple-600/85 border border-purple-600/60 block" />
+                      <span className="font-semibold text-brand-gray">Leave (Approved)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 rounded-md bg-blue-600/85 border border-blue-600/60 block" />
+                      <span className="font-semibold text-brand-gray">Company Holidays</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 rounded-md bg-red-500/85 border border-red-500/60 block" />
+                      <span className="font-semibold text-brand-gray">Absent (No check-in)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3.5 h-3.5 rounded-md bg-slate-300/85 border border-slate-300/60 block" />
+                      <span className="font-semibold text-brand-gray">Weekend</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full bg-amber-500 block animate-pulse" />
+                      <span className="font-semibold text-brand-gray">Late Check-in (&gt; 09:30 AM)</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Color Legend Block */}
-                <div className="flex flex-wrap items-center justify-center gap-6 mt-8 pt-6 border-t border-gray-100 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-md bg-emerald-600/85 border border-emerald-600/60 block" />
-                    <span className="font-semibold text-brand-gray">Present / Overtime</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-md bg-purple-600/85 border border-purple-600/60 block" />
-                    <span className="font-semibold text-brand-gray">Leave (Approved)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-md bg-blue-600/85 border border-blue-600/60 block" />
-                    <span className="font-semibold text-brand-gray">Company Holidays</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-md bg-red-500/85 border border-red-500/60 block" />
-                    <span className="font-semibold text-brand-gray">Absent (No check-in)</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3.5 h-3.5 rounded-md bg-slate-300/85 border border-slate-300/60 block" />
-                    <span className="font-semibold text-brand-gray">Weekend</span>
-                  </div>
-                </div>
               </div>
             </div>
           )}
 
           {/* TAB 8: Resignation Request */}
           {activeTab === 'resignation' && (
-            <div className="premium-card p-6">
-              <div className="border-b border-gray-100 pb-4 mb-6">
-                <h3 className="text-lg font-bold text-brand-navy font-heading">Resignation Request</h3>
-                <p className="text-xs text-gray-500 mt-1">Submit your resignation request. Note that only one request can be active.</p>
+            <div className="premium-card p-0 overflow-hidden space-y-0">
+              {/* Header Title strip with Navy Blue background */}
+              <div className="bg-brand-navy px-5 py-3 text-white">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <UserMinus className="w-4.5 h-4.5 text-white" />
+                  Resignation Request
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  Submit your resignation request. Note that only one request can be active.
+                </p>
               </div>
 
-              {resignationRequest ? (
-                <div className="space-y-4 max-w-lg">
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3 text-xs text-brand-navy">
-                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
-                      <strong className="text-gray-400 font-medium">Status:</strong>
-                      <span className={`font-extrabold uppercase px-2 py-0.5 rounded-full ${
-                        resignationRequest.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                        resignationRequest.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                        'bg-amber-100 text-amber-800'
-                      }`}>
-                        {resignationRequest.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
-                      <strong className="text-gray-400 font-medium">Resignation Date:</strong>
-                      <span className="font-bold">{formatDateToIndian(resignationRequest.resignationDate)}</span>
-                    </div>
-                    <div className="flex justify-between pb-2 border-b border-slate-200/65">
-                      <strong className="text-gray-400 font-medium">Requested Last Working Day:</strong>
-                      <span className="font-bold">{formatDateToIndian(resignationRequest.lastWorkingDay)}</span>
-                    </div>
-                    <div className="pb-2 border-b border-slate-200/65">
-                      <strong className="text-gray-400 font-medium block mb-1">Reason:</strong>
-                      <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.reason}</p>
-                    </div>
-                    {resignationRequest.hrNotes && (
-                      <div>
-                        <strong className="text-gray-400 font-medium block mb-1">HR Notes:</strong>
-                        <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.hrNotes}</p>
+              {/* Card Body */}
+              <div className="p-6 space-y-6">
+                {resignationRequest ? (
+                  <div className="animate-in fade-in duration-200 max-w-lg mx-auto w-full text-left">
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                      <div className="bg-slate-100 border-b border-slate-200 px-5 py-3">
+                        <h4 className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Submitted Resignation Details</h4>
                       </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <form onSubmit={handleSubmitResignation} className="space-y-4 max-w-md">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Resignation Date</label>
-                      <input 
-                        type="date"
-                        required
-                        value={resignationDate}
-                        onChange={(e) => setResignationDate(e.target.value)}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Last Working Day (Expected)</label>
-                      <input 
-                        type="date"
-                        required
-                        value={lastWorkingDay}
-                        onChange={(e) => setLastWorkingDay(e.target.value)}
-                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Reason for Resignation</label>
-                      <textarea 
-                        required
-                        rows={4}
-                        value={resignationReason}
-                        onChange={(e) => setResignationReason(e.target.value)}
-                        placeholder="Please state the reason for your resignation..."
-                        className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-none"
-                      />
+                      <div className="p-5">
+                        <div className="p-5 bg-slate-100 border border-slate-250/85 rounded-xl space-y-3 text-xs text-brand-navy">
+                          <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                            <strong className="text-gray-400 font-medium">Status:</strong>
+                            <span className={`font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                              resignationRequest.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                              resignationRequest.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {resignationRequest.status}
+                            </span>
+                          </div>
+                          <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                            <strong className="text-gray-400 font-medium">Resignation Date:</strong>
+                            <span className="font-bold">{formatDateToIndian(resignationRequest.resignationDate)}</span>
+                          </div>
+                          <div className="flex justify-between pb-2 border-b border-slate-200/65">
+                            <strong className="text-gray-400 font-medium">Requested Last Working Day:</strong>
+                            <span className="font-bold">{formatDateToIndian(resignationRequest.lastWorkingDay)}</span>
+                          </div>
+                          <div className="pb-2 border-b border-slate-200/65">
+                            <strong className="text-gray-400 font-medium block mb-1">Reason:</strong>
+                            <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.reason}</p>
+                          </div>
+                          {resignationRequest.hrNotes && (
+                            <div>
+                              <strong className="text-gray-400 font-medium block mb-1">HR Notes:</strong>
+                              <p className="text-gray-650 leading-relaxed font-medium">{resignationRequest.hrNotes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="animate-in fade-in duration-200 max-w-lg mx-auto w-full text-left">
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
+                      <div className="bg-slate-100 border-b border-slate-200 px-5 py-3">
+                        <h4 className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Resignation Request Form</h4>
+                      </div>
 
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      disabled={submittingResignation}
-                      className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                    >
-                      {submittingResignation ? 'Submitting...' : 'Submit Resignation'}
-                    </button>
+                      <form onSubmit={handleSubmitResignation} className="p-5 space-y-5">
+                        <div className="p-6 bg-slate-100 border border-slate-250/85 rounded-xl space-y-5 relative mb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Resignation Date</label>
+                              <input 
+                                type="date"
+                                required
+                                value={resignationDate}
+                                onChange={(e) => setResignationDate(e.target.value)}
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Last Working Day (Expected)</label>
+                              <input 
+                                type="date"
+                                required
+                                value={lastWorkingDay}
+                                onChange={(e) => setLastWorkingDay(e.target.value)}
+                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason for Resignation</label>
+                            <textarea 
+                              required
+                              rows={4}
+                              value={resignationReason}
+                              onChange={(e) => setResignationReason(e.target.value)}
+                              placeholder="Please state the reason for your resignation..."
+                              className="block w-full futuristic-input py-2.5 px-3 text-xs text-brand-gray bg-white resize-y min-h-[110px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="submit"
+                            disabled={submittingResignation}
+                            className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                          >
+                            {submittingResignation ? 'Submitting...' : 'Submit Resignation'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
                   </div>
-                </form>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -2836,7 +3427,7 @@ export default function EmployeeDashboard() {
 
             {(() => {
               const rec = attendance.find(r => r.date === selectedCalendarDate);
-              const isWeekend = new Date(selectedCalendarDate).getDay() === 0 || new Date(selectedCalendarDate).getDay() === 6;
+              const isWeekend = new Date(selectedCalendarDate).getDay() === 0;
               const hItem = holidays.find(h => h.date === selectedCalendarDate);
               const isHoliday = !!hItem || (rec && rec.status === 'HOLIDAY');
               const holidayName = hItem ? hItem.name : (isHoliday ? "Holiday" : "");
@@ -2896,7 +3487,12 @@ export default function EmployeeDashboard() {
                   </p>
                   <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
                     <strong className="text-gray-400 font-medium">Check-in:</strong>
-                    <span className="font-bold">{rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                    <span className="font-bold flex items-center gap-1.5">
+                      {rec.checkInTime && isCheckInLate(rec.checkInTime) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block animate-pulse" title="Late Check-in" />
+                      )}
+                      {rec.checkInTime ? new Date(rec.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                    </span>
                   </p>
                   <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
                     <strong className="text-gray-400 font-medium">Check-out:</strong>
@@ -2966,6 +3562,19 @@ export default function EmployeeDashboard() {
                 <strong className="text-gray-400 font-medium">Assigned By:</strong>
                 <span className="font-bold">{formatEmployeeName(selectedTrackSheet.assignedByName)}</span>
               </p>
+              {selectedTrackSheet.referenceLink && (
+                <p className="flex justify-between border-b border-gray-50 pb-1.5 border-gray-200/50">
+                  <strong className="text-gray-400 font-medium">Work Link:</strong>
+                  <a
+                    href={selectedTrackSheet.referenceLink.startsWith('http') ? selectedTrackSheet.referenceLink : `https://${selectedTrackSheet.referenceLink}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand-cta hover:underline font-bold"
+                  >
+                    View Link
+                  </a>
+                </p>
+              )}
               <div className="border-b border-gray-50 pb-2 border-gray-200/50">
                 <strong className="text-gray-400 font-medium block mb-1">Task Description:</strong>
                 <p className="text-gray-650 leading-relaxed font-medium">{selectedTrackSheet.taskDescription}</p>
@@ -2988,7 +3597,7 @@ export default function EmployeeDashboard() {
                 <strong className="text-gray-400 font-medium block mb-1.5">Supporting Documents:</strong>
                 
                 {/* Upload Doc Input */}
-                <div className="flex flex-col gap-1.5 mb-3 bg-slate-50 p-2 border border-slate-100 rounded-xl">
+                <div className="flex flex-col gap-1.5 mb-3 bg-slate-100 p-2 border border-slate-200 rounded-xl">
                   <span className="text-[9px] text-gray-400 font-extrabold uppercase">Upload Attachment</span>
                   <div className="flex items-center justify-between gap-2">
                     <input 
@@ -3014,7 +3623,7 @@ export default function EmployeeDashboard() {
                   ) : (
                     <div className="space-y-1.5 max-h-32 overflow-y-auto">
                       {docs.map((doc: any, idx: number) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 rounded-xl border border-slate-100 text-[11px]">
+                        <div key={idx} className="flex items-center justify-between p-2 bg-slate-100 rounded-xl border border-slate-200 text-[11px]">
                           <a 
                             href={doc.url} 
                             target="_blank" 

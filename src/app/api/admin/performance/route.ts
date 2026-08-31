@@ -15,91 +15,45 @@ async function getAuthUser() {
 
 // Helper to compute auto score for a user
 export async function calculateUserPerformance(userId: string) {
-  // Constants for scoring calculation
-  const BASE_SCORE = 100;
-  const OVERDUE_TASK_PENALTY = 5;
-  const LATE_CHECKIN_PENALTY = 2;
-  const LATE_DAY_THRESHOLD = 3;
-  const EXCESSIVE_LEAVE_PENALTY = 3;
-  const REJECTED_TRACKSHEET_PENALTY = 1;
-
-  // 1. Overdue tasks count
-  const overdueTasksCount = await prisma.task.count({
+  // 1. Tasks count
+  const totalTasks = await prisma.task.count({
+    where: { assignedToId: userId },
+  });
+  const completedTasks = await prisma.task.count({
     where: {
       assignedToId: userId,
-      status: { in: ['TODO', 'IN_PROGRESS'] },
-      dueDate: { lt: new Date() },
+      status: 'COMPLETED',
     },
   });
-  const taskDeduction = overdueTasksCount * OVERDUE_TASK_PENALTY;
 
-  // 2. Late check-ins in the last 30 days
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const lateCheckinsCount = await prisma.attendance.count({
+  // 2. TrackSheets count
+  const totalTrackSheets = await prisma.trackSheet.count({
+    where: { userId },
+  });
+  const approvedTrackSheets = await prisma.trackSheet.count({
     where: {
       userId,
-      status: 'LATE',
-      checkInTime: { gte: thirtyDaysAgo },
-    },
-  });
-  const lateDeduction = Math.max(0, lateCheckinsCount - LATE_DAY_THRESHOLD) * LATE_CHECKIN_PENALTY;
-
-  // 3. Excessive leave days beyond allotted (current year)
-  const leaveTypes = await prisma.leaveType.findMany({
-    include: {
-      requests: {
-        where: {
-          userId,
-          status: 'APPROVED',
-        },
-      },
+      status: 'APPROVED',
     },
   });
 
-  const currentYear = new Date().getFullYear();
-  let totalAllotted = 0;
-  let totalUsed = 0;
+  const totalItems = totalTasks + totalTrackSheets;
+  const completedItems = completedTasks + approvedTrackSheets;
 
-  leaveTypes.forEach((lt) => {
-    totalAllotted += lt.daysAllowed;
-    lt.requests.forEach((req) => {
-      let current = new Date(req.startDate);
-      const end = new Date(req.endDate);
-      while (current <= end) {
-        if (current.getFullYear() === currentYear) {
-          totalUsed++;
-        }
-        current.setDate(current.getDate() + 1);
-      }
-    });
-  });
-
-  const excessiveLeaveDays = Math.max(0, totalUsed - totalAllotted);
-  const leaveDeduction = excessiveLeaveDays * EXCESSIVE_LEAVE_PENALTY;
-
-  // 4. Rejected track sheets count
-  const rejectedTrackSheetsCount = await prisma.trackSheet.count({
-    where: {
-      userId,
-      status: 'REJECTED',
-    },
-  });
-  const tracksheetDeduction = rejectedTrackSheetsCount * REJECTED_TRACKSHEET_PENALTY;
-
-  // Calculate final score bounded [0, 100]
-  const autoScore = Math.max(0, Math.min(BASE_SCORE, BASE_SCORE - taskDeduction - lateDeduction - leaveDeduction - tracksheetDeduction));
+  const autoScore = totalItems > 0 
+    ? Math.round((completedItems / totalItems) * 100) 
+    : 100;
 
   // Map to rating bands
   let rating: 'RED' | 'YELLOW' | 'GREEN' | 'BLUE' = 'GREEN';
   if (autoScore <= 40) {
-    rating = 'RED';
+    rating = 'RED'; // Needs Improvement
   } else if (autoScore <= 65) {
-    rating = 'YELLOW';
+    rating = 'YELLOW'; // Average
   } else if (autoScore <= 85) {
-    rating = 'GREEN';
+    rating = 'GREEN'; // Good
   } else {
-    rating = 'BLUE';
+    rating = 'BLUE'; // Excellent
   }
 
   return { autoScore, rating };
@@ -159,6 +113,27 @@ export async function GET(request: Request) {
           },
           create: {
             userId: u.id,
+            autoScore,
+            rating,
+          },
+        });
+      }
+    } else if (user.role === 'EMPLOYEE') {
+      const existingScore = await prisma.performanceScore.findUnique({
+        where: { userId: user.userId },
+      });
+
+      if (!existingScore?.manualOverride) {
+        const { autoScore, rating } = await calculateUserPerformance(user.userId);
+
+        await prisma.performanceScore.upsert({
+          where: { userId: user.userId },
+          update: {
+            autoScore,
+            rating,
+          },
+          create: {
+            userId: user.userId,
             autoScore,
             rating,
           },
