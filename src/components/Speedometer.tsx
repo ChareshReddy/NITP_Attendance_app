@@ -25,10 +25,10 @@ export default function Speedometer({ score, rating, size = 350 }: SpeedometerPr
 
   return (
     <div className="flex flex-col items-center justify-center relative w-full select-none">
-      <div className="relative" style={{ width: size, height: size * 0.55 }}>
+      <div className="relative w-full" style={{ maxWidth: size, aspectRatio: '360/140' }}>
         <svg
-          width={size}
-          height={size * 0.55}
+          width="100%"
+          height="100%"
           viewBox="0 0 360 150"
           className="overflow-visible"
         >

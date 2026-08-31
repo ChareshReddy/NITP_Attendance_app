@@ -18,14 +18,14 @@ export const proxy = auth((req) => {
       if (user.role === 'HR_ADMIN') {
         return NextResponse.redirect(new URL('/admin', req.url));
       } else if (user.role === 'TL') {
-        return NextResponse.redirect(new URL('/tl', req.url));
+        return NextResponse.redirect(new URL('/employee', req.url));
       } else {
         return NextResponse.redirect(new URL('/employee', req.url));
       }
     }
 
     if (pathname.startsWith('/admin') && user.role !== 'HR_ADMIN') {
-      const target = user.role === 'TL' ? '/tl' : '/employee';
+      const target = '/employee';
       return NextResponse.redirect(new URL(target, req.url));
     }
 

@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     const holidays = await prisma.holiday.findMany();
     const holidayDates = new Set(holidays.map(h => h.date));
     
-    const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']; // Mon-Fri default
+    const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; // Mon-Sat default
 
     const dateCursor = new Date();
     dateCursor.setDate(dateCursor.getDate() - 30); // scan last 30 days

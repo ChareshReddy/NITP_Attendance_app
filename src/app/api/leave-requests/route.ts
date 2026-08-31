@@ -29,7 +29,10 @@ export async function GET(request: Request) {
     });
 
     const { searchParams } = new URL(request.url);
-    const userIdParam = searchParams.get('userId');
+    let userIdParam = searchParams.get('userId');
+    if (userIdParam === 'self') {
+      userIdParam = user.userId;
+    }
 
     let whereClause: any = {};
 
@@ -37,15 +40,19 @@ export async function GET(request: Request) {
       whereClause.userId = user.userId;
     } else if (user.role === 'TL') {
       if (userIdParam) {
-        // TL checking a specific user
-        const targetUser = await prisma.user.findUnique({
-          where: { id: userIdParam },
-          select: { teamId: true },
-        });
-        if (!targetUser || targetUser.teamId !== user.teamId) {
-          return NextResponse.json({ error: 'Forbidden: Member not in your team' }, { status: 403 });
+        if (userIdParam === user.userId) {
+          whereClause.userId = user.userId;
+        } else {
+          // TL checking a specific user
+          const targetUser = await prisma.user.findUnique({
+            where: { id: userIdParam },
+            select: { teamId: true },
+          });
+          if (!targetUser || targetUser.teamId !== user.teamId) {
+            return NextResponse.json({ error: 'Forbidden: Member not in your team' }, { status: 403 });
+          }
+          whereClause.userId = userIdParam;
         }
-        whereClause.userId = userIdParam;
       } else {
         // Fetch all team members' requests
         whereClause.user = { teamId: user.teamId };

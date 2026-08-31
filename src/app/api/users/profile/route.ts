@@ -40,6 +40,11 @@ export async function GET(request: Request) {
             isActive: true,
             teamId: true,
             managerId: true,
+            manager: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },
@@ -61,6 +66,11 @@ export async function GET(request: Request) {
               isActive: true,
               teamId: true,
               managerId: true,
+              manager: {
+                select: {
+                  name: true,
+                },
+              },
             },
           },
         },
@@ -130,6 +140,7 @@ export async function PUT(request: Request) {
       if (body.designation !== undefined) updateData.designation = body.designation;
       if (body.grade !== undefined) updateData.grade = body.grade;
       if (body.location !== undefined) updateData.location = body.location;
+      if (body.workLocationStatus !== undefined) updateData.workLocationStatus = body.workLocationStatus;
       if (body.businessUnit !== undefined) updateData.businessUnit = body.businessUnit;
       if (body.hrBusinessPartner !== undefined) updateData.hrBusinessPartner = body.hrBusinessPartner;
       if (body.employmentStatus !== undefined) updateData.employmentStatus = body.employmentStatus;
@@ -171,6 +182,9 @@ export async function PUT(request: Request) {
       if (body.profileImage !== undefined) updateData.profileImage = body.profileImage;
       if (body.timezone !== undefined) updateData.timezone = body.timezone;
       if (body.financialDocuments !== undefined) updateData.financialDocuments = body.financialDocuments;
+      if (body.gender !== undefined) updateData.gender = body.gender;
+      if (body.nationality !== undefined) updateData.nationality = body.nationality;
+      if (body.insuranceNumber !== undefined) updateData.insuranceNumber = body.insuranceNumber;
     }
 
     const updatedProfile = await prisma.employeeProfile.update({
