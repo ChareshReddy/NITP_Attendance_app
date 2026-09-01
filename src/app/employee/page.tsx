@@ -1398,7 +1398,7 @@ function EmployeeDashboardContent() {
                     if (performanceScore?.manualOverride) {
                       displayScore = performanceScore.overrideScore !== null && performanceScore.overrideScore !== undefined
                         ? performanceScore.overrideScore
-                        : (displayRating === 'RED' ? 20 : displayRating === 'YELLOW' ? 53 : displayRating === 'GREEN' ? 75 : 93);
+                        : (displayRating === 'RED' ? 15 : displayRating === 'YELLOW' ? 38 : displayRating === 'GREEN' ? 63 : 88);
                     }
                     return (
                       <>
@@ -1417,7 +1417,7 @@ function EmployeeDashboardContent() {
                               {displayRating === 'BLUE' ? 'Excellent' :
                                displayRating === 'GREEN' ? 'Good' :
                                displayRating === 'YELLOW' ? 'Average' :
-                               'Needs Improvement'} ({displayScore})
+                               'Bad'} ({Math.round(displayScore)})
                             </span>
                           )}
                         </div>

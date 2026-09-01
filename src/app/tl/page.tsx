@@ -980,13 +980,12 @@ function TeamLeaderDashboardContent() {
                     <th className="py-3 px-3 text-center">Status</th>
                     <th className="py-3 px-3">Check-in Time</th>
                     <th className="py-3 px-3">Check-out Time</th>
-                    <th className="py-3 px-3">IP & Timezone</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {members.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">No members found in this team.</td>
+                      <td colSpan={5} className="text-center py-8 text-gray-400">No members found in this team.</td>
                     </tr>
                   ) : (
                     members.map((member) => {
@@ -1028,14 +1027,6 @@ function TeamLeaderDashboardContent() {
                           </td>
                           <td className="py-3.5 px-3 font-medium text-slate-600 font-mono">
                             {todayAtt?.checkOutTime ? new Date(todayAtt.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
-                          </td>
-                          <td className="py-3.5 px-3 text-[10px] text-gray-450 leading-relaxed">
-                            {todayAtt ? (
-                              <div>
-                                <span className="block font-medium">IP: {todayAtt.ip || 'Unknown'}</span>
-                                <span className="block text-gray-400 font-medium">TZ: {todayAtt.tz || 'Asia/Kolkata'}</span>
-                              </div>
-                            ) : '-'}
                           </td>
                         </tr>
                       );
@@ -1546,158 +1537,65 @@ function TeamLeaderDashboardContent() {
           </div>
         )}
 
-        {/* TAB 5: Leave Requests Review */}
+        {/* TAB 4: Leave Review History */}
         {activeTab === 'leaves' && (
           <div className="premium-card p-0 overflow-hidden space-y-0">
             {/* Header Title strip with Navy Blue background */}
             <div className="bg-brand-navy px-5 py-3 text-white">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
                 <Calendar className="w-4.5 h-4.5 text-white" />
-                Team Leave Requests Review
+                Leave Review History
               </h3>
               <p className="text-[10px] text-white/80 mt-0.5">
-                Audit, approve, or reject pending leave applications submitted by your team members.
+                Read-only record of team leave applications and approvals processed by HR Administration.
               </p>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Tab Toggle for Leave Requests & History */}
-              <div className="flex justify-center">
-                <div className="inline-flex p-1 bg-slate-100 rounded-full border border-slate-200 shadow-3xs">
-                  <button
-                    onClick={() => setLeaveSubTab('requests')}
-                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
-                      leaveSubTab === 'requests'
-                        ? 'bg-brand-navy text-white shadow-sm'
-                        : 'text-brand-navy hover:bg-slate-200/50'
-                    }`}
-                  >
-                    Leave Requests
-                  </button>
-                  <button
-                    onClick={() => setLeaveSubTab('history')}
-                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
-                      leaveSubTab === 'history'
-                        ? 'bg-brand-navy text-white shadow-sm'
-                        : 'text-brand-navy hover:bg-slate-200/50'
-                    }`}
-                  >
-                    Leave Requests History
-                  </button>
-                </div>
+            <div className="p-6">
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="min-w-full text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                      <th className="py-3 px-2 bg-transparent">Employee</th>
+                      <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                      <th className="py-3 px-2 bg-transparent">Duration</th>
+                      <th className="py-3 px-2 bg-transparent">Reason</th>
+                      <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                      <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {leaveRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No team leave history found.</td>
+                      </tr>
+                    ) : (
+                      leaveRequests.map((req) => (
+                        <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                          <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                          <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                          <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                            {req.startDate} to {req.endDate}
+                          </td>
+                          <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                            {req.reason}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                              req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                              req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {formatToTitleCase(req.status)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || (req.status === 'PENDING' ? 'Pending HR' : 'System')}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-
-              {leaveSubTab === 'requests' ? (
-                <div className="animate-in fade-in duration-200">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h3>
-                  <div className="max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                    <table className="min-w-full text-left text-xs relative border-collapse">
-                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                          <th className="py-3 px-2 bg-transparent">Employee</th>
-                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
-                          <th className="py-3 px-2 bg-transparent">Duration</th>
-                          <th className="py-3 px-2 bg-transparent">Reason</th>
-                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                          <th className="py-3 px-2 text-center bg-transparent">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leaveRequests.filter(r => r.status === 'PENDING').length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No pending leave requests from your team.</td>
-                          </tr>
-                        ) : (
-                          leaveRequests.filter(r => r.status === 'PENDING').map((req) => (
-                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
-                              <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
-                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                {req.startDate} to {req.endDate}
-                              </td>
-                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                                {req.reason}
-                              </td>
-                              <td className="py-3 px-2 text-center">
-                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                                  {formatToTitleCase(req.status)}
-                                </span>
-                              </td>
-                              <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
-                                {((sessionUser?.role === 'HR_ADMIN') || 
-                                  (sessionUser?.role === 'TL' && req.user.teamId === sessionUser.teamId)) ? (
-                                  <>
-                                    <button
-                                      onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
-                                      className="bg-emerald-500 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => handleOpenRejectModal(req.id)}
-                                      className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
-                                    >
-                                      Reject
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className="text-gray-400 font-semibold text-[10px]">-</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ) : (
-                <div className="animate-in fade-in duration-200">
-                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Leave Requests History</h3>
-                  <div className="max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                    <table className="min-w-full text-left text-xs relative border-collapse">
-                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                          <th className="py-3 px-2 bg-transparent">Employee</th>
-                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
-                          <th className="py-3 px-2 bg-transparent">Duration</th>
-                          <th className="py-3 px-2 bg-transparent">Reason</th>
-                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                          <th className="py-3 px-2 bg-transparent">Reviewed By</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {leaveRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No review history found.</td>
-                          </tr>
-                        ) : (
-                          leaveRequests.filter(r => r.status !== 'PENDING').map((req) => (
-                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
-                              <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
-                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                {req.startDate} to {req.endDate}
-                              </td>
-                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                                {req.reason}
-                              </td>
-                              <td className="py-3 px-2 text-center">
-                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                  req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
-                                }`}>
-                                  {formatToTitleCase(req.status)}
-                                </span>
-                              </td>
-                              <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || 'System'}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}

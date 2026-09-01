@@ -14,6 +14,7 @@ interface PerformancePieChartProps {
   size?: number;
   className?: string;
   showLegend?: boolean;
+  showDetails?: boolean;
 }
 
 export default function PerformancePieChart({
@@ -21,6 +22,7 @@ export default function PerformancePieChart({
   size = 54,
   className = '',
   showLegend = true,
+  showDetails = false,
 }: PerformancePieChartProps) {
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
@@ -30,7 +32,7 @@ export default function PerformancePieChart({
     { key: 'BLUE', label: 'Blue (Excellent)', short: 'B', count: counts.BLUE || 0, color: '#2563eb', bgLight: 'bg-blue-50', textCol: 'text-blue-600', dotCol: 'bg-blue-600' },
     { key: 'GREEN', label: 'Green (Good)', short: 'G', count: counts.GREEN || 0, color: '#10b981', bgLight: 'bg-emerald-50', textCol: 'text-emerald-600', dotCol: 'bg-emerald-600' },
     { key: 'YELLOW', label: 'Yellow (Average)', short: 'Y', count: counts.YELLOW || 0, color: '#f59e0b', bgLight: 'bg-amber-50', textCol: 'text-amber-600', dotCol: 'bg-amber-600' },
-    { key: 'RED', label: 'Red (Needs Improvement)', short: 'R', count: counts.RED || 0, color: '#ef4444', bgLight: 'bg-rose-50', textCol: 'text-brand-red', dotCol: 'bg-brand-red' },
+    { key: 'RED', label: 'Red (Bad)', short: 'R', count: counts.RED || 0, color: '#ef4444', bgLight: 'bg-rose-50', textCol: 'text-brand-red', dotCol: 'bg-brand-red' },
   ];
 
   // SVG Donut geometry

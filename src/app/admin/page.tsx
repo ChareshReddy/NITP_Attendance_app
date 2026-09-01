@@ -1208,6 +1208,8 @@ export default function AdminDashboard() {
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
+                  title={item.label}
+                  aria-label={item.label}
                   className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
                     isActive 
                       ? 'text-brand-navy font-bold' 
@@ -1246,7 +1248,8 @@ export default function AdminDashboard() {
                 <span className="text-sm font-extrabold text-brand-navy font-heading">Admin Panel</span>
                 <button 
                   onClick={() => setIsMobileSidebarOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1"
+                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  aria-label="Close navigation menu"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1260,6 +1263,8 @@ export default function AdminDashboard() {
                       setActiveTab(item.id);
                       setIsMobileSidebarOpen(false);
                     }}
+                    title={item.label}
+                    aria-label={item.label}
                     className={`w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer ${
                       activeTab === item.id 
                         ? 'bg-slate-100 border-l-4 border-brand-navy text-brand-navy font-extrabold' 
@@ -1325,7 +1330,7 @@ export default function AdminDashboard() {
               <div className="flex-1 min-w-0">
                 <span className="text-[10px] font-bold text-gray-400 block">Daily Work Shift</span>
                 <span className="text-xs font-bold text-brand-navy block mt-0.5">
-                  {todayRecord ? (
+                  {todayRecord && todayRecord.checkInTime ? (
                     <>
                       In: <span className="font-semibold text-brand-cta">{new Date(todayRecord.checkInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       {todayRecord.checkOutTime ? (
@@ -1342,25 +1347,25 @@ export default function AdminDashboard() {
               <div className="shrink-0 flex gap-2">
                 <button
                   onClick={handleCheckIn}
-                  disabled={loadingAttendance || !!todayRecord}
+                  disabled={loadingAttendance || !!(todayRecord && todayRecord.checkInTime)}
                   className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
-                    (!todayRecord && !loadingAttendance)
+                    (!todayRecord?.checkInTime && !loadingAttendance)
                       ? 'bg-brand-cta hover:bg-blue-700 text-white cursor-pointer shadow-sm btn-premium'
                       : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  {loadingAttendance && !todayRecord ? '...' : 'Check In'}
+                  {loadingAttendance && !todayRecord?.checkInTime ? '...' : 'Check In'}
                 </button>
                 <button
                   onClick={handleCheckOut}
-                  disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
+                  disabled={loadingAttendance || !todayRecord?.checkInTime || !!todayRecord?.checkOutTime}
                   className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
-                    (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
+                    (todayRecord?.checkInTime && !todayRecord?.checkOutTime && !loadingAttendance)
                       ? 'bg-brand-red hover:bg-red-700 text-white cursor-pointer shadow-sm btn-premium'
                       : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? '...' : 'Check Out'}
+                  {loadingAttendance && todayRecord?.checkInTime && !todayRecord?.checkOutTime ? '...' : 'Check Out'}
                 </button>
               </div>
             </div>
@@ -1369,136 +1374,117 @@ export default function AdminDashboard() {
 
         {/* HR KPI Cards - Only visible on Analytics (home) tab */}
         {activeTab === 'analytics' && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-            {/* Active Employees */}
-            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-              <span className="block text-3xl font-extrabold text-brand-navy font-heading">
-                {users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Active Employees</span>
-            </div>
-
-            {/* Avg Attendance */}
-            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-              <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
-                {kpiStats.rollingAttendanceRate.toFixed(1)}%
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Avg Attendance</span>
-            </div>
-
-            {/* Present Today */}
-            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-              <span className="block text-3xl font-extrabold text-brand-cta font-heading">
-                {kpiStats.checkedInToday}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Present Today</span>
-            </div>
-
-            {/* Absent Today */}
-            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-              <span className="block text-3xl font-extrabold text-brand-red font-heading">
-                {kpiStats.absentToday}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Absent Today</span>
-            </div>
-
-            {/* On Leave Today */}
-            <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-              <span className="block text-3xl font-extrabold text-purple-600 font-heading">
-                {kpiStats.onLeaveToday}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">On Leave (Today)</span>
-            </div>
-
-            {/* Pending TL Reports */}
-            <button
-              onClick={() => setActiveTab('reports')}
-              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
-            >
-              <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
-                {reports.filter(r => r.status === 'PENDING').length}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
-            </button>
-
-            {/* Pending Leaves */}
-            <button
-              onClick={() => setActiveTab('leaves')}
-              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
-            >
-              <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
-                {leaveRequests.filter(r => r.status === 'PENDING').length}
-              </span>
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
-            </button>
-
-            {/* Payroll Status */}
-            <button
-              onClick={() => setActiveTab('payroll')}
-              className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
-            >
-              {payrollRuns.some(r => r.status === 'DRAFT') ? (
-                <>
-                  <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
-                    Draft Active
-                  </span>
-                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
-                </>
-              ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
-                <>
-                  <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
-                    Pending Payout
-                  </span>
-                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
-                </>
-              ) : (
-                <>
-                  <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
-                    All Paid
-                  </span>
-                  <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
-                </>
-              )}
-              <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
-            </button>
-
-            {/* Performance Overview (lg:col-span-2) */}
-            <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-xs hover:shadow-md transition-all">
-              <span className="text-[10px] font-bold text-gray-400 block mb-2 text-center tracking-wider uppercase">Performance Overview</span>
-              <PerformancePieChart
-                counts={performanceCounts}
-                size={54}
-                showLegend={true}
-                showDetails={false}
-              />
-            </div>
-          </div>
-        )}
-
-
-
-        {/* TAB 1: Analytics & Excel Export */}
-        {activeTab === 'analytics' && (
           <div className="space-y-6">
-
-            {/* Monthly & Rostered Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Total Rostered Employees */}
-              <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 tracking-wider block">Total Rostered Employees</span>
-                  <span className="text-3xl font-extrabold text-brand-navy mt-2 block font-heading">{kpiStats.totalEmployees}</span>
-                </div>
-                <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Includes all active staff profiles</span>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* Active Staff */}
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-brand-navy font-heading">
+                  {kpiStats.activeEmployees || users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Active Staff</span>
               </div>
 
               {/* New Joiners */}
-              <div className="premium-card p-6 flex flex-col justify-between hover:shadow-md transition-all">
-                <div>
-                  <span className="text-[10px] font-bold text-gray-400 tracking-wider block">New Joiners (This Month)</span>
-                  <span className="text-3xl font-extrabold text-blue-600 mt-2 block font-heading">{kpiStats.newJoiners}</span>
-                </div>
-                <span className="text-[10px] text-gray-500 font-semibold mt-4 block">Onboarded since the 1st of the month</span>
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-blue-600 font-heading">
+                  {kpiStats.newJoiners ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">New Joiners (Month)</span>
+              </div>
+
+              {/* Avg Attendance */}
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
+                  {kpiStats.rollingAttendanceRate !== undefined ? `${kpiStats.rollingAttendanceRate.toFixed(1)}%` : '100.0%'}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Avg Attendance</span>
+              </div>
+
+              {/* Present Today */}
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-brand-cta font-heading">
+                  {kpiStats.checkedInToday ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Present Today</span>
+              </div>
+
+              {/* Absent Today */}
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-brand-red font-heading">
+                  {kpiStats.absentToday ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Absent Today</span>
+              </div>
+
+              {/* On Leave Today */}
+              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="block text-3xl font-extrabold text-purple-600 font-heading">
+                  {kpiStats.onLeaveToday ?? 0}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">On Leave (Today)</span>
+              </div>
+
+              {/* Pending TL Reports */}
+              <button
+                onClick={() => setActiveTab('reports')}
+                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
+              >
+                <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
+                  {reports.filter(r => r.status === 'PENDING').length}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
+              </button>
+
+              {/* Pending Leaves */}
+              <button
+                onClick={() => setActiveTab('leaves')}
+                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
+              >
+                <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
+                  {leaveRequests.filter(r => r.status === 'PENDING').length}
+                </span>
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
+              </button>
+
+              {/* Payroll Status */}
+              <button
+                onClick={() => setActiveTab('payroll')}
+                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
+              >
+                {payrollRuns.some(r => r.status === 'DRAFT') ? (
+                  <>
+                    <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
+                      Draft Active
+                    </span>
+                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
+                  </>
+                ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
+                  <>
+                    <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
+                      Pending Payout
+                    </span>
+                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
+                      All Paid
+                    </span>
+                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
+                  </>
+                )}
+                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+              </button>
+
+              {/* Performance Overview */}
+              <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
+                <span className="text-[10px] font-bold text-gray-400 block mb-2 text-center tracking-wider uppercase">Performance Overview</span>
+                <PerformancePieChart
+                  counts={performanceCounts}
+                  size={54}
+                  showLegend={true}
+                  showDetails={false}
+                />
               </div>
             </div>
             
@@ -2730,19 +2716,19 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-blue-700 font-heading">{performanceCounts.BLUE}</span>
-                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Excellent (90%–100%)</span>
+                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Excellent (76%–100%)</span>
               </div>
               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">{performanceCounts.GREEN}</span>
-                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Good (70%–89%)</span>
+                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Good (51%–75%)</span>
               </div>
               <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-amber-700 font-heading">{performanceCounts.YELLOW}</span>
-                <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Average (50%–69%)</span>
+                <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Average (26%–50%)</span>
               </div>
               <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
-                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Needs Improvement (&lt; 50%)</span>
+                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Bad (0%–25%)</span>
               </div>
             </div>
 
@@ -2800,7 +2786,7 @@ export default function AdminDashboard() {
                             if (p.score.manualOverride) {
                               score = p.score.overrideScore !== null && p.score.overrideScore !== undefined
                                 ? p.score.overrideScore
-                                : (p.score.rating === 'RED' ? 20 : p.score.rating === 'YELLOW' ? 53 : p.score.rating === 'GREEN' ? 75 : 93);
+                                : (p.score.rating === 'RED' ? 15 : p.score.rating === 'YELLOW' ? 38 : p.score.rating === 'GREEN' ? 63 : 88);
                             }
                             return `${Math.round(score)}%`;
                           })()}
@@ -2812,7 +2798,7 @@ export default function AdminDashboard() {
                             p.score.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                             'bg-red-100 text-brand-red border-red-200'
                           }`}>
-                            {formatToTitleCase(p.score.rating)}
+                            {p.score.rating === 'RED' ? 'Bad' : p.score.rating === 'YELLOW' ? 'Average' : p.score.rating === 'GREEN' ? 'Good' : 'Excellent'}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={p.score.overrideReason || ''}>
@@ -3657,7 +3643,7 @@ export default function AdminDashboard() {
                         if (uObj.score.manualOverride) {
                           displayScore = uObj.score.overrideScore !== null && uObj.score.overrideScore !== undefined
                             ? uObj.score.overrideScore
-                            : (displayRating === 'RED' ? 20 : displayRating === 'YELLOW' ? 53 : displayRating === 'GREEN' ? 75 : 93);
+                            : (displayRating === 'RED' ? 15 : displayRating === 'YELLOW' ? 38 : displayRating === 'GREEN' ? 63 : 88);
                         }
                         return <Speedometer score={displayScore} rating={displayRating} size={240} />;
                       })()}
@@ -3677,10 +3663,10 @@ export default function AdminDashboard() {
                   onChange={(e) => setOverrideRating(e.target.value)}
                   className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                 >
-                  <option value="RED">RED (Poor)</option>
-                  <option value="YELLOW">YELLOW (Needs Improvement)</option>
-                  <option value="GREEN">GREEN (Good)</option>
-                  <option value="BLUE">BLUE (Excellent)</option>
+                  <option value="RED">RED (Bad: 0-25)</option>
+                  <option value="YELLOW">YELLOW (Average: 26-50)</option>
+                  <option value="GREEN">GREEN (Good: 51-75)</option>
+                  <option value="BLUE">BLUE (Excellent: 76-100)</option>
                 </select>
               </div>
 

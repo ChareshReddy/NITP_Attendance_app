@@ -142,6 +142,21 @@ export async function POST(request: Request) {
       },
     });
 
+    // Auto-create initial PerformanceScore for new staff members
+    if (newUser.role === 'EMPLOYEE' || newUser.role === 'TL') {
+      try {
+        await prisma.performanceScore.create({
+          data: {
+            userId: newUser.id,
+            autoScore: 100,
+            rating: 'BLUE',
+          },
+        });
+      } catch (scoreErr) {
+        console.error('Error auto-creating performance score for new user:', scoreErr);
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,

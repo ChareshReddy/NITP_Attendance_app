@@ -20,7 +20,7 @@ export async function GET() {
 
     const todayStr = new Date().toISOString().split('T')[0];
 
-    // 1. Total Employees count
+    // 1. Total Employees count (all registered rostered staff)
     const totalEmployees = await prisma.user.count({
       where: {
         role: { in: ['EMPLOYEE', 'TL'] },
@@ -42,37 +42,41 @@ export async function GET() {
     const newJoiners = await prisma.user.count({
       where: {
         role: { in: ['EMPLOYEE', 'TL'] },
+        isActive: true,
         createdAt: { gte: firstDayOfMonth },
       },
     });
 
-    // 4. On Leave (today)
+    // 4. On Leave (today) - active staff only
     const onLeaveToday = await prisma.leaveRequest.count({
       where: {
         status: 'APPROVED',
         startDate: { lte: todayStr },
         endDate: { gte: todayStr },
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });
 
-    // 5. Checked in today
+    // 5. Checked in today - active staff only
     const checkedInToday = await prisma.attendance.count({
       where: {
         date: todayStr,
         checkInTime: { not: null },
         status: { not: 'ABSENT' },
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });
 
-    // 6. Absent (today) - only count users with explicit ABSENT status today
+    // 6. Absent (today) - only count active staff with explicit ABSENT status today
     const absentToday = await prisma.attendance.count({
       where: {
         date: todayStr,
         status: 'ABSENT',
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });
 
-    // 7. Rolling Attendance % (past 30 days)
+    // 7. Rolling Attendance % (past 30 days) for active staff
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
@@ -81,6 +85,7 @@ export async function GET() {
       where: {
         date: { gte: thirtyDaysAgoStr, lte: todayStr },
         status: { in: ['PRESENT', 'LATE', 'LATE_COMING', 'EARLY_LEAVING', 'OVERTIME', 'MISSING_PUNCH'] },
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });
 
@@ -88,11 +93,15 @@ export async function GET() {
       where: {
         date: { gte: thirtyDaysAgoStr, lte: todayStr },
         status: 'ABSENT',
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });
 
     const totalLogs = presentLogs + absentLogs;
-    const rollingAttendanceRate = totalLogs > 0 ? (presentLogs / totalLogs) * 100 : 100;
+    let rollingAttendanceRate = totalLogs > 0 ? (presentLogs / totalLogs) * 100 : 100;
+    
+    // If today has check-ins or active employees present, ensure realistic rate
+    const todayRate = activeEmployees > 0 ? (checkedInToday / activeEmployees) * 100 : 100;
 
     return NextResponse.json({
       totalEmployees,
@@ -101,6 +110,7 @@ export async function GET() {
       onLeaveToday,
       absentToday,
       rollingAttendanceRate,
+      todayAttendanceRate: todayRate,
       checkedInToday,
     });
   } catch (error) {

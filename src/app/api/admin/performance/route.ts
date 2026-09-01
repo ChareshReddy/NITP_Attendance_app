@@ -46,11 +46,11 @@ export async function calculateUserPerformance(userId: string) {
 
   // Map to rating bands
   let rating: 'RED' | 'YELLOW' | 'GREEN' | 'BLUE' = 'GREEN';
-  if (autoScore <= 40) {
-    rating = 'RED'; // Needs Improvement
-  } else if (autoScore <= 65) {
+  if (autoScore <= 25) {
+    rating = 'RED'; // Bad
+  } else if (autoScore <= 50) {
     rating = 'YELLOW'; // Average
-  } else if (autoScore <= 85) {
+  } else if (autoScore <= 75) {
     rating = 'GREEN'; // Good
   } else {
     rating = 'BLUE'; // Excellent
@@ -156,7 +156,7 @@ export async function GET(request: Request) {
       return {
         user: u,
         score: score || {
-          rating: 'GREEN',
+          rating: 'BLUE',
           autoScore: 100,
           manualOverride: false,
           overrideReason: null,
