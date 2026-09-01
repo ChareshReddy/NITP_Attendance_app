@@ -808,7 +808,7 @@ function TeamLeaderDashboardContent() {
           </div>
         )}
 
-        <main className="flex-1 p-4 md:pt-4 md:px-8 md:pb-12 w-full max-w-7xl mx-auto">
+        <main className="flex-1 p-6 md:pt-8 md:px-8 md:pb-12 w-full max-w-7xl mx-auto">
         
         {/* Alerts Center */}
         {errorMsg && (
@@ -844,8 +844,8 @@ function TeamLeaderDashboardContent() {
 
         {/* Dashboard Title & KPIs */}
         {activeTab === 'attendance' && allTeams.length > 0 && (
-          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-end gap-4 border-b border-gray-100 pb-6">
-            <div className="flex items-center gap-2 premium-card px-4 py-2.5 shadow-sm border border-gray-200/50 self-start md:self-center">
+          <div className="mb-6 flex justify-end">
+            <div className="flex items-center gap-2 premium-card px-4 py-2.5 shadow-sm border border-gray-200/50">
               <span className="text-xs font-bold text-gray-500 tracking-wider">Inspect Team:</span>
               <select
                 value={selectedTeamId}
@@ -862,55 +862,92 @@ function TeamLeaderDashboardContent() {
           </div>
         )}
 
-        {/* Team Performance Card with Pie Chart */}
+        {/* KPI Tiles Strip */}
         {activeTab === 'attendance' && (
-          <div className="premium-card p-0 overflow-hidden mb-8 border border-slate-200/80 shadow-xs">
-            <div className="bg-brand-navy px-5 py-3 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
-                  <TrendingUp className="w-4.5 h-4.5 text-white" />
-                  Team Performance Health
-                </h3>
-                <p className="text-[10px] text-white/80 mt-0.5">
-                  Real-time breakdown of evaluated team members across performance tiers.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold text-white shrink-0 self-start sm:self-auto">
-                <Users className="w-3.5 h-3.5" />
-                <span>{activeMembersCount} Team Members</span>
-              </div>
+          <div className="premium-card p-0 overflow-hidden mb-8 shadow-xs border border-slate-200/80">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <TrendingUp className="w-4.5 h-4.5 text-white" />
+                Team Key Performance Indicators (KPIs)
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Real-time overview of team attendance, punctuality, pending reviews, and performance health.
+              </p>
             </div>
 
-            <div className="p-6 bg-white space-y-5">
-              <PerformancePieChart
-                counts={performanceCounts}
-                size={96}
-                showLegend={true}
-                showDetails={true}
-              />
-
-              {/* Informative Color Notification Banner */}
-              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start gap-2.5 text-xs text-gray-600">
-                <Info className="w-4 h-4 text-brand-cta shrink-0 mt-0.5" />
-                <div className="text-[11px] leading-relaxed w-full">
-                  <span className="font-bold text-brand-navy block mb-1">Performance Rating Scale:</span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
-                      <span><strong className="text-blue-700">Excellent:</strong> 90% – 100%</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0" />
-                      <span><strong className="text-emerald-700">Good:</strong> 70% – 89%</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0" />
-                      <span><strong className="text-amber-700">Average:</strong> 50% – 69%</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
-                      <span className="w-2.5 h-2.5 rounded-full bg-brand-red shrink-0" />
-                      <span><strong className="text-brand-red">Needs Improvement:</strong> &lt; 50%</span>
-                    </span>
+            <div className="p-5 grid grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-0 divide-y lg:divide-y-0 lg:divide-x divide-gray-250/40">
+              {/* Team Members */}
+              <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta shrink-0 shadow-xs">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                    {activeMembersCount}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Team Members</span>
+                </div>
+              </div>
+    
+              {/* Present Today */}
+              <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 shadow-xs">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-2xl font-extrabold font-mono text-emerald-600 leading-none">
+                    {presentTodayCount}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Present Today</span>
+                </div>
+              </div>
+    
+              {/* Late Arrivals */}
+              <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-brand-red shrink-0 shadow-xs">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-2xl font-extrabold font-mono text-brand-red leading-none">
+                    {lateTodayCount}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Late Arrivals</span>
+                </div>
+              </div>
+    
+              {/* Pending Reviews */}
+              <div className="flex items-center gap-4 justify-center py-2 lg:py-0 lg:px-6">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0 shadow-xs">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div className="text-left">
+                  <span className="block text-2xl font-extrabold font-mono text-brand-navy leading-none">
+                    {pendingTrackSheetsCount}
+                  </span>
+                  <span className="text-[10px] font-bold text-gray-400 mt-1.5 block uppercase tracking-wider">Pending Reviews</span>
+                </div>
+              </div>
+    
+              {/* Team Performance */}
+              <div className="flex flex-col justify-center py-2 lg:py-0 lg:px-6">
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block text-center mb-1.5">Performance Health</span>
+                <div className="flex justify-around items-center gap-1 bg-slate-50/60 p-1.5 rounded-xl border border-gray-150/40">
+                  <div className="text-center">
+                    <span className="block text-[10px] font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
+                    <span className="text-[8px] text-gray-400 block mt-0.5">B</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
+                    <span className="text-[8px] text-gray-400 block mt-0.5">G</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-[10px] font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
+                    <span className="text-[8px] text-gray-400 block mt-0.5">Y</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-[10px] font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
+                    <span className="text-[8px] text-gray-400 block mt-0.5">R</span>
                   </div>
                 </div>
               </div>
