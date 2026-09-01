@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
+import PerformancePieChart from '@/components/PerformancePieChart';
 import Link from 'next/link';
 import { 
   Users, 
@@ -112,7 +114,25 @@ interface TeamReport {
 }
 
 export default function TeamLeaderDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-500 font-semibold font-mono">Loading board...</div>}>
+      <TeamLeaderDashboardContent />
+    </Suspense>
+  );
+}
+
+function TeamLeaderDashboardContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
   const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves' | 'goals'>('attendance');
+
+  useEffect(() => {
+    if (tabParam && ['attendance', 'tracksheets', 'tasks', 'reports', 'leaves', 'goals'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+  }, [tabParam]);
+
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Goals States
@@ -145,6 +165,7 @@ export default function TeamLeaderDashboard() {
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [leaveSubTab, setLeaveSubTab] = useState<'requests' | 'history'>('requests');
 
   // Performance Rating States
   const [performanceScores, setPerformanceScores] = useState<any[]>([]);
@@ -165,6 +186,9 @@ export default function TeamLeaderDashboard() {
   // Filtering States for Track Sheets
   const [filterMember, setFilterMember] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterTrackDate, setFilterTrackDate] = useState('');
+  const [filterTrackSearch, setFilterTrackSearch] = useState('');
+  const [filterTrackHours, setFilterTrackHours] = useState('');
 
   // Drill-down and commenting states
   const [selectedMemberForDetail, setSelectedMemberForDetail] = useState<TeamMember | null>(null);
@@ -615,9 +639,39 @@ export default function TeamLeaderDashboard() {
 
   // Filtered Track Sheets
   const filteredTrackSheets = trackSheets.filter(sheet => {
-    const matchesMember = filterMember === 'all' || sheet.user.id === filterMember;
-    const matchesStatus = filterStatus === 'all' || sheet.status === filterStatus;
-    return matchesMember && matchesStatus;
+    // 1. Member filter
+    if (filterMember !== 'all' && sheet.user.id !== filterMember) {
+      return false;
+    }
+    
+    // 2. Status filter
+    if (filterStatus !== 'all' && sheet.status !== filterStatus) {
+      return false;
+    }
+
+    // 3. Date filter
+    if (filterTrackDate && sheet.date !== filterTrackDate) {
+      return false;
+    }
+
+    // 4. Hours filter
+    if (filterTrackHours && sheet.hours !== parseFloat(filterTrackHours)) {
+      return false;
+    }
+
+    // 5. Search filter (project, taskDescription, or assignedByName)
+    if (filterTrackSearch) {
+      const query = filterTrackSearch.toLowerCase();
+      const project = (sheet.project || '').toLowerCase();
+      const taskDesc = (sheet.taskDescription || '').toLowerCase();
+      const assigned = (sheet.assignedByName || '').toLowerCase();
+      const user = (sheet.user?.name || '').toLowerCase();
+      if (!project.includes(query) && !taskDesc.includes(query) && !assigned.includes(query) && !user.includes(query)) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   const tlNavItems: {
@@ -789,14 +843,8 @@ export default function TeamLeaderDashboard() {
         )}
 
         {/* Dashboard Title & KPIs */}
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-gray-100 pb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-brand-navy font-heading">
-              {team ? team.name : 'Team Leader Board'}
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">Manage attendance, log reviews, and track deliverables.</p>
-          </div>
-          {allTeams.length > 0 && (
+        {activeTab === 'attendance' && allTeams.length > 0 && (
+          <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-end gap-4 border-b border-gray-100 pb-6">
             <div className="flex items-center gap-2 premium-card px-4 py-2.5 shadow-sm border border-gray-200/50 self-start md:self-center">
               <span className="text-xs font-bold text-gray-500 tracking-wider">Inspect Team:</span>
               <select
@@ -811,69 +859,82 @@ export default function TeamLeaderDashboard() {
                 ))}
               </select>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Combined Summary & Category Bar */}
-        <div className="premium-card p-3 mb-8 bg-slate-50/60 border border-slate-255/35 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
-            <span className="font-semibold text-slate-550">
-              Team: <strong className="text-brand-navy">{team?.name || 'N/A'}</strong>
-            </span>
-            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
-            <div className="flex flex-wrap items-center gap-4 text-slate-650">
-              <span className="flex items-center gap-1.5 font-medium">
-                <Users className="w-3.5 h-3.5 text-blue-500" />
-                Members: <strong className="text-brand-navy">{activeMembersCount}</strong>
-              </span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-                Present: <strong className="text-emerald-700">{presentTodayCount}</strong>
-              </span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <Clock className="w-3.5 h-3.5 text-brand-red" />
-                Late: <strong className="text-brand-red">{lateTodayCount}</strong>
-              </span>
-              <span className="flex items-center gap-1.5 font-medium">
-                <FileText className="w-3.5 h-3.5 text-amber-500" />
-                Pending Logs: <strong className="text-amber-700">{pendingTrackSheetsCount}</strong>
-              </span>
+        {/* Team Performance Card with Pie Chart */}
+        {activeTab === 'attendance' && (
+          <div className="premium-card p-0 overflow-hidden mb-8 border border-slate-200/80 shadow-xs">
+            <div className="bg-brand-navy px-5 py-3 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <TrendingUp className="w-4.5 h-4.5 text-white" />
+                  Team Performance Health
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  Real-time breakdown of evaluated team members across performance tiers.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg text-xs font-bold text-white shrink-0 self-start sm:self-auto">
+                <Users className="w-3.5 h-3.5" />
+                <span>{activeMembersCount} Team Members</span>
+              </div>
+            </div>
+
+            <div className="p-6 bg-white space-y-5">
+              <PerformancePieChart
+                counts={performanceCounts}
+                size={96}
+                showLegend={true}
+                showDetails={true}
+              />
+
+              {/* Informative Color Notification Banner */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/70 flex items-start gap-2.5 text-xs text-gray-600">
+                <Info className="w-4 h-4 text-brand-cta shrink-0 mt-0.5" />
+                <div className="text-[11px] leading-relaxed w-full">
+                  <span className="font-bold text-brand-navy block mb-1">Performance Rating Scale:</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                      <span className="w-2.5 h-2.5 rounded-full bg-blue-600 shrink-0" />
+                      <span><strong className="text-blue-700">Excellent:</strong> 90% – 100%</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0" />
+                      <span><strong className="text-emerald-700">Good:</strong> 70% – 89%</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-600 shrink-0" />
+                      <span><strong className="text-amber-700">Average:</strong> 50% – 69%</span>
+                    </span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                      <span className="w-2.5 h-2.5 rounded-full bg-brand-red shrink-0" />
+                      <span><strong className="text-brand-red">Needs Improvement:</strong> &lt; 50%</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          {/* Quick tab filters/categories */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            {tlNavItems.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
-                    isActive 
-                      ? 'bg-brand-navy text-white border-brand-navy shadow-sm' 
-                      : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-
+        )}
 
         {/* Tab Contents */}
 
         {/* TAB 1: Attendance Grid */}
         {activeTab === 'attendance' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-bold text-brand-navy font-heading">Attendance Status</h2>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <UserCheck className="w-4.5 h-4.5 text-white" />
+                Team Attendance Status
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                View real-time check-in and check-out status of your team members.
+              </p>
             </div>
 
-            <div className="premium-card p-6 overflow-x-auto">
+            <div className="p-6 overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
@@ -951,317 +1012,385 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB 2: Track Sheets Review */}
         {activeTab === 'tracksheets' && (
-          <div className="premium-card p-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-brand-navy font-heading">Team Track Sheets Review</h2>
-              
-              {/* Filters */}
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <Filter className="w-4 h-4 text-brand-navy shrink-0" />
-                <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-white" />
+                Team Track Sheets Review
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Audit, approve, and reject daily work log sheets submitted by team members.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Filters Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
+                {/* Member Filter */}
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Member</label>
                   <select
                     value={filterMember}
                     onChange={(e) => setFilterMember(e.target.value)}
-                    className="rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white cursor-pointer"
                   >
                     <option value="all">All Members</option>
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
+                </div>
+
+                {/* Date Filter */}
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Date</label>
+                  <input
+                    type="date"
+                    value={filterTrackDate}
+                    onChange={(e) => setFilterTrackDate(e.target.value)}
+                    className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                  />
+                </div>
+
+                {/* Search Text Box */}
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Search Description / Assigned By</label>
+                  <input
+                    type="text"
+                    placeholder="Type to search..."
+                    value={filterTrackSearch}
+                    onChange={(e) => setFilterTrackSearch(e.target.value)}
+                    className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                  />
+                </div>
+
+                {/* Hours Filter */}
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Hours</label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0.5"
+                    placeholder="e.g. 8"
+                    value={filterTrackHours}
+                    onChange={(e) => setFilterTrackHours(e.target.value)}
+                    className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white"
+                  />
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Filter by Status</label>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                    className="block w-full futuristic-input py-1.5 px-2.5 text-xs text-brand-gray bg-white cursor-pointer"
                   >
-                    <option value="all">All Statuses</option>
+                    <option value="all">All Status</option>
                     <option value="PENDING">Pending</option>
                     <option value="APPROVED">Approved</option>
                     <option value="REJECTED">Rejected</option>
                   </select>
                 </div>
               </div>
-            </div>
 
-            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-              <table className="w-full table-fixed text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                    <th className="py-3 px-2 bg-transparent w-[14%]">Member</th>
-                    <th className="py-3 px-2 bg-transparent w-[10%]">Date</th>
-                    <th className="py-3 px-2 bg-transparent w-[20%]">Task / Project</th>
-                    <th className="py-3 px-2 bg-transparent w-[16%]">Assigned By</th>
-                    <th className="py-3 px-2 bg-transparent w-[14%]">Work Link</th>
-                    <th className="py-3 px-2 bg-transparent w-[12%]">Hours</th>
-                    <th className="py-3 px-2 bg-transparent w-[10%]">Status</th>
-                    <th className="py-3 px-2 text-center bg-transparent w-[4%]"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredTrackSheets.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-6 text-gray-400">No track sheets found.</td>
+              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                <table className="w-full table-fixed text-left text-xs relative border-collapse">
+                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                      <th className="py-3 px-2 bg-transparent w-[14%]">Member</th>
+                      <th className="py-3 px-2 bg-transparent w-[10%]">Date</th>
+                      <th className="py-3 px-2 bg-transparent w-[20%]">Task / Project</th>
+                      <th className="py-3 px-2 bg-transparent w-[16%]">Assigned By</th>
+                      <th className="py-3 px-2 bg-transparent w-[14%]">Work Link</th>
+                      <th className="py-3 px-2 bg-transparent w-[12%]">Hours</th>
+                      <th className="py-3 px-2 bg-transparent w-[10%]">Status</th>
+                      <th className="py-3 px-2 text-center bg-transparent w-[4%]"></th>
                     </tr>
-                  ) : (
-                    filteredTrackSheets.map((sheet) => {
-                      const isExpanded = !!expandedSheets[sheet.id];
-                      return (
-                        <React.Fragment key={sheet.id}>
-                          <tr 
-                            className={`hover:bg-gray-50/50 cursor-pointer transition-colors ${
-                              isExpanded ? 'bg-slate-50/40' : ''
-                            }`}
-                            onClick={() => setExpandedSheets(prev => ({ ...prev, [sheet.id]: !prev[sheet.id] }))}
-                          >
-                            <td className="py-3 px-2 font-bold text-brand-navy truncate" title={sheet.user.name}>{sheet.user.name}</td>
-                            <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">{sheet.date}</td>
-                            <td className="py-3 px-2 font-medium text-brand-navy truncate" title={sheet.project}>{sheet.project}</td>
-                            <td className="py-3 px-2 text-brand-navy font-semibold truncate" title={sheet.assignedByName || 'N/A'}>
-                              {sheet.assignedByName || '-'}
-                            </td>
-                            <td className="py-3 px-2">
-                              {sheet.referenceLink ? (
-                                <a
-                                  href={sheet.referenceLink.startsWith('http') ? sheet.referenceLink : `https://${sheet.referenceLink}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-brand-cta hover:underline font-bold"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  View
-                                </a>
-                              ) : (
-                                <span className="text-gray-400 font-semibold">-</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-2 font-extrabold text-brand-navy">{sheet.hours}h</td>
-                            <td className="py-3 px-2">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                                sheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                                sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                                'bg-amber-100 text-amber-800'
-                              }`}>
-                                {formatToTitleCase(sheet.status)}
-                              </span>
-                            </td>
-                            <td className="py-3 px-2 text-center">
-                              <ChevronDown className={`w-4 h-4 text-gray-400 mx-auto transition-transform duration-200 ${
-                                isExpanded ? 'rotate-180 text-brand-cta' : ''
-                              }`} />
-                            </td>
-                          </tr>
-                          <tr>
-                            <td colSpan={8} className="p-0 border-t-0 bg-transparent">
-                              <AnimatePresence initial={false}>
-                                {isExpanded && (
-                                  <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    transition={{ duration: 0.18, ease: 'easeInOut' }}
-                                    className="overflow-hidden"
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredTrackSheets.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 text-gray-400">No work log sheets found matching filters.</td>
+                      </tr>
+                    ) : (
+                      filteredTrackSheets.map((sheet) => {
+                        const isExpanded = !!expandedSheets[sheet.id];
+                        return (
+                          <React.Fragment key={sheet.id}>
+                            <tr 
+                              className="hover:bg-slate-50/50 cursor-pointer border-b border-gray-100"
+                              onClick={() => {
+                                setExpandedSheets(prev => ({
+                                  ...prev,
+                                  [sheet.id]: !prev[sheet.id]
+                                }));
+                              }}
+                            >
+                              <td className="py-3 px-2 font-bold text-brand-navy truncate" title={sheet.user.name}>{formatEmployeeName(sheet.user.name)}</td>
+                              <td className="py-3 px-2 text-gray-500 font-medium">{formatDateToIndian(sheet.date)}</td>
+                              <td className="py-3 px-2 text-brand-navy font-bold truncate" title={sheet.project}>{sheet.project}</td>
+                              <td className="py-3 px-2 text-slate-500 truncate" title={sheet.assignedByName || 'N/A'}>{sheet.assignedByName || 'N/A'}</td>
+                              <td className="py-3 px-2 text-slate-500 truncate">
+                                {sheet.referenceLink ? (
+                                  <a 
+                                    href={sheet.referenceLink.startsWith('http') ? sheet.referenceLink : `https://${sheet.referenceLink}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-brand-cta hover:underline font-bold inline-flex items-center gap-0.5"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <div className="px-6 py-4 bg-slate-50/60 rounded-xl m-2 border border-slate-100/50 text-xs text-brand-navy space-y-3">
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes / Blockers</p>
-                                          <p className="text-brand-navy mt-0.5 font-medium">{sheet.notes || 'N/A'}</p>
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Task Description</p>
-                                        <p className="text-gray-600 mt-0.5 whitespace-pre-wrap leading-relaxed">{sheet.taskDescription}</p>
-                                      </div>
-                                      {sheet.tlComment && (
-                                        <div>
-                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TL Feedback / Comment</p>
-                                          <p className="text-brand-navy mt-0.5 italic">"{sheet.tlComment}"</p>
-                                        </div>
-                                      )}
-                                      <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/50">
-                                        <div className="flex items-center gap-2">
-                                          {sheet.status === 'PENDING' ? (
-                                            <>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleReviewTrackSheet(sheet.id, 'APPROVED');
-                                                }}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold transition-colors cursor-pointer text-xs"
-                                                title="Approve Log"
-                                              >
-                                                <Check className="w-3.5 h-3.5" />
-                                                Approve
-                                              </button>
-                                              <button
-                                                onClick={(e) => {
-                                                  e.stopPropagation();
-                                                  handleReviewTrackSheet(sheet.id, 'REJECTED');
-                                                }}
-                                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-brand-red hover:bg-red-200 font-bold transition-colors cursor-pointer text-xs"
-                                                title="Reject Log"
-                                              >
-                                                <X className="w-3.5 h-3.5" />
-                                                Reject
-                                              </button>
-                                            </>
-                                          ) : (
-                                            <span className="text-gray-400 text-xs font-semibold">Reviewed</span>
-                                          )}
-                                        </div>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setCommentingTrackSheet(sheet);
-                                            setCommentText(sheet.tlComment || '');
-                                          }}
-                                          className="text-xs bg-brand-cta/15 text-brand-cta border border-brand-cta/25 px-3 py-1.5 rounded-lg font-extrabold hover:bg-brand-cta/25 transition-all cursor-pointer inline-flex items-center gap-1"
-                                        >
-                                          {sheet.tlComment ? 'Edit Feedback' : 'Add Feedback'}
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </motion.div>
+                                    View <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                ) : (
+                                  <span className="text-gray-400 italic">None</span>
                                 )}
-                              </AnimatePresence>
-                            </td>
-                          </tr>
-                        </React.Fragment>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                              </td>
+                              <td className="py-3 px-2 font-mono font-bold text-brand-navy">{Number(sheet.hours).toFixed(1)}h</td>
+                              <td className="py-3 px-2">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-extrabold ${
+                                  sheet.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                  sheet.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                                  'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {formatToTitleCase(sheet.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <ChevronDown className={`w-4 h-4 text-gray-400 mx-auto transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180 text-brand-cta' : ''
+                                }`} />
+                              </td>
+                            </tr>
+                            <tr>
+                              <td colSpan={8} className="p-0 border-t-0 bg-transparent">
+                                <AnimatePresence initial={false}>
+                                  {isExpanded && (
+                                    <motion.div
+                                      initial={{ height: 0, opacity: 0 }}
+                                      animate={{ height: 'auto', opacity: 1 }}
+                                      exit={{ height: 0, opacity: 0 }}
+                                      transition={{ duration: 0.18, ease: 'easeInOut' }}
+                                      className="overflow-hidden"
+                                    >
+                                      <div className="px-6 py-4 bg-slate-50/60 rounded-xl m-2 border border-slate-100/50 text-xs text-brand-navy space-y-3">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes / Blockers</p>
+                                            <p className="text-brand-navy mt-0.5 font-medium">{sheet.notes || 'N/A'}</p>
+                                          </div>
+                                        </div>
+                                        <div>
+                                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Full Task Description</p>
+                                          <p className="text-gray-600 mt-0.5 whitespace-pre-wrap leading-relaxed">{sheet.taskDescription}</p>
+                                        </div>
+                                        {sheet.tlComment && (
+                                          <div>
+                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">TL Feedback / Comment</p>
+                                            <p className="text-brand-navy mt-0.5 italic">"{sheet.tlComment}"</p>
+                                          </div>
+                                        )}
+                                        <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/50">
+                                          <div className="flex items-center gap-2">
+                                            {sheet.status === 'PENDING' ? (
+                                              <>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleReviewTrackSheet(sheet.id, 'APPROVED');
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 hover:bg-emerald-200 font-bold transition-colors cursor-pointer text-xs"
+                                                  title="Approve Log"
+                                                >
+                                                  <Check className="w-3.5 h-3.5" />
+                                                  Approve
+                                                </button>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleReviewTrackSheet(sheet.id, 'REJECTED');
+                                                  }}
+                                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-brand-red hover:bg-red-200 font-bold transition-colors cursor-pointer text-xs"
+                                                  title="Reject Log"
+                                                >
+                                                  <X className="w-3.5 h-3.5" />
+                                                  Reject
+                                                </button>
+                                              </>
+                                            ) : (
+                                              <span className="text-gray-400 text-xs font-semibold">Reviewed</span>
+                                            )}
+                                          </div>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setCommentingTrackSheet(sheet);
+                                              setCommentText(sheet.tlComment || '');
+                                            }}
+                                            className="text-xs bg-brand-cta/15 text-brand-cta border border-brand-cta/25 px-3 py-1.5 rounded-lg font-extrabold hover:bg-brand-cta/25 transition-all cursor-pointer inline-flex items-center gap-1"
+                                          >
+                                            {sheet.tlComment ? 'Edit Feedback' : 'Add Feedback'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
+                              </td>
+                            </tr>
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
 
         {/* TAB 3: Tasks Assignment & Board */}
         {activeTab === 'tasks' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Create Task Form */}
-            <div className="premium-card p-6 lg:col-span-1">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-brand-cta" />
-                Assign New Task
-              </h2>
-              
-              <form onSubmit={handleCreateTask} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Assignee</label>
-                  <select
-                    value={taskAssignee}
-                    onChange={(e) => setTaskAssignee(e.target.value)}
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
-                  >
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Task Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={taskTitle}
-                    onChange={(e) => setTaskTitle(e.target.value)}
-                    placeholder="e.g. Integrate DB Schema updates"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Task Description</label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={taskDesc}
-                    onChange={(e) => setTaskDesc(e.target.value)}
-                    placeholder="Describe detail instructions and outputs expected."
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[50px]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Due Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={taskDueDate}
-                      onChange={(e) => setTaskDueDate(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Priority</label>
-                    <select
-                      value={taskPriority}
-                      onChange={(e) => setTaskPriority(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
-                    >
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
-                >
-                  {loading ? 'Assigning...' : 'Assign Task'}
-                </button>
-              </form>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <CheckSquare className="w-4.5 h-4.5 text-white" />
+                Task Assignment Board
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Assign deliverables and track implementation progress across team members.
+              </p>
             </div>
 
-            {/* Active Tasks List */}
-            <div className="premium-card p-6 lg:col-span-2">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Team Task Board</h2>
-              
-              <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar-container pr-1">
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-6 text-center">No tasks currently defined.</p>
-                ) : (
-                  tasks.map((task) => (
-                    <div key={task.id} className="p-4 rounded-xl border border-gray-200 bg-slate-50 shadow-xs">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="text-sm font-bold text-brand-navy">{task.title}</h4>
-                          <p className="text-xs text-gray-500 mt-1">{task.description}</p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <span className="text-[10px] bg-blue-100 text-brand-navy px-2 py-0.5 rounded-full font-bold">
-                              Assigned to: {task.assignedTo.name}
-                            </span>
-                            <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
-                              Created by TL
-                            </span>
-                          </div>
-                        </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Create Task Form */}
+                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200/60 lg:col-span-1">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                    <Plus className="w-4 h-4 text-brand-cta" />
+                    Assign New Task
+                  </h2>
+                  
+                  <form onSubmit={handleCreateTask} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Assignee</label>
+                      <select
+                        value={taskAssignee}
+                        onChange={(e) => setTaskAssignee(e.target.value)}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
+                      >
+                        {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                      </select>
+                    </div>
 
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                            task.priority === 'HIGH' ? 'bg-red-100 text-brand-red' : 
-                            task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {formatToTitleCase(task.priority)}
-                          </span>
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                            task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                            task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-brand-cta' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {formatToTitleCase(task.status)}
-                          </span>
-                        </div>
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Task Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={taskTitle}
+                        onChange={(e) => setTaskTitle(e.target.value)}
+                        placeholder="e.g. Integrate DB Schema updates"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Task Description</label>
+                      <textarea
+                        required
+                        rows={2}
+                        value={taskDesc}
+                        onChange={(e) => setTaskDesc(e.target.value)}
+                        placeholder="Describe detail instructions and outputs expected."
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[50px]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Due Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={taskDueDate}
+                          onChange={(e) => setTaskDueDate(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
+                        />
                       </div>
-
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400 font-semibold">
-                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Priority</label>
+                        <select
+                          value={taskPriority}
+                          onChange={(e) => setTaskPriority(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
+                        >
+                          <option value="LOW">Low</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HIGH">High</option>
+                        </select>
                       </div>
                     </div>
-                  ))
-                )}
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
+                    >
+                      {loading ? 'Assigning...' : 'Assign Task'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Active Tasks List */}
+                <div className="bg-white p-6 border border-slate-200/60 rounded-2xl lg:col-span-2 space-y-4">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading mb-4">Team Task Board</h2>
+                  
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar-container pr-1">
+                    {tasks.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-6 text-center">No tasks currently defined.</p>
+                    ) : (
+                      tasks.map((task) => (
+                        <div key={task.id} className="p-4 rounded-xl border border-gray-200 bg-slate-50 shadow-xs">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="text-sm font-bold text-brand-navy">{task.title}</h4>
+                              <p className="text-xs text-gray-550 mt-1">{task.description}</p>
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[10px] bg-blue-100 text-brand-navy px-2 py-0.5 rounded-full font-bold">
+                                  Assigned to: {task.assignedTo.name}
+                                </span>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
+                                  Created by TL
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col items-end gap-2 shrink-0">
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                task.priority === 'HIGH' ? 'bg-red-100 text-brand-red' : 
+                                task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {formatToTitleCase(task.priority)}
+                              </span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                task.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                                task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-brand-cta' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {formatToTitleCase(task.status)}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400 font-semibold">
+                            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1269,97 +1398,112 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB 4: Team Reports to HR */}
         {activeTab === 'reports' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Create Report Form */}
-            <div className="premium-card p-6 lg:col-span-1">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-brand-cta" />
-                Submit Team Report to HR
-              </h2>
-              
-              <form onSubmit={handleSubmitReport} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Start Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={reportStart}
-                      onChange={(e) => setReportStart(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">End Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={reportEnd}
-                      onChange={(e) => setReportEnd(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Status Summary</label>
-                  <textarea
-                    required
-                    rows={3}
-                    value={reportSummary}
-                    onChange={(e) => setReportSummary(e.target.value)}
-                    placeholder="Provide a periodic summary of team attendance, task completion rates, SAP deployment progress, roadblocks, or notes..."
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[60px]"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium flex justify-center items-center gap-2 disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  {loading ? 'Submitting...' : 'Submit Report'}
-                </button>
-              </form>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <Send className="w-4.5 h-4.5 text-white" />
+                Team Reports to HR
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Submit periodic summaries of team progress, accomplishments, and blockers to HR Administration.
+              </p>
             </div>
 
-            {/* Reports Log */}
-            <div className="premium-card p-6 lg:col-span-2">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Past Submitted Reports</h2>
-              
-              <div className="space-y-4">
-                {reports.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-6 text-center">No reports submitted yet.</p>
-                ) : (
-                  reports.map((rep) => (
-                    <div key={rep.id} className="p-4 rounded-xl border border-gray-200 bg-slate-50 shadow-xs">
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-extrabold text-brand-navy flex items-center gap-1">
-                          <Calendar className="w-4 h-4 text-brand-cta" />
-                          {new Date(rep.periodStart).toLocaleDateString()} - {new Date(rep.periodEnd).toLocaleDateString()}
-                        </span>
-                        
-                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                          rep.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                          rep.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
-                          {formatToTitleCase(rep.status)}
-                        </span>
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Create Report Form */}
+                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200/60 lg:col-span-1">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
+                    <Send className="w-4 h-4 text-brand-cta" />
+                    Submit Team Report
+                  </h2>
+                  
+                  <form onSubmit={handleSubmitReport} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Start Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={reportStart}
+                          onChange={(e) => setReportStart(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
+                        />
                       </div>
-
-                      <p className="text-xs text-gray-500 whitespace-pre-line bg-white p-3 rounded-lg border border-gray-200 mt-2 font-medium">
-                        {rep.summary}
-                      </p>
-
-                      <div className="text-[10px] text-gray-400 mt-2 flex justify-between">
-                        <span>Submitted by: {rep.submittedBy.name}</span>
-                        <span>Filed: {new Date(rep.createdAt).toLocaleDateString()}</span>
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">End Date</label>
+                        <input
+                          type="date"
+                          required
+                          value={reportEnd}
+                          onChange={(e) => setReportEnd(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm cursor-pointer"
+                        />
                       </div>
                     </div>
-                  ))
-                )}
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Status Summary</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={reportSummary}
+                        onChange={(e) => setReportSummary(e.target.value)}
+                        placeholder="Provide a periodic summary of team attendance, task completion rates, SAP deployment progress, roadblocks, or notes..."
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm resize-y min-h-[60px]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium flex justify-center items-center gap-2 disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                      {loading ? 'Submitting...' : 'Submit Report'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Reports Log */}
+                <div className="bg-white p-6 border border-slate-200/60 rounded-2xl lg:col-span-2 space-y-4">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading mb-4">Past Submitted Reports</h2>
+                  
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                    {reports.length === 0 ? (
+                      <p className="text-sm text-gray-400 py-6 text-center">No reports submitted yet.</p>
+                    ) : (
+                      reports.map((rep) => (
+                        <div key={rep.id} className="p-4 rounded-xl border border-gray-200 bg-slate-50 shadow-xs">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-extrabold text-brand-navy flex items-center gap-1">
+                              <Calendar className="w-4 h-4 text-brand-cta" />
+                              {new Date(rep.periodStart).toLocaleDateString()} - {new Date(rep.periodEnd).toLocaleDateString()}
+                            </span>
+                            
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              rep.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                              rep.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {formatToTitleCase(rep.status)}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-gray-500 whitespace-pre-line bg-white p-3 rounded-lg border border-gray-200 mt-2 font-medium">
+                            {rep.summary}
+                          </p>
+
+                          <div className="text-[10px] text-gray-400 mt-2 flex justify-between">
+                            <span>Submitted by: {rep.submittedBy.name}</span>
+                            <span>Filed: {new Date(rep.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1367,286 +1511,342 @@ export default function TeamLeaderDashboard() {
 
         {/* TAB 5: Leave Requests Review */}
         {activeTab === 'leaves' && (
-          <div className="premium-card p-6">
-            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h2>
-            
-            <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-              <table className="min-w-full text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                    <th className="py-3 px-2 bg-transparent">Employee</th>
-                    <th className="py-3 px-2 bg-transparent">Leave Type</th>
-                    <th className="py-3 px-2 bg-transparent">Duration</th>
-                    <th className="py-3 px-2 bg-transparent">Reason</th>
-                    <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                    <th className="py-3 px-2 text-center bg-transparent">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {leaveRequests.filter(r => r.status === 'PENDING').length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="text-center py-6 text-gray-400">No pending leave requests from your team.</td>
-                    </tr>
-                  ) : (
-                    leaveRequests.filter(r => r.status === 'PENDING').map((req) => (
-                      <tr key={req.id} className="hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
-                        <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                        <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                          {req.startDate} to {req.endDate}
-                        </td>
-                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                          {req.reason}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                            {formatToTitleCase(req.status)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
-                          {((sessionUser?.role === 'HR_ADMIN') || 
-                            (sessionUser?.role === 'TL' && req.user.teamId === sessionUser.teamId)) ? (
-                            <>
-                              <button
-                                onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
-                                className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleOpenRejectModal(req.id)}
-                                className="bg-brand-red hover:bg-red-700 text-white font-bold px-2 py-1 rounded text-[10px] transition-colors cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-gray-400 font-semibold text-[10px]">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <Calendar className="w-4.5 h-4.5 text-white" />
+                Team Leave Requests Review
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Audit, approve, or reject pending leave applications submitted by your team members.
+              </p>
             </div>
 
-            {/* Resolved Leave History */}
-            <div className="mt-8 border-t border-gray-150 pt-6">
-              <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Leave Review History</h3>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                      <th className="py-3 px-2">Employee</th>
-                      <th className="py-3 px-2">Leave Type</th>
-                      <th className="py-3 px-2">Duration</th>
-                      <th className="py-3 px-2">Reason</th>
-                      <th className="py-3 px-2 text-center">Status</th>
-                      <th className="py-3 px-2">Reviewed By</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {leaveRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-6 text-gray-400">No review history found.</td>
-                      </tr>
-                    ) : (
-                      leaveRequests.filter(r => r.status !== 'PENDING').map((req) => (
-                        <tr key={req.id} className="hover:bg-gray-50/50">
-                          <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
-                          <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                          <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                            {req.startDate} to {req.endDate}
-                          </td>
-                          <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                            {req.reason}
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                              req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
-                            }`}>
-                              {formatToTitleCase(req.status)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || 'System'}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+            <div className="p-6 space-y-6">
+              {/* Tab Toggle for Leave Requests & History */}
+              <div className="flex justify-center">
+                <div className="inline-flex p-1 bg-slate-100 rounded-full border border-slate-200 shadow-3xs">
+                  <button
+                    onClick={() => setLeaveSubTab('requests')}
+                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                      leaveSubTab === 'requests'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    Leave Requests
+                  </button>
+                  <button
+                    onClick={() => setLeaveSubTab('history')}
+                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                      leaveSubTab === 'history'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    Leave Requests History
+                  </button>
+                </div>
               </div>
+
+              {leaveSubTab === 'requests' ? (
+                <div className="animate-in fade-in duration-200">
+                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Pending Team Leave Requests</h3>
+                  <div className="max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Employee</th>
+                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                          <th className="py-3 px-2 bg-transparent">Duration</th>
+                          <th className="py-3 px-2 bg-transparent">Reason</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {leaveRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No pending leave requests from your team.</td>
+                          </tr>
+                        ) : (
+                          leaveRequests.filter(r => r.status === 'PENDING').map((req) => (
+                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                              <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                {req.startDate} to {req.endDate}
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                {req.reason}
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                                  {formatToTitleCase(req.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-center space-x-2 whitespace-nowrap">
+                                {((sessionUser?.role === 'HR_ADMIN') || 
+                                  (sessionUser?.role === 'TL' && req.user.teamId === sessionUser.teamId)) ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                                      className="bg-emerald-500 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-500/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => handleOpenRejectModal(req.id)}
+                                      className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                    >
+                                      Reject
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-400 font-semibold text-[10px]">-</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="animate-in fade-in duration-200">
+                  <h3 className="text-base font-bold text-brand-navy font-heading mb-4">Leave Requests History</h3>
+                  <div className="max-h-[380px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Employee</th>
+                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                          <th className="py-3 px-2 bg-transparent">Duration</th>
+                          <th className="py-3 px-2 bg-transparent">Reason</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {leaveRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No review history found.</td>
+                          </tr>
+                        ) : (
+                          leaveRequests.filter(r => r.status !== 'PENDING').map((req) => (
+                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                              <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                {req.startDate} to {req.endDate}
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                {req.reason}
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
+                                }`}>
+                                  {formatToTitleCase(req.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || 'System'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* TAB: Team Goals & KPIs */}
+        {/* TAB 6: Team Goals & KPIs */}
         {activeTab === 'goals' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Create Goal Form */}
-            <div className="premium-card p-6 lg:col-span-1 space-y-4">
-              <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-brand-cta" />
-                Assign Performance Goal
-              </h2>
-
-              <form onSubmit={handleCreateGoal} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Team Member</label>
-                  <select
-                    required
-                    value={goalUser}
-                    onChange={(e) => setGoalUser(e.target.value)}
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                  >
-                    <option value="">Select team member</option>
-                    {members.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Goal Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={goalTitle}
-                    onChange={(e) => setGoalTitle(e.target.value)}
-                    placeholder="e.g. Optimize Hono APIs"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">KPI / Metric Description</label>
-                  <textarea
-                    required
-                    rows={2}
-                    value={goalKPI}
-                    onChange={(e) => setGoalKPI(e.target.value)}
-                    placeholder="Describe how progress will be measured..."
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Target Threshold</label>
-                  <input
-                    type="text"
-                    required
-                    value={goalTarget}
-                    onChange={(e) => setGoalTarget(e.target.value)}
-                    placeholder="e.g. bundle size < 300kb"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Weight (%)</label>
-                    <input
-                      type="number"
-                      required
-                      min="5"
-                      max="100"
-                      value={goalWeight}
-                      onChange={(e) => setGoalWeight(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Appraisal Period</label>
-                    <select
-                      value={goalPeriod}
-                      onChange={(e) => setGoalPeriod(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    >
-                      <option value="2026-H1">2026-H1</option>
-                      <option value="2026-H2">2026-H2</option>
-                    </select>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
-                >
-                  {loading ? 'Assigning...' : 'Assign Goal to User'}
-                </button>
-              </form>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <TrendingUp className="w-4.5 h-4.5 text-white" />
+                Team Goals & KPIs
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Establish goals, assign KPI metrics, and evaluate performance scores for team members.
+              </p>
             </div>
 
-            {/* Goals review list grid */}
-            <div className="premium-card p-6 lg:col-span-2 space-y-4">
-              <h2 className="text-lg font-bold text-brand-navy font-heading">Team Performance Goals</h2>
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Create Goal Form */}
+                <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-200/60 lg:col-span-1 space-y-4">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-brand-cta" />
+                    Assign Performance Goal
+                  </h2>
 
-              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                <table className="min-w-full text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                      <th className="py-3 px-2 bg-transparent">Employee</th>
-                      <th className="py-3 px-2 bg-transparent">Goal Description</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Weight</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Period</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Rating</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {goals.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center py-6 text-gray-400">No active goals set for team members.</td>
-                      </tr>
-                    ) : (
-                      goals.map((g) => (
-                        <tr key={g.id} className="hover:bg-gray-50/50">
-                          <td className="py-3 px-2 font-bold text-brand-navy">{g.user.name}</td>
-                          <td className="py-3 px-2 text-gray-500">
-                            <div className="font-bold text-brand-navy">{g.goalTitle}</div>
-                            <div className="text-[10px] mt-0.5">KPI: {g.kpi}</div>
-                            <div className="text-[10px] italic">Target: {g.target}</div>
-                            {g.achievement && (
-                              <div className="mt-1.5 p-1.5 bg-white rounded border border-gray-200 text-[10px]">
-                                <span className="font-bold block text-[9px] text-gray-400">Accomplishment:</span>
-                                {g.achievement}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 px-2 text-center font-bold text-gray-500">{g.weight}%</td>
-                          <td className="py-3 px-2 text-center text-gray-500">{g.period}</td>
-                          <td className="py-3 px-2 text-center font-extrabold text-brand-cta">
-                            {g.rating !== null ? g.rating.toFixed(1) : '-'}
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
-                              g.status === 'HR_REVIEWED' ? 'bg-purple-100 text-purple-800' :
-                              g.status === 'MANAGER_APPROVED' ? 'bg-blue-100 text-blue-800' :
-                              'bg-amber-100 text-amber-800'
-                            }`}>
-                              {formatToTitleCase(g.status)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <button
-                              onClick={() => {
-                                setSelectedGoal(g);
-                                setGoalRatingInput(g.rating ? g.rating.toString() : '4.0');
-                                setGoalStatusInput(g.status);
-                                setIsGoalModalOpen(true);
-                              }}
-                              className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition-all cursor-pointer"
-                            >
-                              Rate / Update
-                            </button>
-                          </td>
+                  <form onSubmit={handleCreateGoal} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Team Member</label>
+                      <select
+                        required
+                        value={goalUser}
+                        onChange={(e) => setGoalUser(e.target.value)}
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                      >
+                        <option value="">Select team member</option>
+                        {members.map((m) => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Goal Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={goalTitle}
+                        onChange={(e) => setGoalTitle(e.target.value)}
+                        placeholder="e.g. Optimize Hono APIs"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">KPI / Metric Description</label>
+                      <textarea
+                        required
+                        rows={2}
+                        value={goalKPI}
+                        onChange={(e) => setGoalKPI(e.target.value)}
+                        placeholder="Describe how progress will be measured..."
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-brand-navy mb-1">Target Threshold</label>
+                      <input
+                        type="text"
+                        required
+                        value={goalTarget}
+                        onChange={(e) => setGoalTarget(e.target.value)}
+                        placeholder="e.g. bundle size < 300kb"
+                        className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Weight (%)</label>
+                        <input
+                          type="number"
+                          required
+                          min="5"
+                          max="100"
+                          value={goalWeight}
+                          onChange={(e) => setGoalWeight(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Appraisal Period</label>
+                        <select
+                          value={goalPeriod}
+                          onChange={(e) => setGoalPeriod(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                        >
+                          <option value="2026-H1">2026-H1</option>
+                          <option value="2026-H2">2026-H2</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
+                    >
+                      {loading ? 'Assigning...' : 'Assign Goal to User'}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Goals review list grid */}
+                <div className="bg-white p-6 border border-slate-200/60 rounded-2xl lg:col-span-2 space-y-4">
+                  <h2 className="text-sm font-bold text-brand-navy font-heading">Team Performance Goals</h2>
+
+                  <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Employee</th>
+                          <th className="py-3 px-2 bg-transparent">Goal Description</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Weight</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Period</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Rating</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Action</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {goals.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center py-6 text-gray-400">No active goals set for team members.</td>
+                          </tr>
+                        ) : (
+                          goals.map((g) => (
+                            <tr key={g.id} className="hover:bg-gray-50/50">
+                              <td className="py-3 px-2 font-bold text-brand-navy">{g.user.name}</td>
+                              <td className="py-3 px-2 text-gray-500">
+                                <div className="font-bold text-brand-navy">{g.goalTitle}</div>
+                                <div className="text-[10px] mt-0.5">KPI: {g.kpi}</div>
+                                <div className="text-[10px] italic">Target: {g.target}</div>
+                                {g.achievement && (
+                                  <div className="mt-1.5 p-1.5 bg-white rounded border border-gray-200 text-[10px]">
+                                    <span className="font-bold block text-[9px] text-gray-400">Accomplishment:</span>
+                                    {g.achievement}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-2 text-center font-bold text-gray-500">{g.weight}%</td>
+                              <td className="py-3 px-2 text-center text-gray-500">{g.period}</td>
+                              <td className="py-3 px-2 text-center font-extrabold text-brand-cta">
+                                {g.rating !== null ? g.rating.toFixed(1) : '-'}
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <span className={`inline-block px-2.5 py-0.5 rounded-full text-[9px] font-extrabold ${
+                                  g.status === 'HR_REVIEWED' ? 'bg-purple-100 text-purple-800' :
+                                  g.status === 'MANAGER_APPROVED' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {formatToTitleCase(g.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <button
+                                  onClick={() => {
+                                    setSelectedGoal(g);
+                                    setGoalRatingInput(g.rating ? g.rating.toString() : '4.0');
+                                    setGoalStatusInput(g.status);
+                                    setIsGoalModalOpen(true);
+                                  }}
+                                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold px-2.5 py-1.5 rounded-lg text-[10px] transition-all cursor-pointer"
+                                >
+                                  Rate / Update
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

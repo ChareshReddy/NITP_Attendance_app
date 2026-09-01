@@ -1143,7 +1143,7 @@ function EmployeeDashboardContent() {
     { id: 'history', label: 'My Attendance History', icon: History },
     { id: 'payroll', label: 'My Payroll & Payslip', icon: CreditCard },
     { id: 'trainings', label: 'My Trainings', icon: GraduationCap },
-    { id: 'resignation', label: 'Resignation', icon: LogOut },
+    { id: 'resignation', label: 'Resignation', icon: UserMinus },
   ];
 
   return (
@@ -2431,49 +2431,51 @@ function EmployeeDashboardContent() {
                     </button>
 
                     {openLeaveHistorySections.leaveHistory && (
-                      <div className="p-6 overflow-x-auto">
-                        <table className="min-w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
-                              <th className="py-2.5 px-2">Leave Type</th>
-                              <th className="py-2.5 px-2">Duration</th>
-                              <th className="py-2.5 px-2">Reason</th>
-                              <th className="py-2.5 px-2 text-center">Status</th>
-                              <th className="py-2.5 px-2">Approved By</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {leaveRequests.length === 0 ? (
-                              <tr>
-                                <td colSpan={5} className="text-center py-8 text-gray-400">No leave requests found.</td>
+                      <div className="p-6">
+                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                          <table className="min-w-full text-left text-xs relative border-collapse">
+                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
+                              <tr className="border-b border-gray-200/50">
+                                <th className="py-2.5 px-2 bg-white">Leave Type</th>
+                                <th className="py-2.5 px-2 bg-white">Duration</th>
+                                <th className="py-2.5 px-2 bg-white">Reason</th>
+                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
+                                <th className="py-2.5 px-2 bg-white">Approved By</th>
                               </tr>
-                            ) : (
-                              leaveRequests.map((req) => (
-                                <tr key={req.id} className="hover:bg-gray-50/50">
-                                  <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                                  <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                    {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
-                                  </td>
-                                  <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                                    {req.reason}
-                                  </td>
-                                  <td className="py-3 px-2 text-center">
-                                    <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
-                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
-                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
-                                      'bg-amber-100 text-amber-800 border-amber-250'
-                                    }`}>
-                                      {req.status}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-2 text-gray-500">
-                                    {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
-                                  </td>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {leaveRequests.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="text-center py-8 text-gray-400">No leave requests found.</td>
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                              ) : (
+                                leaveRequests.map((req) => (
+                                  <tr key={req.id} className="hover:bg-gray-50/50">
+                                    <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                                    <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                      {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
+                                    </td>
+                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                      {req.reason}
+                                    </td>
+                                    <td className="py-3 px-2 text-center">
+                                      <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                        req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                        req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                        'bg-amber-100 text-amber-800 border-amber-250'
+                                      }`}>
+                                        {req.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2 text-gray-500">
+                                      {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2496,49 +2498,51 @@ function EmployeeDashboardContent() {
                     </button>
 
                     {openLeaveHistorySections.regularisationHistory && (
-                      <div className="p-6 overflow-x-auto">
-                        <table className="min-w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-gray-200/50 text-gray-500 font-bold uppercase tracking-wider">
-                              <th className="py-2.5 px-2">Date to Correct</th>
-                              <th className="py-2.5 px-2">Expected Check-in</th>
-                              <th className="py-2.5 px-2">Expected Check-out</th>
-                              <th className="py-2.5 px-2">Reason</th>
-                              <th className="py-2.5 px-2 text-center">Status</th>
-                              <th className="py-2.5 px-2">Approved By</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
-                            {regularisationRequests.length === 0 ? (
-                              <tr>
-                                <td colSpan={6} className="text-center py-8 text-gray-400">No regularisation requests found.</td>
+                      <div className="p-6">
+                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                          <table className="min-w-full text-left text-xs relative border-collapse">
+                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
+                              <tr className="border-b border-gray-200/50">
+                                <th className="py-2.5 px-2 bg-white">Date to Correct</th>
+                                <th className="py-2.5 px-2 bg-white">Expected Check-in</th>
+                                <th className="py-2.5 px-2 bg-white">Expected Check-out</th>
+                                <th className="py-2.5 px-2 bg-white">Reason</th>
+                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
+                                <th className="py-2.5 px-2 bg-white">Approved By</th>
                               </tr>
-                            ) : (
-                              regularisationRequests.map((req) => (
-                                <tr key={req.id} className="hover:bg-gray-50/50">
-                                  <td className="py-3 px-2 font-semibold text-brand-navy">{formatDateToIndian(req.date)}</td>
-                                  <td className="py-3 px-2 text-gray-500 font-mono">{req.checkInTime ? formatTime(req.checkInTime) : '--:--'}</td>
-                                  <td className="py-3 px-2 text-gray-500 font-mono">{req.checkOutTime ? formatTime(req.checkOutTime) : '--:--'}</td>
-                                  <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                                    {req.reason}
-                                  </td>
-                                  <td className="py-3 px-2 text-center">
-                                    <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
-                                      req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
-                                      req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
-                                      'bg-amber-100 text-amber-800 border-amber-250'
-                                    }`}>
-                                      {req.status}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-2 text-gray-500">
-                                    {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
-                                  </td>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {regularisationRequests.length === 0 ? (
+                                <tr>
+                                  <td colSpan={6} className="text-center py-8 text-gray-400">No regularisation requests found.</td>
                                 </tr>
-                              ))
-                            )}
-                          </tbody>
-                        </table>
+                              ) : (
+                                regularisationRequests.map((req) => (
+                                  <tr key={req.id} className="hover:bg-gray-50/50">
+                                    <td className="py-3 px-2 font-semibold text-brand-navy">{formatDateToIndian(req.date)}</td>
+                                    <td className="py-3 px-2 text-gray-500 font-mono">{req.checkInTime ? formatTime(req.checkInTime) : '--:--'}</td>
+                                    <td className="py-3 px-2 text-gray-500 font-mono">{req.checkOutTime ? formatTime(req.checkOutTime) : '--:--'}</td>
+                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                      {req.reason}
+                                    </td>
+                                    <td className="py-3 px-2 text-center">
+                                      <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                        req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                        req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                        'bg-amber-100 text-amber-800 border-amber-250'
+                                      }`}>
+                                        {req.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2 text-gray-500">
+                                      {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2883,16 +2887,16 @@ function EmployeeDashboardContent() {
                 {/* Card Body */}
                 <div className="p-6">
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-gray-250/50 text-gray-500 font-bold uppercase tracking-wider">
-                        <th className="py-3 px-2">Pay Period</th>
-                        <th className="py-3 px-2 text-right">Gross Earnings (INR)</th>
-                        <th className="py-3 px-2 text-right">Deductions (INR)</th>
-                        <th className="py-3 px-2 text-right">Net Salary (INR)</th>
-                        <th className="py-3 px-2 text-center">Status</th>
-                        <th className="py-3 px-2 text-center">Action</th>
+                <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                  <table className="min-w-full text-left text-xs relative border-collapse">
+                    <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
+                      <tr className="border-b border-gray-250/50">
+                        <th className="py-3 px-2 bg-white">Pay Period</th>
+                        <th className="py-3 px-2 text-right bg-white">Gross Earnings (INR)</th>
+                        <th className="py-3 px-2 text-right bg-white">Deductions (INR)</th>
+                        <th className="py-3 px-2 text-right bg-white">Net Salary (INR)</th>
+                        <th className="py-3 px-2 text-center bg-white">Status</th>
+                        <th className="py-3 px-2 text-center bg-white">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
