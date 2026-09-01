@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User as UserIcon, Bell, Check, Lock } from 'lucide-react';
+import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, Clock } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface UserSession {
@@ -368,26 +368,75 @@ export default function Header() {
                         No notifications yet.
                       </div>
                     ) : (
-                      notifications.map((n) => (
-                        <div 
-                           key={n.id} 
-                          className={`p-3 text-left transition-colors flex flex-col gap-1 relative ${!n.read ? 'bg-blue-50/40' : ''}`}
-                        >
-                          <div className="flex items-start justify-between gap-1.5">
-                            <p className="text-[11px] text-brand-navy leading-normal font-medium">{n.message}</p>
-                            {!n.read && (
-                              <button 
-                                onClick={() => handleMarkRead(n.id)}
-                                className="text-[9px] font-bold text-brand-cta hover:text-blue-700 shrink-0 cursor-pointer"
-                                title="Mark read"
-                              >
-                                <Check className="w-3 h-3" />
-                              </button>
-                            )}
+                      notifications.map((n) => {
+                        let isJson = false;
+                        let parsed: any = null;
+                        if (n.message.startsWith('{') && n.message.endsWith('}')) {
+                          try {
+                            parsed = JSON.parse(n.message);
+                            isJson = true;
+                          } catch (e) {
+                            isJson = false;
+                          }
+                        }
+
+                        let Icon = Bell;
+                        let iconBg = 'bg-blue-50 text-brand-cta border-blue-100';
+                        if (isJson) {
+                          if (parsed.type === 'leave') {
+                            Icon = Calendar;
+                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-purple-50 text-purple-600 border-purple-100';
+                          } else if (parsed.type === 'resignation') {
+                            Icon = UserMinus;
+                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-brand-red border-red-100';
+                          } else if (parsed.type === 'regularisation') {
+                            Icon = Clock;
+                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100';
+                          }
+                        }
+
+                        return (
+                          <div 
+                            key={n.id} 
+                            className={`p-3 text-left transition-colors flex gap-3 relative border-b border-gray-50 ${!n.read ? 'bg-blue-50/20' : ''}`}
+                          >
+                            <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-3xs ${iconBg}`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-1.5">
+                                <h4 className="text-[11px] font-extrabold text-brand-navy leading-none tracking-tight">
+                                  {isJson ? parsed.title : 'Notification'}
+                                </h4>
+                                {!n.read && (
+                                  <button 
+                                    onClick={() => handleMarkRead(n.id)}
+                                    className="text-[9px] font-bold text-brand-cta hover:text-blue-700 shrink-0 cursor-pointer p-0.5 rounded-md hover:bg-slate-100 transition-colors"
+                                    title="Mark read"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-gray-500 mt-1 leading-relaxed font-medium">
+                                {isJson ? parsed.body : n.message}
+                              </p>
+
+                              {isJson && parsed.details && (
+                                <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/50 rounded-xl text-[9px] text-brand-navy space-y-0.5 shadow-3xs font-medium">
+                                  {Object.entries(parsed.details).map(([key, val]) => (
+                                    <div key={key} className="flex justify-between gap-2">
+                                      <span className="text-gray-400 font-semibold">{key}:</span>
+                                      <span className="font-bold text-right text-[9px] truncate max-w-[130px]" title={String(val)}>{String(val)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <span className="text-[8px] text-gray-400 mt-1.5 block">{new Date(n.createdAt).toLocaleString()}</span>
+                            </div>
                           </div>
-                          <span className="text-[8px] text-gray-400">{new Date(n.createdAt).toLocaleString()}</span>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

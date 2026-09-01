@@ -91,6 +91,62 @@ export async function POST(request: Request) {
       },
     });
 
+    // Send notifications to TL and HR
+    try {
+      const applicant = await prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { name: true, teamId: true }
+      });
+
+      const teamLeaderId = applicant?.teamId ? (await prisma.team.findUnique({
+        where: { id: applicant.teamId },
+        select: { teamLeaderId: true }
+      }))?.teamLeaderId : null;
+
+      const notifData = {
+        type: 'resignation',
+        title: 'New Resignation Request Submitted',
+        body: `${applicant?.name || 'A team member'} has submitted a resignation request.`,
+        status: 'PENDING',
+        details: {
+          'Applicant': applicant?.name || 'A team member',
+          'Resignation Date': new Date(resignationDate).toLocaleDateString(),
+          'Proposed LWD': new Date(lastWorkingDay).toLocaleDateString(),
+          'Reason': reason
+        }
+      };
+      const notifMessage = JSON.stringify(notifData);
+
+      // Notify TL (if exists and is not the applicant themselves)
+      if (teamLeaderId && teamLeaderId !== user.userId) {
+        await prisma.notification.create({
+          data: {
+            userId: teamLeaderId,
+            message: notifMessage,
+          }
+        });
+      }
+
+      // Notify all HR Admins (excluding the applicant if they are an HR admin)
+      const hrAdmins = await prisma.user.findMany({
+        where: { role: 'HR_ADMIN' },
+        select: { id: true }
+      });
+
+      for (const hr of hrAdmins) {
+        if (hr.id !== user.userId) {
+          await prisma.notification.create({
+            data: {
+              userId: hr.id,
+              message: notifMessage,
+            }
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error('Error sending resignation notifications:', notifError);
+    }
+
     return NextResponse.json({ success: true, resignation });
   } catch (error) {
     console.error('Resignation POST error:', error);
@@ -143,10 +199,22 @@ export async function PUT(request: Request) {
     });
 
     // Create notification for employee
+    const notifData = {
+      type: 'resignation',
+      title: `Resignation Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
+      body: `Your resignation request has been ${status.toLowerCase()} by HR.`,
+      status,
+      details: {
+        'Status': status,
+        'HR Notes': hrNotes || 'None'
+      }
+    };
+    const notifMessage = JSON.stringify(notifData);
+
     await prisma.notification.create({
       data: {
         userId: existing.userId,
-        message: `Your resignation request has been ${status.toLowerCase()} by HR. Notes: ${hrNotes || 'None'}`,
+        message: notifMessage,
       },
     });
 

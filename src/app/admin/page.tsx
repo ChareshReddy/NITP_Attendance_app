@@ -23,9 +23,12 @@ import {
   BookOpen,
   CreditCard,
   Menu,
-  X
+  X,
+  UserMinus,
+  CalendarDays
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
+import PerformancePieChart from '@/components/PerformancePieChart';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Framer motion variants
@@ -209,6 +212,7 @@ export default function AdminDashboard() {
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [leaveSubTab, setLeaveSubTab] = useState<'requests' | 'history'>('requests');
 
   // Resignation Request States
   const [resignationRequests, setResignationRequests] = useState<any[]>([]);
@@ -1166,7 +1170,7 @@ export default function AdminDashboard() {
     { id: 'new-employee', label: 'Create Employee', icon: UserPlus },
     { id: 'performance', label: 'Performance Ratings', icon: FileCheck },
     { id: 'leaves', label: 'Leave Requests', icon: Calendar },
-    { id: 'resignations', label: 'Resignations', icon: Trash2 },
+    { id: 'resignations', label: 'Resignations', icon: UserMinus },
     { id: 'payroll', label: 'Run Payroll', icon: CreditCard },
     { id: 'trainings', label: 'Training Center', icon: BookOpen },
     { id: 'reports', label: 'Review TL Reports', icon: FileText },
@@ -1306,14 +1310,14 @@ export default function AdminDashboard() {
         )}
 
         {/* Dashboard Title & Quick KPIs */}
-        <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-gray-100 pb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h1>
-            <p className="text-sm text-gray-500 mt-1">Configure company policy, verify check-ins, approve reports, and audit system actions.</p>
-          </div>
+        {activeTab === 'analytics' && (
+          <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 border-b border-gray-100 pb-6">
+            <div>
+              <h1 className="text-2xl font-extrabold text-brand-navy font-heading">HR & Admin Command Center</h1>
+              <p className="text-sm text-gray-500 mt-1">Configure company policy, verify check-ins, approve reports, and audit system actions.</p>
+            </div>
 
-          {/* Quick Check-in/out widget for HR */}
-          {activeTab === 'analytics' && (
+            {/* Quick Check-in/out widget for HR */}
             <div className="flex items-center gap-4 premium-card p-4 shadow-sm self-start lg:self-center min-w-[280px] border border-gray-200/50">
               <div className="bg-blue-50 p-2.5 rounded-xl text-brand-navy shrink-0">
                 <Clock className="w-5 h-5" />
@@ -1360,8 +1364,8 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* HR KPI Cards - Only visible on Analytics (home) tab */}
         {activeTab === 'analytics' && (
@@ -1460,25 +1464,13 @@ export default function AdminDashboard() {
 
             {/* Performance Overview (lg:col-span-2) */}
             <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] lg:col-span-2 shadow-xs hover:shadow-md transition-all">
-              <span className="text-[10px] font-bold text-gray-400 block mb-1 text-center tracking-wider">Performance Overview</span>
-              <div className="flex justify-around items-center gap-1">
-                <div className="text-center">
-                  <span className="block text-xs font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">{performanceCounts.BLUE}</span>
-                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Blue</span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-xs font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{performanceCounts.GREEN}</span>
-                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Green</span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-xs font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">{performanceCounts.YELLOW}</span>
-                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Yellow</span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-xs font-extrabold text-brand-red bg-red-50 px-1.5 py-0.5 rounded">{performanceCounts.RED}</span>
-                  <span className="text-[8px] text-gray-400 block mt-0.5 font-semibold">Red</span>
-                </div>
-              </div>
+              <span className="text-[10px] font-bold text-gray-400 block mb-2 text-center tracking-wider uppercase">Performance Overview</span>
+              <PerformancePieChart
+                counts={performanceCounts}
+                size={54}
+                showLegend={true}
+                showDetails={false}
+              />
             </div>
           </div>
         )}
@@ -1664,7 +1656,20 @@ export default function AdminDashboard() {
 
         {/* TAB 2: User Account Administration */}
         {activeTab === 'users' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <Users className="w-4.5 h-4.5 text-white" />
+                User Account Administration
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Manage, edit, activate, and deactivate employee accounts across the system.
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
             {/* Left side actions column */}
             <div className="space-y-6 lg:col-span-1">
@@ -1883,18 +1888,27 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+              </div>
+            </div>
           </div>
         )}
 
         {/* TAB: Create Employee */}
         {activeTab === 'new-employee' && (
-          <div className="premium-card p-6 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold text-brand-navy font-heading">Onboard & Create New Employee</h2>
-              <p className="text-xs text-gray-500 mt-1">Provide employee details to generate their system account and profile record.</p>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <UserPlus className="w-4.5 h-4.5 text-white" />
+                Onboard & Create New Employee
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Provide employee details to generate their system account and profile record.
+              </p>
             </div>
 
-            <form onSubmit={handleCreateEmployee} className="space-y-6">
+            <div className="p-6">
+              <form onSubmit={handleCreateEmployee} className="space-y-6">
               {/* Section 1: Account Details */}
               <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
                 <h3 className="text-xs font-bold tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h3>
@@ -2404,13 +2418,25 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         )}
 
         {/* TAB 3: Review TL Submitted Reports */}
         {activeTab === 'reports' && (
-          <div className="premium-card p-6">
-            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Review Periodic Team Status Reports</h2>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <FileText className="w-4.5 h-4.5 text-white" />
+                Review Periodic Team Status Reports
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Audit, approve, and reject team status reports submitted by Team Leaders.
+              </p>
+            </div>
+
+            <div className="p-6">
 
             <div className="space-y-6 max-h-[600px] overflow-y-auto custom-scrollbar-container pr-1">
               {reports.length === 0 ? (
@@ -2467,12 +2493,26 @@ export default function AdminDashboard() {
                 ))
               )}
             </div>
+            </div>
           </div>
         )}
 
         {/* TAB 4: Configure Policy & Holiday Calendars */}
         {activeTab === 'policies' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <Settings className="w-4.5 h-4.5 text-white" />
+                Configure Policy & Holiday Calendars
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Set up global company holidays and configure allowed annual leave day counts by leave type.
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Holiday Configuration */}
             <div className="space-y-6">
@@ -2601,16 +2641,26 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            </div>
+            </div>
           </div>
         )}
 
         {/* TAB 5: System Audit Logs */}
         {activeTab === 'audit' && (
-          <div className="premium-card p-6">
-            <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-brand-red shrink-0" />
-              Company Audit Logs (Key System Operations)
-            </h2>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <ShieldAlert className="w-4.5 h-4.5 text-white" />
+                System Audit Logs
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Audit key system operations and changes executed by administrators and team leaders.
+              </p>
+            </div>
+
+            <div className="p-6">
 
             <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
               <table className="min-w-full text-left text-xs relative border-collapse">
@@ -2657,29 +2707,42 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            </div>
           </div>
         )}
 
         {/* TAB 6: Performance Score Ratings */}
         {activeTab === 'performance' && (
-          <div className="space-y-6">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <FileCheck className="w-4.5 h-4.5 text-white" />
+                Performance Score Ratings
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Monitor team performance score distributions, review metrics, and override calculated scorecards.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
             {/* Performance KPI Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-blue-700 font-heading">{performanceCounts.BLUE}</span>
-                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Blue Rating</span>
+                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Excellent (90%–100%)</span>
               </div>
               <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-emerald-700 font-heading">{performanceCounts.GREEN}</span>
-                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Green Rating</span>
+                <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Good (70%–89%)</span>
               </div>
               <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-amber-700 font-heading">{performanceCounts.YELLOW}</span>
-                <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Yellow Rating</span>
+                <span className="text-[10px] font-bold text-amber-800 tracking-wider block mt-1">Average (50%–69%)</span>
               </div>
               <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
-                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Red Rating</span>
+                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Needs Improvement (&lt; 50%)</span>
               </div>
             </div>
 
@@ -2781,12 +2844,25 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+          </div>
         </div>
         )}
 
         {/* TAB 7: Leave Requests System */}
         {activeTab === 'leaves' && (
-          <div className="space-y-6">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <Calendar className="w-4.5 h-4.5 text-white" />
+                Employee Leave Requests
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Approve, reject, or comment on annual leave requests submitted by staff.
+              </p>
+            </div>
+
+            <div className="p-6 space-y-6">
             {/* Leave Requests KPI Row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100/50 text-center shadow-xs">
@@ -2809,78 +2885,147 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div className="premium-card p-6">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">All Company Leave Requests</h2>
-            
-            <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-              <table className="min-w-full text-left text-xs relative border-collapse">
-                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                  <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                    <th className="py-3 px-2 bg-transparent">Employee</th>
-                    <th className="py-3 px-2 bg-transparent">Team</th>
-                    <th className="py-3 px-2 bg-transparent">Leave Type</th>
-                    <th className="py-3 px-2 bg-transparent">Duration</th>
-                    <th className="py-3 px-2 bg-transparent">Reason</th>
-                    <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                    <th className="py-3 px-2 bg-transparent">Reviewed By</th>
-                    <th className="py-3 px-2 text-center bg-transparent">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {leaveRequests.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="text-center py-6 text-gray-400">No leave requests logged in system.</td>
-                    </tr>
-                  ) : (
-                    leaveRequests.map((req) => (
-                      <tr key={req.id} className="hover:bg-gray-50/50">
-                        <td className="py-3 px-2 font-bold text-brand-navy">
-                          <div>{req.user.name}</div>
-                          <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
-                        </td>
-                        <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
-                        <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                        <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                          {req.startDate} to {req.endDate}
-                        </td>
-                        <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                          {req.reason}
-                        </td>
-                        <td className="py-3 px-2 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                            req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                            req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
-                            {formatToTitleCase(req.status)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-2 text-gray-500">{req.reviewedBy?.name || '-'}</td>
-                        <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
-                          {req.status === 'PENDING' ? (
-                            <>
-                              <button
-                                onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
-                                className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-650/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleOpenRejectModal(req.id)}
-                                className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-gray-400 font-semibold text-[10px]">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+            <div className="p-6 space-y-6">
+              {/* Tab Toggle for Leave Requests & History */}
+              <div className="flex justify-center">
+                <div className="inline-flex p-1 bg-slate-100 rounded-full border border-slate-200 shadow-3xs">
+                  <button
+                    onClick={() => setLeaveSubTab('requests')}
+                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                      leaveSubTab === 'requests'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    Leave Requests
+                  </button>
+                  <button
+                    onClick={() => setLeaveSubTab('history')}
+                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                      leaveSubTab === 'history'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    Leave Requests History
+                  </button>
+                </div>
+              </div>
+
+              {leaveSubTab === 'requests' ? (
+                <div className="animate-in fade-in duration-200 premium-card p-6">
+                  <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Employee Leave Requests</h2>
+                  <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Employee</th>
+                          <th className="py-3 px-2 bg-transparent">Team</th>
+                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                          <th className="py-3 px-2 bg-transparent">Duration</th>
+                          <th className="py-3 px-2 bg-transparent">Reason</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {leaveRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center py-12 text-gray-400 font-medium">No pending leave requests logged in system.</td>
+                          </tr>
+                        ) : (
+                          leaveRequests.filter(r => r.status === 'PENDING').map((req) => (
+                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                              <td className="py-3 px-2 font-bold text-brand-navy">
+                                <div>{req.user.name}</div>
+                                <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
+                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                {req.startDate} to {req.endDate}
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                {req.reason}
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800">
+                                  {formatToTitleCase(req.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                                <button
+                                  onClick={() => handleReviewLeaveRequest(req.id, 'APPROVED')}
+                                  className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-600/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleOpenRejectModal(req.id)}
+                                  className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold px-2 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                >
+                                  Reject
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="animate-in fade-in duration-200 premium-card p-6">
+                  <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Leave Requests History</h2>
+                  <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Employee</th>
+                          <th className="py-3 px-2 bg-transparent">Team</th>
+                          <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                          <th className="py-3 px-2 bg-transparent">Duration</th>
+                          <th className="py-3 px-2 bg-transparent">Reason</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {leaveRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center py-12 text-gray-400 font-medium">No review history found.</td>
+                          </tr>
+                        ) : (
+                          leaveRequests.filter(r => r.status !== 'PENDING').map((req) => (
+                            <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                              <td className="py-3 px-2 font-bold text-brand-navy">
+                                <div>{req.user.name}</div>
+                                <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
+                              <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                              <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                {req.startDate} to {req.endDate}
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                {req.reason}
+                              </td>
+                              <td className="py-3 px-2 text-center">
+                                <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                  req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-brand-red'
+                                }`}>
+                                  {formatToTitleCase(req.status)}
+                                </span>
+                              </td>
+                              <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || '-'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -2888,26 +3033,32 @@ export default function AdminDashboard() {
 
         {/* TAB: Resignation Requests */}
         {activeTab === 'resignations' && (
-          <div className="premium-card p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-150 pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-brand-navy font-heading">Resignation Requests</h2>
-                <p className="text-xs text-gray-500 mt-1">Review, approve, or reject resignation requests submitted by employees.</p>
-              </div>
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <UserMinus className="w-4.5 h-4.5 text-white" />
+                Resignation Requests
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Review, approve, or reject resignation requests submitted by employees.
+              </p>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
+            <div className="p-6">
+
+            <div className="max-h-[340px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+              <table className="w-full text-left text-xs border-collapse relative">
+                <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
                   <tr className="border-b border-gray-200/50 text-gray-550 font-bold tracking-wider">
-                    <th className="py-3 px-3">Employee Name</th>
-                    <th className="py-3 px-3">Submission Date</th>
-                    <th className="py-3 px-3">Resignation Date</th>
-                    <th className="py-3 px-3">Last Working Day</th>
-                    <th className="py-3 px-3">Reason</th>
-                    <th className="py-3 px-3 text-center">Status</th>
-                    <th className="py-3 px-3">HR Notes</th>
-                    <th className="py-3 px-3 text-center">Actions</th>
+                    <th className="py-3 px-3 bg-transparent">Employee Name</th>
+                    <th className="py-3 px-3 bg-transparent">Submission Date</th>
+                    <th className="py-3 px-3 bg-transparent">Resignation Date</th>
+                    <th className="py-3 px-3 bg-transparent">Last Working Day</th>
+                    <th className="py-3 px-3 bg-transparent">Reason</th>
+                    <th className="py-3 px-3 text-center bg-transparent">Status</th>
+                    <th className="py-3 px-3 bg-transparent">HR Notes</th>
+                    <th className="py-3 px-3 text-center bg-transparent">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -3003,25 +3154,32 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+            </div>
           </div>
         )}
 
         {/* TAB: Run Payroll */}
         {activeTab === 'payroll' && (
-          <div className="premium-card p-6 space-y-6">
-            <div className="flex justify-between items-center border-b border-gray-100 pb-4">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h2 className="text-xl font-bold text-brand-navy font-heading">Payroll Management</h2>
-                <p className="text-xs text-gray-500 mt-1">Configure user salary structures and generate or approve periodic employee payroll runs.</p>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <CreditCard className="w-4.5 h-4.5 text-white" />
+                  Payroll Management
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  Configure user salary structures and generate or approve periodic employee payroll runs.
+                </p>
               </div>
 
               {/* Sub-tabs */}
-              <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+              <div className="flex gap-1.5 bg-white/10 p-1 rounded-xl shrink-0">
                 <button
                   type="button"
                   onClick={() => setPayrollSubTab('runs')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    payrollSubTab === 'runs' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`px-3.5 py-1.5 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all cursor-pointer ${
+                    payrollSubTab === 'runs' ? 'bg-white text-brand-navy shadow-xs' : 'text-white/80 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   Payroll Runs
@@ -3029,14 +3187,16 @@ export default function AdminDashboard() {
                 <button
                   type="button"
                   onClick={() => setPayrollSubTab('structures')}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    payrollSubTab === 'structures' ? 'bg-white text-brand-navy shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  className={`px-3.5 py-1.5 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all cursor-pointer ${
+                    payrollSubTab === 'structures' ? 'bg-white text-brand-navy shadow-xs' : 'text-white/80 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   Salary Structures
                 </button>
               </div>
             </div>
+
+            <div className="p-6">
 
             {/* SUBTAB 1: Runs */}
             {payrollSubTab === 'runs' && (
@@ -3256,12 +3416,26 @@ export default function AdminDashboard() {
                 </table>
               </div>
             )}
+            </div>
           </div>
         )}
 
         {/* TAB: Training Center */}
         {activeTab === 'trainings' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="premium-card p-0 overflow-hidden space-y-0">
+            {/* Header Title strip with Navy Blue background */}
+            <div className="bg-brand-navy px-5 py-3 text-white">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                <BookOpen className="w-4.5 h-4.5 text-white" />
+                Employee Trainings & Certifications
+              </h3>
+              <p className="text-[10px] text-white/80 mt-0.5">
+                Schedule courses, enroll employees, monitor attendance, and issue program completion certifications.
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Create Training & Assign Employees */}
             <div className="premium-card p-6 lg:col-span-1 space-y-4">
               <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
@@ -3454,6 +3628,9 @@ export default function AdminDashboard() {
                   ))
                 )}
               </div>
+            </div>
+
+            </div>
             </div>
           </div>
         )}
