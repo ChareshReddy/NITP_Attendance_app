@@ -228,7 +228,7 @@ export default function AdminDashboard() {
   const [userTeamId, setUserTeamId] = useState('');
   const [userManagerId, setUserManagerId] = useState('');
 
-  const [employeeForm, setEmployeeForm] = useState({
+  const initialEmployeeForm = {
     name: '',
     email: '',
     password: '',
@@ -270,7 +270,10 @@ export default function AdminDashboard() {
     incrementPerks: '',
     bloodGroup: 'A+',
     timezone: 'Asia/Kolkata',
-  });
+  };
+
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [employeeForm, setEmployeeForm] = useState(initialEmployeeForm);
 
   // Payroll States
   const [payrollRuns, setPayrollRuns] = useState<any[]>([]);
@@ -563,69 +566,106 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateEmployee = async (e: React.FormEvent) => {
+  const handleOpenEditEmployee = (u: any) => {
+    setEditingUserId(u.id);
+    const ep = u.employeeProfile || {};
+    setEmployeeForm({
+      name: u.name || '',
+      email: u.email || '',
+      password: '', // Blank by default so password is not overwritten unless entered
+      role: u.role || 'EMPLOYEE',
+      teamId: u.teamId || '',
+      managerId: u.managerId || '',
+      dateOfBirth: ep.dateOfBirth ? ep.dateOfBirth.split('T')[0] : '',
+      gender: ep.gender || 'Male',
+      maritalStatus: ep.maritalStatus || 'Single',
+      nationality: ep.nationality || 'Indian',
+      personalEmail: ep.personalEmail || '',
+      mobileNumber: ep.mobileNumber || '',
+      emergencyContact: ep.emergencyContact || '',
+      permanentAddress: ep.permanentAddress || '',
+      currentAddress: ep.currentAddress || '',
+      dateOfJoining: ep.dateOfJoining ? ep.dateOfJoining.split('T')[0] : new Date().toISOString().split('T')[0],
+      employeeType: ep.employeeType || 'Full-time',
+      department: ep.department || '',
+      designation: ep.designation || '',
+      grade: ep.grade || 'A',
+      location: ep.location || 'Offshore',
+      businessUnit: ep.businessUnit || '',
+      hrBusinessPartner: ep.hrBusinessPartner || '',
+      employmentStatus: ep.employmentStatus || 'Active',
+      probationPeriod: ep.probationPeriod !== null && ep.probationPeriod !== undefined ? ep.probationPeriod.toString() : '6',
+      confirmationDate: ep.confirmationDate ? ep.confirmationDate.split('T')[0] : '',
+      workShift: ep.workShift || 'General Shift',
+      bankName: ep.bankName || '',
+      accountNumber: '', // Keep blank so encrypted data is not overwritten unless re-typed
+      ifsc: ep.ifsc || '',
+      pan: '', // Keep blank so encrypted data is not overwritten unless re-typed
+      uan: ep.uan || '',
+      professionalEmail: ep.professionalEmail || '',
+      insuranceNumber: ep.insuranceNumber || '',
+      pfNumber: ep.pfNumber || '',
+      bankAddress: ep.bankAddress || '',
+      bankBranch: ep.bankBranch || '',
+      expectedEndDate: ep.expectedEndDate ? ep.expectedEndDate.split('T')[0] : '',
+      incrementPerks: ep.incrementPerks || '',
+      bloodGroup: ep.bloodGroup || 'A+',
+      timezone: ep.timezone || 'Asia/Kolkata',
+    });
+    setErrorMsg('');
+    setSuccessMsg('');
+    setActiveTab('new-employee');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingUserId(null);
+    setEmployeeForm(initialEmployeeForm);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setActiveTab('users');
+  };
+
+  const handleSaveEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(employeeForm),
-      });
+      if (editingUserId) {
+        // PUT update existing employee
+        const res = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingUserId, ...employeeForm }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create employee');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to update employee profile');
 
-      setSuccessMsg(`Employee account for ${employeeForm.name} created successfully! Generated ID: ${data.user.id}`);
-      setEmployeeForm({
-        name: '',
-        email: '',
-        password: '',
-        role: 'EMPLOYEE',
-        teamId: '',
-        managerId: '',
-        dateOfBirth: '',
-        gender: 'Male',
-        maritalStatus: 'Single',
-        nationality: 'Indian',
-        personalEmail: '',
-        mobileNumber: '',
-        emergencyContact: '',
-        permanentAddress: '',
-        currentAddress: '',
-        dateOfJoining: new Date().toISOString().split('T')[0],
-        employeeType: 'Full-time',
-        department: '',
-        designation: '',
-        grade: 'A',
-        location: 'Offshore',
-        businessUnit: '',
-        hrBusinessPartner: '',
-        employmentStatus: 'Active',
-        probationPeriod: '6',
-        confirmationDate: '',
-        workShift: 'General Shift',
-        bankName: '',
-        accountNumber: '',
-        ifsc: '',
-        pan: '',
-        uan: '',
-        professionalEmail: '',
-        insuranceNumber: '',
-        pfNumber: '',
-        bankAddress: '',
-        bankBranch: '',
-        expectedEndDate: '',
-        incrementPerks: '',
-        bloodGroup: 'A+',
-        timezone: 'Asia/Kolkata',
-      });
-      fetchAdminData();
+        setSuccessMsg(`Employee profile for ${employeeForm.name} updated successfully!`);
+        setEditingUserId(null);
+        setEmployeeForm(initialEmployeeForm);
+        fetchAdminData();
+        setActiveTab('users');
+      } else {
+        // POST create new employee
+        const res = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(employeeForm),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create employee');
+
+        setSuccessMsg(`Employee account for ${employeeForm.name} created successfully! Generated ID: ${data.user.id}`);
+        setEmployeeForm(initialEmployeeForm);
+        fetchAdminData();
+        setActiveTab('users');
+      }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error creating employee');
+      setErrorMsg(err.message || 'Error saving employee');
     } finally {
       setLoading(false);
     }
@@ -1207,7 +1247,13 @@ export default function AdminDashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    if (item.id === 'new-employee' && editingUserId) {
+                      setEditingUserId(null);
+                      setEmployeeForm(initialEmployeeForm);
+                    }
+                    setActiveTab(item.id);
+                  }}
                   title={item.label}
                   aria-label={item.label}
                   className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
@@ -1260,6 +1306,10 @@ export default function AdminDashboard() {
                   <button
                     key={item.id}
                     onClick={() => {
+                      if (item.id === 'new-employee' && editingUserId) {
+                        setEditingUserId(null);
+                        setEmployeeForm(initialEmployeeForm);
+                      }
                       setActiveTab(item.id);
                       setIsMobileSidebarOpen(false);
                     }}
@@ -1854,10 +1904,17 @@ export default function AdminDashboard() {
                               {isDeactivated ? 'Deactivated' : 'Active'}
                             </span>
                           </td>
-                          <td className="py-3 px-2 text-center">
+                          <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                            <button
+                              onClick={() => handleOpenEditEmployee(u)}
+                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-brand-cta hover:bg-blue-100 hover:shadow-xs transition-all cursor-pointer inline-flex items-center gap-1"
+                              title="Edit Employee Profile"
+                            >
+                              Edit
+                            </button>
                             <button
                               onClick={() => handleToggleUserActivation(u.id, isDeactivated)}
-                              className={`px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
                                 isDeactivated 
                                   ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
                                   : 'bg-red-100 text-brand-red hover:bg-red-200'
@@ -1879,24 +1936,60 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* TAB: Create Employee */}
+        {/* TAB: Create / Edit Employee */}
         {activeTab === 'new-employee' && (
           <div className="premium-card p-0 overflow-hidden space-y-0">
             {/* Header Title strip with Navy Blue background */}
-            <div className="bg-brand-navy px-5 py-3 text-white">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
-                <UserPlus className="w-4.5 h-4.5 text-white" />
-                Onboard & Create New Employee
-              </h3>
-              <p className="text-[10px] text-white/80 mt-0.5">
-                Provide employee details to generate their system account and profile record.
-              </p>
+            <div className="bg-brand-navy px-5 py-3 text-white flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <UserPlus className="w-4.5 h-4.5 text-white" />
+                  {editingUserId ? 'Edit Employee Profile' : 'Onboard & Create New Employee'}
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  {editingUserId 
+                    ? `Updating profile and system credentials for ${employeeForm.name || 'employee'}.` 
+                    : 'Provide employee details to generate their system account and profile record.'}
+                </p>
+              </div>
+              {editingUserId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                >
+                  Back to Accounts
+                </button>
+              )}
+            </div>
+
+            {/* Sticky 5-Section Navigation Bar */}
+            <div className="sticky top-[73px] z-20 bg-white/95 backdrop-blur-md px-6 py-2.5 border-b border-gray-200/80 flex items-center gap-2 overflow-x-auto custom-scrollbar-container shadow-xs">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0 mr-1">Jump to:</span>
+              {[
+                { id: 'section-account', label: '1. Credentials' },
+                { id: 'section-employment', label: '2. Employment' },
+                { id: 'section-personal', label: '3. Personal' },
+                { id: 'section-financial', label: '4. Bank & Finance' },
+                { id: 'section-contract', label: '5. Contract & Perks' },
+              ].map(sec => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => {
+                    document.getElementById(sec.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className="px-3 py-1 rounded-lg text-xs font-bold text-brand-navy bg-slate-100 hover:bg-brand-navy hover:text-white transition-all shrink-0 cursor-pointer shadow-3xs"
+                >
+                  {sec.label}
+                </button>
+              ))}
             </div>
 
             <div className="p-6">
-              <form onSubmit={handleCreateEmployee} className="space-y-6">
+              <form onSubmit={handleSaveEmployee} className="space-y-6">
               {/* Section 1: Account Details */}
-              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+              <div id="section-account" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -1922,13 +2015,13 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Password *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Password {editingUserId ? '(Optional)' : '*'}</label>
                     <input
                       type="password"
-                      required
+                      required={!editingUserId}
                       value={employeeForm.password}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="••••••••"
+                      placeholder={editingUserId ? "•••••••• (Leave blank to keep existing)" : "••••••••"}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
                     />
                   </div>
@@ -1975,7 +2068,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Section 2: Employment Profile */}
-              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+              <div id="section-employment" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-emerald-600">2. Employment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -2112,7 +2205,7 @@ export default function AdminDashboard() {
               </div>
               
               {/* Section 3: Personal & Contact */}
-              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+              <div id="section-personal" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-amber-600">3. Personal & Contact Info</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -2229,7 +2322,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Section 4: Bank & Financial Details */}
-              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+              <div id="section-financial" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-purple-600">4. Bank & Financial details (Encrypted at Rest)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -2258,7 +2351,7 @@ export default function AdminDashboard() {
                       type="password"
                       value={employeeForm.accountNumber}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, accountNumber: e.target.value }))}
-                      placeholder="Sensitive Field"
+                      placeholder={editingUserId ? "•••••••• (Leave blank to keep existing)" : "Sensitive Field"}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2292,7 +2385,7 @@ export default function AdminDashboard() {
                         type="password"
                         value={employeeForm.pan}
                         onChange={(e) => setEmployeeForm(prev => ({ ...prev, pan: e.target.value }))}
-                        placeholder="Sensitive Field"
+                        placeholder={editingUserId ? "•••••••• (Leave blank to keep existing)" : "Sensitive Field"}
                         className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                       />
                     </div>
@@ -2334,7 +2427,7 @@ export default function AdminDashboard() {
               </div>
 
               {/* Section 5: Joining / Perks & Custom configurations */}
-              <div className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4">
+              <div id="section-contract" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-teal-600">5. Contract Details & Perks</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
@@ -2390,7 +2483,7 @@ export default function AdminDashboard() {
               <div className="flex justify-end gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('users')}
+                  onClick={handleCancelEdit}
                   className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-slate-100 text-gray-500 hover:bg-slate-200 transition-all cursor-pointer"
                 >
                   Cancel
@@ -2400,10 +2493,10 @@ export default function AdminDashboard() {
                   disabled={loading}
                   className="px-6 py-2.5 rounded-xl text-xs font-extrabold tracking-wide bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white transition-all cursor-pointer btn-premium text-center disabled:opacity-50"
                 >
-                  {loading ? 'Onboarding...' : 'Onboard Employee'}
+                  {loading ? (editingUserId ? 'Saving Changes...' : 'Creating...') : (editingUserId ? 'Save Changes' : 'Onboard Employee')}
                 </button>
               </div>
-            </form>
+              </form>
             </div>
           </div>
         )}

@@ -180,7 +180,17 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const { id, name, email, password, role, teamId, managerId, deactivate } = await request.json();
+    const body = await request.json();
+    const {
+      id, name, email, password, role, teamId, managerId, deactivate,
+      dateOfBirth, gender, maritalStatus, nationality, personalEmail, mobileNumber,
+      emergencyContact, permanentAddress, currentAddress, dateOfJoining, employeeType,
+      department, designation, grade, location, businessUnit, hrBusinessPartner,
+      employmentStatus, probationPeriod, confirmationDate, workShift, bankName,
+      accountNumber, ifsc, pan, uan, professionalEmail, insuranceNumber, pfNumber,
+      bankAddress, bankBranch, expectedEndDate, incrementPerks, bloodGroup, profileImage,
+      timezone, financialDocuments
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -188,34 +198,120 @@ export async function PUT(request: Request) {
 
     const existing = await prisma.user.findUnique({
       where: { id },
+      include: { employeeProfile: true },
     });
 
     if (!existing) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email.toLowerCase();
-    if (password) updateData.passwordHash = bcrypt.hashSync(password, 10);
-    if (role) updateData.role = role;
-    
-    if (teamId !== undefined) updateData.teamId = teamId || null;
-    if (managerId !== undefined) updateData.managerId = managerId || null;
+    // If email is changing, validate format and ensure uniqueness
+    if (email && email.toLowerCase() !== existing.email.toLowerCase()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
+      }
 
-    if (deactivate !== undefined) {
-      updateData.isActive = !deactivate;
+      const duplicate = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+      });
+      if (duplicate && duplicate.id !== id) {
+        return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 });
+      }
     }
+
+    // Build User update data
+    const userUpdateData: any = {};
+    if (name !== undefined) userUpdateData.name = name;
+    if (email !== undefined) userUpdateData.email = email.toLowerCase();
+    if (password && password.trim() !== '') {
+      userUpdateData.passwordHash = bcrypt.hashSync(password, 10);
+    }
+    if (role !== undefined) userUpdateData.role = role;
+    if (teamId !== undefined) userUpdateData.teamId = teamId || null;
+    if (managerId !== undefined) userUpdateData.managerId = managerId || null;
+    if (deactivate !== undefined) {
+      userUpdateData.isActive = !deactivate;
+    }
+
+    // Build EmployeeProfile update/create data
+    const profileData: any = {};
+    if (dateOfBirth !== undefined) profileData.dateOfBirth = dateOfBirth ? new Date(dateOfBirth) : null;
+    if (gender !== undefined) profileData.gender = gender || null;
+    if (maritalStatus !== undefined) profileData.maritalStatus = maritalStatus || null;
+    if (nationality !== undefined) profileData.nationality = nationality || null;
+    if (personalEmail !== undefined) profileData.personalEmail = personalEmail || null;
+    if (mobileNumber !== undefined) profileData.mobileNumber = mobileNumber || null;
+    if (emergencyContact !== undefined) profileData.emergencyContact = emergencyContact || null;
+    if (permanentAddress !== undefined) profileData.permanentAddress = permanentAddress || null;
+    if (currentAddress !== undefined) profileData.currentAddress = currentAddress || null;
+    if (dateOfJoining !== undefined && dateOfJoining !== '') profileData.dateOfJoining = new Date(dateOfJoining);
+    if (employeeType !== undefined) profileData.employeeType = employeeType || 'Full-time';
+    if (department !== undefined) profileData.department = department;
+    if (designation !== undefined) profileData.designation = designation;
+    if (grade !== undefined) profileData.grade = grade || null;
+    if (location !== undefined) profileData.location = location || null;
+    if (businessUnit !== undefined) profileData.businessUnit = businessUnit || null;
+    if (hrBusinessPartner !== undefined) profileData.hrBusinessPartner = hrBusinessPartner || null;
+    if (employmentStatus !== undefined) profileData.employmentStatus = employmentStatus || 'Active';
+    if (probationPeriod !== undefined) profileData.probationPeriod = probationPeriod ? parseInt(probationPeriod) : null;
+    if (confirmationDate !== undefined) profileData.confirmationDate = confirmationDate ? new Date(confirmationDate) : null;
+    if (workShift !== undefined) profileData.workShift = workShift || null;
+    if (bankName !== undefined) profileData.bankName = bankName || null;
+    if (ifsc !== undefined) profileData.ifsc = ifsc || null;
+    if (uan !== undefined) profileData.uan = uan || null;
+    if (professionalEmail !== undefined) profileData.professionalEmail = professionalEmail || null;
+    if (insuranceNumber !== undefined) profileData.insuranceNumber = insuranceNumber || null;
+    if (pfNumber !== undefined) profileData.pfNumber = pfNumber || null;
+    if (bankAddress !== undefined) profileData.bankAddress = bankAddress || null;
+    if (bankBranch !== undefined) profileData.bankBranch = bankBranch || null;
+    if (expectedEndDate !== undefined) profileData.expectedEndDate = expectedEndDate ? new Date(expectedEndDate) : null;
+    if (incrementPerks !== undefined) profileData.incrementPerks = incrementPerks || null;
+    if (bloodGroup !== undefined) profileData.bloodGroup = bloodGroup || null;
+    if (profileImage !== undefined) profileData.profileImage = profileImage || null;
+    if (timezone !== undefined) profileData.timezone = timezone || 'Asia/Kolkata';
+    if (financialDocuments !== undefined) profileData.financialDocuments = financialDocuments || null;
+
+    // Sensitive field updates: Only encrypt and save if non-empty and not a masked placeholder
+    if (accountNumber && accountNumber.trim() !== '' && !accountNumber.includes('••••')) {
+      profileData.accountNumber = encrypt(accountNumber);
+    }
+    if (pan && pan.trim() !== '' && !pan.includes('••••')) {
+      profileData.pan = encrypt(pan);
+      profileData.panEncrypted = true;
+    }
+
+    const hasProfileUpdates = Object.keys(profileData).length > 0;
 
     const updated = await prisma.user.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...userUpdateData,
+        ...(hasProfileUpdates ? {
+          employeeProfile: {
+            upsert: {
+              create: {
+                ...profileData,
+                dateOfJoining: profileData.dateOfJoining || new Date(),
+                department: profileData.department || 'General',
+                designation: profileData.designation || 'Staff',
+              },
+              update: profileData,
+            },
+          },
+        } : {}),
+      },
+      include: {
+        employeeProfile: true,
+        team: true,
+        manager: { select: { id: true, name: true } },
+      },
     });
 
     await prisma.auditLog.create({
       data: {
         userId: session.user.id,
-        action: deactivate ? 'DEACTIVATE_USER' : 'UPDATE_USER',
+        action: deactivate !== undefined ? (deactivate ? 'DEACTIVATE_USER' : 'REACTIVATE_USER') : 'UPDATE_USER',
         entity: 'User',
         entityId: id,
       },
