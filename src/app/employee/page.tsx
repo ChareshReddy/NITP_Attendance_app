@@ -29,7 +29,9 @@ import {
   ChevronUp,
   ArrowRight,
   UserMinus,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -390,7 +392,16 @@ function EmployeeDashboardContent() {
     professional: true,
     contact: false,
     financial: false,
+    security: false,
   });
+
+  // Change Password States
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   const formatToTitleCase = (str: string | null | undefined): string => {
     if (!str) return '';
@@ -973,6 +984,43 @@ function EmployeeDashboardContent() {
       setErrorMsg(err.message || 'Error updating profile');
     } finally {
       setLoadingAttendance(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirm password do not match');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const res = await fetch('/api/users/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to change password');
+
+      setPasswordSuccess('Your password has been changed successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPasswordError(err.message || 'Error changing password');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -2046,7 +2094,7 @@ function EmployeeDashboardContent() {
                               </tr>
                               <tr className="border-b border-slate-100">
                                 <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Date of Joining</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.dateOfJoining || 'N/A'}</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.dateOfJoining ? formatDateToIndian(employeeProfile.dateOfJoining) : 'N/A'}</td>
                               </tr>
                               <tr className="border-b border-slate-100 last:border-b-0 lg:last:border-b-0">
                                 <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Employee Type</td>
@@ -2063,7 +2111,7 @@ function EmployeeDashboardContent() {
                                 <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workShift || 'N/A'}</td>
                               </tr>
                               <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Location Status</td>
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Mode</td>
                                 <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workLocationStatus || 'N/A'}</td>
                               </tr>
                               <tr className="border-b border-slate-100">
@@ -2205,17 +2253,6 @@ function EmployeeDashboardContent() {
                                 onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
                                 className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                                 placeholder="e.g. Indian"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-xs font-bold text-brand-navy mb-1">Insurance Number</label>
-                              <input
-                                type="text"
-                                required
-                                value={profileForm.insuranceNumber}
-                                onChange={(e) => setProfileForm({ ...profileForm, insuranceNumber: e.target.value })}
-                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                                placeholder="e.g. INS123456"
                               />
                             </div>
                           </div>
@@ -2395,6 +2432,98 @@ function EmployeeDashboardContent() {
                           </tbody>
                         </table>
                       </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Account Security & Password */}
+                <div className="premium-card p-0 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setOpenProfileSections(prev => ({ ...prev, security: !prev.security }))}
+                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
+                  >
+                    <div>
+                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                        <Lock className="w-4 h-4 text-white" />
+                        Account Security & Change Password
+                      </h2>
+                    </div>
+                    {openProfileSections.security ? (
+                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                    )}
+                  </button>
+
+                  {openProfileSections.security && (
+                    <div className="p-6">
+                      <p className="text-xs text-gray-500 mb-4">
+                        Update your login credentials. Your new password will be encrypted & hashed with bcrypt.
+                      </p>
+
+                      <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
+                        {passwordError && (
+                          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-brand-red text-xs font-bold flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0" />
+                            {passwordError}
+                          </div>
+                        )}
+                        {passwordSuccess && (
+                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0" />
+                            {passwordSuccess}
+                          </div>
+                        )}
+
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Current Password</label>
+                          <input
+                            type="password"
+                            required
+                            value={currentPassword}
+                            onChange={(e) => setCurrentPassword(e.target.value)}
+                            placeholder="Enter your current password"
+                            className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">New Password (Min. 6 characters)</label>
+                          <input
+                            type="password"
+                            required
+                            minLength={6}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Enter new secure password"
+                            className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">Confirm New Password</label>
+                          <input
+                            type="password"
+                            required
+                            minLength={6}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Re-enter new password"
+                            className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                          />
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="submit"
+                            disabled={passwordLoading}
+                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                          >
+                            {passwordLoading ? 'Updating...' : 'Update Password'}
+                          </button>
+                        </div>
+                      </form>
                     </div>
                   )}
                 </div>

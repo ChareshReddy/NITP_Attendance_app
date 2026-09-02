@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       name, email, password, role, teamId, managerId,
       dateOfBirth, gender, maritalStatus, nationality, personalEmail, mobileNumber,
       emergencyContact, permanentAddress, currentAddress, dateOfJoining, employeeType,
-      department, designation, grade, location, businessUnit, hrBusinessPartner,
+      department, designation, grade, location, workLocationStatus, businessUnit, hrBusinessPartner,
       employmentStatus, probationPeriod, confirmationDate, workShift, bankName,
       accountNumber, ifsc, pan, uan, professionalEmail, insuranceNumber, pfNumber,
       bankAddress, bankBranch, expectedEndDate, incrementPerks, bloodGroup, profileImage,
@@ -114,6 +114,7 @@ export async function POST(request: Request) {
             designation,
             grade: grade || null,
             location: location || null,
+            workLocationStatus: workLocationStatus || 'Onsite',
             businessUnit: businessUnit || null,
             hrBusinessPartner: hrBusinessPartner || null,
             employmentStatus: employmentStatus || 'Active',
@@ -185,7 +186,7 @@ export async function PUT(request: Request) {
       id, name, email, password, role, teamId, managerId, deactivate,
       dateOfBirth, gender, maritalStatus, nationality, personalEmail, mobileNumber,
       emergencyContact, permanentAddress, currentAddress, dateOfJoining, employeeType,
-      department, designation, grade, location, businessUnit, hrBusinessPartner,
+      department, designation, grade, location, workLocationStatus, businessUnit, hrBusinessPartner,
       employmentStatus, probationPeriod, confirmationDate, workShift, bankName,
       accountNumber, ifsc, pan, uan, professionalEmail, insuranceNumber, pfNumber,
       bankAddress, bankBranch, expectedEndDate, incrementPerks, bloodGroup, profileImage,
@@ -251,6 +252,7 @@ export async function PUT(request: Request) {
     if (designation !== undefined) profileData.designation = designation;
     if (grade !== undefined) profileData.grade = grade || null;
     if (location !== undefined) profileData.location = location || null;
+    if (workLocationStatus !== undefined) profileData.workLocationStatus = workLocationStatus || null;
     if (businessUnit !== undefined) profileData.businessUnit = businessUnit || null;
     if (hrBusinessPartner !== undefined) profileData.hrBusinessPartner = hrBusinessPartner || null;
     if (employmentStatus !== undefined) profileData.employmentStatus = employmentStatus || 'Active';

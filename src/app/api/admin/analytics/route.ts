@@ -89,6 +89,14 @@ export async function GET() {
       },
     });
 
+    const onLeaveLogs = await prisma.attendance.count({
+      where: {
+        date: { gte: thirtyDaysAgoStr, lte: todayStr },
+        status: 'LEAVE',
+        user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
+      },
+    });
+
     const absentLogs = await prisma.attendance.count({
       where: {
         date: { gte: thirtyDaysAgoStr, lte: todayStr },
@@ -97,11 +105,15 @@ export async function GET() {
       },
     });
 
-    const totalLogs = presentLogs + absentLogs;
-    let rollingAttendanceRate = totalLogs > 0 ? (presentLogs / totalLogs) * 100 : 100;
+    const totalWorkdayLogs = presentLogs + onLeaveLogs + absentLogs;
+    let rollingAttendanceRate = totalWorkdayLogs > 0 
+      ? Math.min(100, Math.max(0, ((presentLogs + onLeaveLogs) / totalWorkdayLogs) * 100))
+      : 100;
     
-    // If today has check-ins or active employees present, ensure realistic rate
-    const todayRate = activeEmployees > 0 ? (checkedInToday / activeEmployees) * 100 : 100;
+    // Today's attendance adherence rate
+    const todayRate = activeEmployees > 0 
+      ? Math.min(100, Math.max(0, ((checkedInToday + onLeaveToday) / activeEmployees) * 100))
+      : 100;
 
     return NextResponse.json({
       totalEmployees,

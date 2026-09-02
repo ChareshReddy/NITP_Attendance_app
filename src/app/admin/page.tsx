@@ -25,7 +25,13 @@ import {
   Menu,
   X,
   UserMinus,
-  CalendarDays
+  CalendarDays,
+  KeyRound,
+  Lock,
+  DollarSign,
+  Activity,
+  Award,
+  CalendarCheck
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import PerformancePieChart from '@/components/PerformancePieChart';
@@ -220,13 +226,11 @@ export default function AdminDashboard() {
   const [resignationNotes, setResignationNotes] = useState('');
   const [submittingResignation, setSubmittingResignation] = useState(false);
 
-  // User Form States
-  const [userName, setUserName] = useState('');
-  const [userEmail, setUserEmail] = useState('');
-  const [userPassword, setUserPassword] = useState('');
-  const [userRole, setUserRole] = useState('EMPLOYEE');
-  const [userTeamId, setUserTeamId] = useState('');
-  const [userManagerId, setUserManagerId] = useState('');
+  // Password Reset Modal States
+  const [resetPasswordModalUser, setResetPasswordModalUser] = useState<any | null>(null);
+  const [newTemporaryPassword, setNewTemporaryPassword] = useState('');
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [resetPasswordCopied, setResetPasswordCopied] = useState(false);
 
   const initialEmployeeForm = {
     name: '',
@@ -248,28 +252,23 @@ export default function AdminDashboard() {
     employeeType: 'Full-time',
     department: '',
     designation: '',
-    grade: 'A',
+    workShift: 'General Shift (9:00 - 18:00)',
+    workLocationStatus: 'Onsite',
     location: 'Offshore',
-    businessUnit: '',
-    hrBusinessPartner: '',
     employmentStatus: 'Active',
-    probationPeriod: '6',
-    confirmationDate: '',
-    workShift: 'General Shift',
     bankName: '',
+    bankBranch: '',
     accountNumber: '',
     ifsc: '',
+    bankAddress: '',
     pan: '',
     uan: '',
     professionalEmail: '',
     insuranceNumber: '',
     pfNumber: '',
-    bankAddress: '',
-    bankBranch: '',
     expectedEndDate: '',
     incrementPerks: '',
     bloodGroup: 'A+',
-    timezone: 'Asia/Kolkata',
   };
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -531,38 +530,54 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleCreateUser = async (e: React.FormEvent) => {
+  const handleOpenResetPassword = (user: any) => {
+    setResetPasswordModalUser(user);
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    setNewTemporaryPassword(`Pass#${randomSuffix}`);
+    setResetPasswordCopied(false);
+  };
+
+  const handleGenerateRandomPassword = () => {
+    const randomSuffix = Math.floor(100000 + Math.random() * 900000);
+    setNewTemporaryPassword(`Pass#${randomSuffix}`);
+    setResetPasswordCopied(false);
+  };
+
+  const handleCopyPassword = () => {
+    if (newTemporaryPassword) {
+      navigator.clipboard.writeText(newTemporaryPassword);
+      setResetPasswordCopied(true);
+      setTimeout(() => setResetPasswordCopied(false), 2000);
+    }
+  };
+
+  const handleConfirmResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!resetPasswordModalUser) return;
+    setResetPasswordLoading(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: userName,
-          email: userEmail,
-          password: userPassword,
-          role: userRole,
-          teamId: userTeamId || null,
-          managerId: userManagerId || null,
+          userId: resetPasswordModalUser.id,
+          newPassword: newTemporaryPassword,
         }),
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to create user');
+      if (!res.ok) throw new Error(data.error || 'Failed to reset password');
 
-      setSuccessMsg(`Account for ${userName} created successfully!`);
-      setUserName('');
-      setUserEmail('');
-      setUserPassword('');
+      setSuccessMsg(`Password reset successfully for ${resetPasswordModalUser.name}. Temporary password: ${newTemporaryPassword}`);
+      setResetPasswordModalUser(null);
       fetchAdminData();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error creating user');
+      setErrorMsg(err.message || 'Error resetting password');
     } finally {
-      setLoading(false);
+      setResetPasswordLoading(false);
     }
   };
 
@@ -589,28 +604,23 @@ export default function AdminDashboard() {
       employeeType: ep.employeeType || 'Full-time',
       department: ep.department || '',
       designation: ep.designation || '',
-      grade: ep.grade || 'A',
+      workShift: ep.workShift || 'General Shift (9:00 - 18:00)',
+      workLocationStatus: ep.workLocationStatus || 'Onsite',
       location: ep.location || 'Offshore',
-      businessUnit: ep.businessUnit || '',
-      hrBusinessPartner: ep.hrBusinessPartner || '',
       employmentStatus: ep.employmentStatus || 'Active',
-      probationPeriod: ep.probationPeriod !== null && ep.probationPeriod !== undefined ? ep.probationPeriod.toString() : '6',
-      confirmationDate: ep.confirmationDate ? ep.confirmationDate.split('T')[0] : '',
-      workShift: ep.workShift || 'General Shift',
       bankName: ep.bankName || '',
+      bankBranch: ep.bankBranch || '',
       accountNumber: '', // Keep blank so encrypted data is not overwritten unless re-typed
       ifsc: ep.ifsc || '',
+      bankAddress: ep.bankAddress || '',
       pan: '', // Keep blank so encrypted data is not overwritten unless re-typed
       uan: ep.uan || '',
       professionalEmail: ep.professionalEmail || '',
       insuranceNumber: ep.insuranceNumber || '',
       pfNumber: ep.pfNumber || '',
-      bankAddress: ep.bankAddress || '',
-      bankBranch: ep.bankBranch || '',
       expectedEndDate: ep.expectedEndDate ? ep.expectedEndDate.split('T')[0] : '',
       incrementPerks: ep.incrementPerks || '',
       bloodGroup: ep.bloodGroup || 'A+',
-      timezone: ep.timezone || 'Asia/Kolkata',
     });
     setErrorMsg('');
     setSuccessMsg('');
@@ -1424,117 +1434,160 @@ export default function AdminDashboard() {
 
         {/* HR KPI Cards - Only visible on Analytics (home) tab */}
         {activeTab === 'analytics' && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {/* Active Staff */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-brand-navy font-heading">
-                  {kpiStats.activeEmployees || users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Active Staff</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+              {/* 1. Active Staff & Growth */}
+              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Staff</span>
+                  <span className="p-1 rounded-lg bg-blue-50 text-brand-cta">
+                    <Users className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-2xl font-extrabold text-brand-navy font-heading leading-tight">
+                    {kpiStats.activeEmployees || users.filter(u => u.isActive && (u.role === 'EMPLOYEE' || u.role === 'TL')).length}
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-600 block mt-0.5">
+                    +{kpiStats.newJoiners ?? 0} new this month
+                  </span>
+                </div>
               </div>
 
-              {/* New Joiners */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-blue-600 font-heading">
-                  {kpiStats.newJoiners ?? 0}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">New Joiners (Month)</span>
+              {/* 2. Today's Attendance (Present / Absent / On Leave) */}
+              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Today's Attendance</span>
+                  <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
+                    <CalendarCheck className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-1 text-center divide-x divide-gray-100">
+                  <div>
+                    <span className="block text-base font-extrabold text-emerald-600 font-heading leading-tight">
+                      {kpiStats.checkedInToday ?? 0}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Present</span>
+                  </div>
+                  <div>
+                    <span className="block text-base font-extrabold text-brand-red font-heading leading-tight">
+                      {kpiStats.absentToday ?? 0}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">Absent</span>
+                  </div>
+                  <div>
+                    <span className="block text-base font-extrabold text-purple-600 font-heading leading-tight">
+                      {kpiStats.onLeaveToday ?? 0}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tight">On Leave</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Avg Attendance */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-emerald-600 font-heading">
-                  {kpiStats.rollingAttendanceRate !== undefined ? `${kpiStats.rollingAttendanceRate.toFixed(1)}%` : '100.0%'}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Avg Attendance</span>
+              {/* 3. Avg Attendance Rate */}
+              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg Attendance</span>
+                  <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
+                    <Activity className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-2xl font-extrabold text-emerald-600 font-heading leading-tight">
+                    {kpiStats.rollingAttendanceRate !== undefined ? `${kpiStats.rollingAttendanceRate.toFixed(1)}%` : '100.0%'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-gray-400 block mt-0.5">
+                    Rolling 30-day rate
+                  </span>
+                </div>
               </div>
 
-              {/* Present Today */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-brand-cta font-heading">
-                  {kpiStats.checkedInToday ?? 0}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Present Today</span>
+              {/* 4. Pending Actions (Reports + Leaves) */}
+              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Actions</span>
+                  <span className="p-1 rounded-lg bg-amber-50 text-amber-600">
+                    <Clock className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-extrabold text-brand-navy font-heading leading-tight">
+                      {(reports.filter(r => r.status === 'PENDING').length) + (leaveRequests.filter(r => r.status === 'PENDING').length)}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Action Items</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
+                    <button 
+                      onClick={() => setActiveTab('reports')} 
+                      className="text-brand-cta font-bold hover:underline cursor-pointer"
+                    >
+                      {reports.filter(r => r.status === 'PENDING').length} Reports
+                    </button>
+                    <span className="text-gray-300">•</span>
+                    <button 
+                      onClick={() => setActiveTab('leaves')} 
+                      className="text-purple-600 font-bold hover:underline cursor-pointer"
+                    >
+                      {leaveRequests.filter(r => r.status === 'PENDING').length} Leaves
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Absent Today */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-brand-red font-heading">
-                  {kpiStats.absentToday ?? 0}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">Absent Today</span>
-              </div>
-
-              {/* On Leave Today */}
-              <div className="premium-card p-4 text-center flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="block text-3xl font-extrabold text-purple-600 font-heading">
-                  {kpiStats.onLeaveToday ?? 0}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider">On Leave (Today)</span>
-              </div>
-
-              {/* Pending TL Reports */}
-              <button
-                onClick={() => setActiveTab('reports')}
-                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
-              >
-                <span className="block text-3xl font-extrabold text-brand-navy font-heading group-hover:text-brand-cta transition-colors">
-                  {reports.filter(r => r.status === 'PENDING').length}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending TL Reports</span>
-              </button>
-
-              {/* Pending Leaves */}
-              <button
-                onClick={() => setActiveTab('leaves')}
-                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
-              >
-                <span className="block text-3xl font-extrabold text-purple-700 font-heading group-hover:text-brand-cta transition-colors">
-                  {leaveRequests.filter(r => r.status === 'PENDING').length}
-                </span>
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Pending Leaves</span>
-              </button>
-
-              {/* Payroll Status */}
+              {/* 5. Payroll Status */}
               <button
                 onClick={() => setActiveTab('payroll')}
-                className="premium-card p-4 text-center flex flex-col justify-center items-center min-h-[90px] shadow-xs hover:shadow-md transition-all cursor-pointer group w-full"
+                className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all cursor-pointer group text-left w-full"
               >
-                {payrollRuns.some(r => r.status === 'DRAFT') ? (
-                  <>
-                    <span className="block text-xl font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors">
-                      Draft Active
-                    </span>
-                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
-                  </>
-                ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
-                  <>
-                    <span className="block text-xl font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors">
-                      Pending Payout
-                    </span>
-                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="block text-xl font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors">
-                      All Paid
-                    </span>
-                    <span className="text-[8px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
-                  </>
-                )}
-                <span className="text-[10px] font-bold text-gray-400 mt-1 block tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
+                  <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600 group-hover:scale-105 transition-transform">
+                    <DollarSign className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div>
+                  {payrollRuns.some(r => r.status === 'DRAFT') ? (
+                    <>
+                      <span className="block text-base font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
+                        Draft Active
+                      </span>
+                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
+                    </>
+                  ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
+                    <>
+                      <span className="block text-base font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
+                        Pending Payout
+                      </span>
+                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="block text-base font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
+                        All Paid
+                      </span>
+                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
+                    </>
+                  )}
+                </div>
               </button>
 
-              {/* Performance Overview */}
-              <div className="premium-card p-4 flex flex-col justify-center min-h-[90px] shadow-xs hover:shadow-md transition-all">
-                <span className="text-[10px] font-bold text-gray-400 block mb-2 text-center tracking-wider uppercase">Performance Overview</span>
-                <PerformancePieChart
-                  counts={performanceCounts}
-                  size={54}
-                  showLegend={true}
-                  showDetails={false}
-                />
+              {/* 6. Performance Overview */}
+              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Performance</span>
+                  <span className="p-1 rounded-lg bg-purple-50 text-purple-600">
+                    <Award className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+                <div className="flex items-center justify-center pt-0.5">
+                  <PerformancePieChart
+                    counts={performanceCounts}
+                    size={46}
+                    showLegend={true}
+                    showDetails={false}
+                  />
+                </div>
               </div>
             </div>
             
@@ -1706,231 +1759,188 @@ export default function AdminDashboard() {
 
             <div className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left side actions column */}
-            <div className="space-y-6 lg:col-span-1">
-              
-              {/* Create Account Form */}
-              <div className="premium-card p-6">
-              <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                <UserPlus className="w-5 h-5 text-brand-cta" />
-                Provision New Account
-              </h2>
+                {/* Left Column: Create Team Form */}
+                <div className="lg:col-span-1 space-y-6">
+                  <div className="bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 space-y-4">
+                    <h2 className="text-sm font-bold text-brand-navy font-heading flex items-center gap-2">
+                      <Users className="w-4 h-4 text-brand-red" />
+                      Create New Team
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Group staff into functional teams and assign a Team Leader (TL).
+                    </p>
 
-              <form onSubmit={handleCreateUser} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    placeholder="John Doe"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
-                  />
-                </div>
+                    <form onSubmit={handleCreateTeam} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Team Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={newTeamName}
+                          onChange={(e) => setNewTeamName(e.target.value)}
+                          placeholder="e.g. Sales & Growth"
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                        />
+                      </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={userEmail}
-                    onChange={(e) => setUserEmail(e.target.value)}
-                    placeholder="john@nextitpoint.com"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
-                  />
-                </div>
+                      <div>
+                        <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team Leader (Optional)</label>
+                        <select
+                          value={newTeamLeaderId}
+                          onChange={(e) => setNewTeamLeaderId(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                        >
+                          <option value="">No Team Leader</option>
+                          {users.filter(u => u.role === 'TL').map(tl => (
+                            <option key={tl.id} value={tl.id}>{tl.name}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={userPassword}
-                    onChange={(e) => setUserPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role</label>
-                    <select
-                      value={userRole}
-                      onChange={(e) => setUserRole(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    >
-                      <option value="EMPLOYEE">Employee</option>
-                      <option value="TL">Team Leader</option>
-                      <option value="HR_ADMIN">HR / Admin</option>
-                    </select>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-xs cursor-pointer btn-premium text-center disabled:opacity-50"
+                      >
+                        {loading ? 'Creating Team...' : 'Create Team'}
+                      </button>
+                    </form>
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team</label>
-                    <select
-                      value={userTeamId}
-                      onChange={(e) => setUserTeamId(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    >
-                      <option value="">No Team Assigned</option>
-                      {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
+
+                  {/* Quick Stats card */}
+                  <div className="bg-slate-50/70 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+                    <h3 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Account Roster Summary</h3>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                        <span className="text-gray-400 block text-[10px] font-bold">Total Accounts</span>
+                        <span className="text-lg font-black text-brand-navy">{users.length}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                        <span className="text-gray-400 block text-[10px] font-bold">Active Staff</span>
+                        <span className="text-lg font-black text-emerald-600">{users.filter(u => u.isActive).length}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                        <span className="text-gray-400 block text-[10px] font-bold">Team Leaders</span>
+                        <span className="text-lg font-black text-blue-600">{users.filter(u => u.role === 'TL').length}</span>
+                      </div>
+                      <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-3xs">
+                        <span className="text-gray-400 block text-[10px] font-bold">Total Teams</span>
+                        <span className="text-lg font-black text-purple-600">{teams.length}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-brand-navy mb-1">Report Manager (TL)</label>
-                  <select
-                    value={userManagerId}
-                    onChange={(e) => setUserManagerId(e.target.value)}
-                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                  >
-                    <option value="">No Manager</option>
-                    {users.filter(u => u.role === 'TL').map(tl => (
-                      <option key={tl.id} value={tl.id}>{tl.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
-                >
-                  {loading ? 'Creating...' : 'Create Account'}
-                </button>
-              </form>
-            </div>
-
-              {/* Create Team Form */}
-              <div className="premium-card p-6">
-                <h2 className="text-lg font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-brand-red" />
-                  Create New Team
-                </h2>
-
-                <form onSubmit={handleCreateTeam} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Team Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      placeholder="e.g. Sales Team"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs sm:text-sm"
-                    />
+                {/* Right Column: User Directory */}
+                <div className="lg:col-span-2 flex flex-col min-h-[500px]">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 shrink-0">
+                    <div>
+                      <h2 className="text-sm font-bold text-brand-navy font-heading">User Directory</h2>
+                      <span className="text-[11px] text-gray-400">Showing {filteredUsers.length} of {users.length} registered accounts</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="relative flex-1 sm:w-60">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                          <Search className="w-4 h-4" />
+                        </span>
+                        <input
+                          type="text"
+                          value={userSearch}
+                          onChange={(e) => setUserSearch(e.target.value)}
+                          placeholder="Search accounts..."
+                          className="block w-full rounded-xl border border-gray-200/80 py-1.5 pl-9 pr-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          setEditingUserId(null);
+                          setEmployeeForm(initialEmployeeForm);
+                          setActiveTab('new-employee');
+                        }}
+                        className="bg-brand-cta hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer shadow-xs whitespace-nowrap hidden sm:inline-flex items-center gap-1"
+                        title="Onboard New Employee"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Create Employee
+                      </button>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Assign Team Leader (Optional)</label>
-                    <select
-                      value={newTeamLeaderId}
-                      onChange={(e) => setNewTeamLeaderId(e.target.value)}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    >
-                      <option value="">No Team Leader</option>
-                      {users.filter(u => u.role === 'TL').map(tl => (
-                        <option key={tl.id} value={tl.id}>{tl.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold py-2.5 px-4 rounded-xl transition-all text-sm cursor-pointer btn-premium text-center disabled:opacity-50"
-                  >
-                    {loading ? 'Creating Team...' : 'Create Team'}
-                  </button>
-                </form>
-              </div>
-
-            </div>
-
-            {/* Accounts Directory */}
-            <div className="premium-card p-6 lg:col-span-2 lg:h-[768px] flex flex-col">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 shrink-0">
-                <h2 className="text-lg font-bold text-brand-navy font-heading">User Directory</h2>
-                
-                <div className="relative w-full sm:w-64">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                    <Search className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="text"
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    placeholder="Search accounts..."
-                    className="block w-full rounded-xl border border-gray-200/80 py-1.5 pl-9 pr-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                <table className="min-w-full text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                      <th className="py-3 px-2 bg-transparent">Name</th>
-                      <th className="py-3 px-2 bg-transparent">Role</th>
-                      <th className="py-3 px-2 bg-transparent">Team</th>
-                      <th className="py-3 px-2 bg-transparent">Reporting Manager</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredUsers.map((u) => {
-                      const isDeactivated = !u.isActive;
-                      return (
-                        <tr key={u.id} className="hover:bg-gray-50/50">
-                          <td className="py-3 px-2">
-                            <div className="font-bold text-brand-navy">{u.name}</div>
-                            <div className="text-[10px] text-gray-400">{u.email}</div>
-                          </td>
-                          <td className="py-3 px-2 font-medium text-brand-navy">
-                            <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">
-                              {formatToTitleCase(u.role)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-gray-500 font-medium">{u.team ? u.team.name : 'Unassigned'}</td>
-                          <td className="py-3 px-2 text-gray-500 font-medium">{u.manager ? u.manager.name : 'None'}</td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                              isDeactivated ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {isDeactivated ? 'Deactivated' : 'Active'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
-                            <button
-                              onClick={() => handleOpenEditEmployee(u)}
-                              className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-brand-cta hover:bg-blue-100 hover:shadow-xs transition-all cursor-pointer inline-flex items-center gap-1"
-                              title="Edit Employee Profile"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleToggleUserActivation(u.id, isDeactivated)}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                                isDeactivated 
-                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                                  : 'bg-red-100 text-brand-red hover:bg-red-200'
-                              }`}
-                            >
-                              {isDeactivated ? 'Reactivate' : 'Deactivate'}
-                            </button>
-                          </td>
+                  <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1 max-h-[580px]">
+                    <table className="min-w-full text-left text-xs relative border-collapse">
+                      <thead className="sticky top-0 bg-slate-100/80 backdrop-blur-xs text-slate-700 font-bold z-10">
+                        <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                          <th className="py-3 px-2 bg-transparent">Name & Email</th>
+                          <th className="py-3 px-2 bg-transparent">Role</th>
+                          <th className="py-3 px-2 bg-transparent">Team</th>
+                          <th className="py-3 px-2 bg-transparent">Reporting Manager</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                          <th className="py-3 px-2 text-center bg-transparent">Actions</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {filteredUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">No accounts matched your search.</td>
+                          </tr>
+                        ) : (
+                          filteredUsers.map((u) => {
+                            const isDeactivated = !u.isActive;
+                            return (
+                              <tr key={u.id} className="hover:bg-gray-50/50">
+                                <td className="py-3 px-2">
+                                  <div className="font-bold text-brand-navy">{u.name}</div>
+                                  <div className="text-[10px] text-gray-400">{u.email}</div>
+                                </td>
+                                <td className="py-3 px-2 font-medium text-brand-navy">
+                                  <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">
+                                    {formatToTitleCase(u.role)}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{u.team ? u.team.name : 'Unassigned'}</td>
+                                <td className="py-3 px-2 text-gray-500 font-medium">{u.manager ? u.manager.name : 'None'}</td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                    isDeactivated ? 'bg-red-100 text-brand-red' : 'bg-emerald-100 text-emerald-800'
+                                  }`}>
+                                    {isDeactivated ? 'Deactivated' : 'Active'}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                                  <button
+                                    onClick={() => handleOpenEditEmployee(u)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-50 text-brand-cta hover:bg-blue-100 hover:shadow-xs transition-all cursor-pointer"
+                                    title="Edit Employee Profile"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenResetPassword(u)}
+                                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-700 hover:bg-amber-100 hover:shadow-xs transition-all cursor-pointer"
+                                    title="Reset Employee Password"
+                                  >
+                                    Reset Password
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleUserActivation(u.id, isDeactivated)}
+                                    className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                      isDeactivated 
+                                        ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                                        : 'bg-red-100 text-brand-red hover:bg-red-200'
+                                    }`}
+                                  >
+                                    {isDeactivated ? 'Reactivate' : 'Deactivate'}
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1993,7 +2003,7 @@ export default function AdminDashboard() {
                 <h3 className="text-xs font-bold tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Full Name *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Full Name</label>
                     <input
                       type="text"
                       required
@@ -2004,7 +2014,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Official Email Address *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Official Email Address</label>
                     <input
                       type="email"
                       required
@@ -2015,7 +2025,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Password {editingUserId ? '(Optional)' : '*'}</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Password {editingUserId && '(Optional)'}</label>
                     <input
                       type="password"
                       required={!editingUserId}
@@ -2029,8 +2039,9 @@ export default function AdminDashboard() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role</label>
                     <select
+                      required
                       value={employeeForm.role}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, role: e.target.value }))}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
@@ -2072,7 +2083,7 @@ export default function AdminDashboard() {
                 <h3 className="text-xs font-bold tracking-wider text-emerald-600">2. Employment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Joining *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Joining</label>
                     <input
                       type="date"
                       required
@@ -2094,7 +2105,7 @@ export default function AdminDashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Department *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Department</label>
                     <input
                       type="text"
                       required
@@ -2105,56 +2116,13 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Designation *</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Designation</label>
                     <input
                       type="text"
                       required
                       value={employeeForm.designation}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, designation: e.target.value }))}
                       placeholder="e.g. Senior Developer"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Grade</label>
-                    <input
-                      type="text"
-                      value={employeeForm.grade}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, grade: e.target.value }))}
-                      placeholder="e.g. M3"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Work Location</label>
-                    <input
-                      type="text"
-                      value={employeeForm.location}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, location: e.target.value }))}
-                      placeholder="e.g. Offshore / Bangalore"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Business Unit</label>
-                    <input
-                      type="text"
-                      value={employeeForm.businessUnit}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, businessUnit: e.target.value }))}
-                      placeholder="e.g. Digital Delivery"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">HR Business Partner</label>
-                    <input
-                      type="text"
-                      value={employeeForm.hrBusinessPartner}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, hrBusinessPartner: e.target.value }))}
-                      placeholder="HR Specialist"
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
@@ -2172,21 +2140,25 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Probation Period (Months)</label>
-                    <input
-                      type="number"
-                      value={employeeForm.probationPeriod}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, probationPeriod: e.target.value }))}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                    />
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Work Mode</label>
+                    <select
+                      value={employeeForm.workLocationStatus}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, workLocationStatus: e.target.value }))}
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                    >
+                      <option value="Onsite">Onsite</option>
+                      <option value="Remote">Remote</option>
+                      <option value="Hybrid">Hybrid</option>
+                    </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Confirmation Date</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Office Location / Branch</label>
                     <input
-                      type="date"
-                      value={employeeForm.confirmationDate}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, confirmationDate: e.target.value }))}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                      type="text"
+                      value={employeeForm.location}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="e.g. Bangalore Head Office / Offshore"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -2297,25 +2269,42 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div className="md:col-span-1">
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
+                    <select
+                      value={employeeForm.bloodGroup}
+                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bloodGroup: e.target.value }))}
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                    >
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
                     <textarea
                       value={employeeForm.currentAddress}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, currentAddress: e.target.value }))}
                       placeholder="Current residence address..."
                       rows={2}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[46px]"
                     />
                   </div>
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-xs font-bold text-brand-navy mb-1">Permanent Address</label>
                     <textarea
                       value={employeeForm.permanentAddress}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, permanentAddress: e.target.value }))}
                       placeholder="Permanent address as per records..."
                       rows={2}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[46px]"
                     />
                   </div>
                 </div>
@@ -2426,10 +2415,10 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Section 5: Joining / Perks & Custom configurations */}
+              {/* Section 5: Contract Details & Perks */}
               <div id="section-contract" className="bg-slate-50 border border-gray-200 p-5 rounded-2xl space-y-4 scroll-mt-32">
                 <h3 className="text-xs font-bold tracking-wider text-teal-600">5. Contract Details & Perks</h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-brand-navy mb-1">Expected End Date</label>
                     <input
@@ -2437,33 +2426,6 @@ export default function AdminDashboard() {
                       value={employeeForm.expectedEndDate}
                       onChange={(e) => setEmployeeForm(prev => ({ ...prev, expectedEndDate: e.target.value }))}
                       className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Blood Group</label>
-                    <select
-                      value={employeeForm.bloodGroup}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, bloodGroup: e.target.value }))}
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                    >
-                      <option value="A+">A+</option>
-                      <option value="A-">A-</option>
-                      <option value="B+">B+</option>
-                      <option value="B-">B-</option>
-                      <option value="O+">O+</option>
-                      <option value="O-">O-</option>
-                      <option value="AB+">AB+</option>
-                      <option value="AB-">AB-</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Timezone Context</label>
-                    <input
-                      type="text"
-                      value={employeeForm.timezone}
-                      onChange={(e) => setEmployeeForm(prev => ({ ...prev, timezone: e.target.value }))}
-                      placeholder="Asia/Kolkata"
-                      className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                     />
                   </div>
                   <div>
@@ -3819,7 +3781,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleUpdateSalaryStructure} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Basic Salary (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Basic Salary (INR/Month)</label>
                 <input
                   type="number"
                   required
@@ -3829,7 +3791,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">HRA (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">HRA (INR/Month)</label>
                 <input
                   type="number"
                   required
@@ -3839,7 +3801,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Conveyance (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Conveyance (INR/Month)</label>
                 <input
                   type="number"
                   required
@@ -3849,7 +3811,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Special Allowance (INR/Month) *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Special Allowance (INR/Month)</label>
                 <input
                   type="number"
                   required
@@ -3859,7 +3821,7 @@ export default function AdminDashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Effective From *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Effective From</label>
                 <input
                   type="date"
                   required
@@ -3971,7 +3933,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason</label>
                 <textarea
                   required
                   rows={2}
@@ -4077,6 +4039,85 @@ export default function AdminDashboard() {
                   className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Save Results
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* HR Password Reset Modal */}
+      {resetPasswordModalUser && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-base font-bold text-brand-navy font-heading flex items-center gap-2">
+                <KeyRound className="w-4.5 h-4.5 text-amber-500" />
+                Reset Employee Password
+              </h2>
+              <button
+                onClick={() => setResetPasswordModalUser(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-brand-navy space-y-1">
+              <div><span className="font-bold text-gray-400">Employee:</span> <span className="font-extrabold text-brand-navy">{resetPasswordModalUser.name}</span></div>
+              <div><span className="font-bold text-gray-400">Email Address:</span> <span className="font-semibold text-brand-gray">{resetPasswordModalUser.email}</span></div>
+            </div>
+
+            <p className="text-[11px] text-gray-500">
+              Set a temporary password for this user. The new password will be encrypted & hashed with bcrypt immediately. An in-app security notification will be sent to the employee.
+            </p>
+
+            <form onSubmit={handleConfirmResetPassword} className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-brand-navy">New Temporary Password</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPassword}
+                    className="text-[11px] font-bold text-brand-cta hover:text-blue-700 cursor-pointer"
+                  >
+                    Generate Random
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    minLength={6}
+                    value={newTemporaryPassword}
+                    onChange={(e) => setNewTemporaryPassword(e.target.value)}
+                    placeholder="e.g. Pass#839201"
+                    className="block w-full rounded-xl border border-gray-200/80 py-2.5 pl-3 pr-20 text-xs font-mono font-bold text-brand-navy bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyPassword}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-brand-navy transition-all cursor-pointer"
+                  >
+                    {resetPasswordCopied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetPasswordModalUser(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={resetPasswordLoading}
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                >
+                  {resetPasswordLoading ? 'Saving...' : 'Reset & Save Password'}
                 </button>
               </div>
             </form>

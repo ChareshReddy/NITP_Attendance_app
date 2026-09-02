@@ -1796,7 +1796,7 @@ function TeamLeaderDashboardContent() {
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason *</label>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason</label>
                 <textarea
                   required
                   rows={2}
