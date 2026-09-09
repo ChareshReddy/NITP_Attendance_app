@@ -28,7 +28,9 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Home,
+  Laptop
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -124,6 +126,7 @@ export default function TeamLeaderDashboard() {
 function TeamLeaderDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
+  const subTabParam = searchParams.get('subTab');
 
   const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves' | 'goals'>('attendance');
 
@@ -131,7 +134,27 @@ function TeamLeaderDashboardContent() {
     if (tabParam && ['attendance', 'tracksheets', 'tasks', 'reports', 'leaves', 'goals'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
-  }, [tabParam]);
+    if (subTabParam && ['wfh', 'leaves'].includes(subTabParam)) {
+      setLeaveSubTab(subTabParam as any);
+    }
+  }, [tabParam, subTabParam]);
+
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        const { tab, subTab } = customEvent.detail;
+        if (tab && ['attendance', 'tracksheets', 'tasks', 'reports', 'leaves', 'goals'].includes(tab)) {
+          setActiveTab(tab as any);
+        }
+        if (subTab && ['wfh', 'leaves'].includes(subTab)) {
+          setLeaveSubTab(subTab as any);
+        }
+      }
+    };
+    window.addEventListener('appTabChange', handleTabChange);
+    return () => window.removeEventListener('appTabChange', handleTabChange);
+  }, []);
 
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
@@ -159,13 +182,17 @@ function TeamLeaderDashboardContent() {
   const [allTeams, setAllTeams] = useState<any[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   
-  // Leave Request States
+  // Leave & WFH States
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
+  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
+  const [rejectWfhId, setRejectWfhId] = useState<string | null>(null);
+  const [rejectWfhReason, setRejectWfhReason] = useState('');
+  const [isRejectWfhModalOpen, setIsRejectWfhModalOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<any>(null);
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [leaveSubTab, setLeaveSubTab] = useState<'requests' | 'history'>('requests');
+  const [leaveSubTab, setLeaveSubTab] = useState<'wfh' | 'leaves'>('wfh');
 
   // Performance Rating States
   const [performanceScores, setPerformanceScores] = useState<any[]>([]);
@@ -355,6 +382,13 @@ function TeamLeaderDashboardContent() {
         setLeaveRequests(filteredRequests);
       }
 
+      // Fetch WFH Requests
+      const wfhRes = await fetch('/api/wfh-requests');
+      if (wfhRes.ok) {
+        const wfhData = await wfhRes.json();
+        setWfhRequests(wfhData.requests || []);
+      }
+
       // Fetch Team Goals
       if (activeTab === 'goals') {
         const goalsRes = await fetch('/api/performance/goals');
@@ -524,6 +558,58 @@ function TeamLeaderDashboardContent() {
       fetchTeamData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error rejecting leave request');
+    }
+  };
+
+  const handleReviewWfhRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to review WFH request');
+
+      setSuccessMsg(`WFH request has been ${status.toLowerCase()} successfully.`);
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error reviewing WFH request');
+    }
+  };
+
+  const handleOpenRejectWfhModal = (id: string) => {
+    setRejectWfhId(id);
+    setRejectWfhReason('');
+    setIsRejectWfhModalOpen(true);
+  };
+
+  const handleConfirmRejectWfh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectWfhId) return;
+
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: rejectWfhId,
+          status: 'REJECTED',
+          rejectionReason: rejectWfhReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reject WFH request');
+
+      setSuccessMsg('WFH request has been rejected successfully.');
+      setIsRejectWfhModalOpen(false);
+      setRejectWfhId(null);
+      setRejectWfhReason('');
+      fetchTeamData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error rejecting WFH request');
     }
   };
 
@@ -1537,65 +1623,235 @@ function TeamLeaderDashboardContent() {
           </div>
         )}
 
-        {/* TAB 4: Leave Review History */}
+        {/* TAB 4: Leave & WFH Review */}
         {activeTab === 'leaves' && (
           <div className="premium-card p-0 overflow-hidden space-y-0">
             {/* Header Title strip with Navy Blue background */}
             <div className="bg-brand-navy px-5 py-3 text-white">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
                 <Calendar className="w-4.5 h-4.5 text-white" />
-                Leave Review History
+                Team Leave & Work From Home (WFH) Approvals
               </h3>
               <p className="text-[10px] text-white/80 mt-0.5">
-                Read-only record of team leave applications and approvals processed by HR Administration.
+                Review and approve remote work (WFH) applications from your team members.
               </p>
             </div>
 
-            <div className="p-6">
-              <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
-                <table className="min-w-full text-left text-xs relative border-collapse">
-                  <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
-                    <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
-                      <th className="py-3 px-2 bg-transparent">Employee</th>
-                      <th className="py-3 px-2 bg-transparent">Leave Type</th>
-                      <th className="py-3 px-2 bg-transparent">Duration</th>
-                      <th className="py-3 px-2 bg-transparent">Reason</th>
-                      <th className="py-3 px-2 text-center bg-transparent">Status</th>
-                      <th className="py-3 px-2 bg-transparent">Reviewed By</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {leaveRequests.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No team leave history found.</td>
-                      </tr>
-                    ) : (
-                      leaveRequests.map((req) => (
-                        <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
-                          <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
-                          <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                          <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                            {req.startDate} to {req.endDate}
-                          </td>
-                          <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
-                            {req.reason}
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                              req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
-                              req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
-                              'bg-amber-100 text-amber-800'
-                            }`}>
-                              {formatToTitleCase(req.status)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || (req.status === 'PENDING' ? 'Pending HR' : 'System')}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+            <div className="p-6 space-y-6">
+              {/* Tab Toggle for WFH Approvals & Leave History */}
+              <div className="flex justify-center">
+                <div className="inline-flex p-1 bg-slate-100 rounded-full border border-slate-200 shadow-3xs">
+                  <button
+                    onClick={() => setLeaveSubTab('wfh')}
+                    className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
+                      leaveSubTab === 'wfh'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <Laptop className="w-3.5 h-3.5" />
+                    Team WFH Requests ({wfhRequests.filter(r => r.status === 'PENDING').length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveSubTab('leaves')}
+                    className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                      leaveSubTab === 'leaves'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    Leave History ({leaveRequests.length})
+                  </button>
+                </div>
               </div>
+
+              {leaveSubTab === 'wfh' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Section 1: Pending Team WFH Requests */}
+                  <div className="premium-card p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                          <Clock className="w-5 h-5 text-amber-500" />
+                          Pending Team Work From Home Requests
+                        </h2>
+                        <p className="text-xs text-gray-500">Applications submitted by your team awaiting approval.</p>
+                      </div>
+                      <span className="self-start sm:self-auto px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-full">
+                        {wfhRequests.filter(r => r.status === 'PENDING').length} Pending
+                      </span>
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                      <table className="min-w-full text-left text-xs relative border-collapse">
+                        <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                          <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                            <th className="py-3 px-2 bg-transparent">Employee</th>
+                            <th className="py-3 px-2 bg-transparent">Duration</th>
+                            <th className="py-3 px-2 bg-transparent">Reason</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {wfhRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="text-center py-10 text-gray-400 font-medium">No pending team WFH requests.</td>
+                            </tr>
+                          ) : (
+                            wfhRequests.filter(r => r.status === 'PENDING').map((req) => (
+                              <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                                <td className="py-3 px-2 font-bold text-brand-navy">
+                                  <div>{req.user.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                                </td>
+                                <td className="py-3 px-2 text-brand-navy font-semibold whitespace-nowrap font-mono">
+                                  {formatDateToIndian(req.startDate)}
+                                  {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                  {req.reason}
+                                </td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                                    Pending
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                                  <button
+                                    onClick={() => handleReviewWfhRequest(req.id, 'APPROVED')}
+                                    className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg text-white font-bold px-2.5 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenRejectWfhModal(req.id)}
+                                    className="bg-brand-red hover:bg-red-700 hover:shadow-lg text-white font-bold px-2.5 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                  >
+                                    Reject
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Team WFH History */}
+                  <div className="premium-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                          <Home className="w-5 h-5 text-brand-cta" />
+                          Team Work From Home Records & History
+                        </h2>
+                        <p className="text-xs text-gray-500">Record of approved remote work for your team.</p>
+                      </div>
+                    </div>
+
+                    <div className="max-h-[350px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                      <table className="min-w-full text-left text-xs relative border-collapse">
+                        <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                          <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                            <th className="py-3 px-2 bg-transparent">Employee</th>
+                            <th className="py-3 px-2 bg-transparent">Duration</th>
+                            <th className="py-3 px-2 bg-transparent">Reason / Remarks</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                            <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {wfhRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="text-center py-10 text-gray-400 font-medium">No past WFH records found.</td>
+                            </tr>
+                          ) : (
+                            wfhRequests.filter(r => r.status !== 'PENDING').map((req) => (
+                              <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                                <td className="py-3 px-2 font-bold text-brand-navy">
+                                  <div>{req.user.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                                </td>
+                                <td className="py-3 px-2 text-brand-navy font-semibold whitespace-nowrap font-mono">
+                                  {formatDateToIndian(req.startDate)}
+                                  {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
+                                  {req.isDirectHrAssignment && (
+                                    <span className="ml-1.5 inline-block text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                      HR Assigned
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                  {req.reason}
+                                </td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                    req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-brand-red border-red-200'
+                                  }`}>
+                                    {req.status}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-semibold">
+                                  {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {leaveSubTab === 'leaves' && (
+                <div className="max-h-[500px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                  <table className="min-w-full text-left text-xs relative border-collapse">
+                    <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                      <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                        <th className="py-3 px-2 bg-transparent">Employee</th>
+                        <th className="py-3 px-2 bg-transparent">Leave Type</th>
+                        <th className="py-3 px-2 bg-transparent">Duration</th>
+                        <th className="py-3 px-2 bg-transparent">Reason</th>
+                        <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                        <th className="py-3 px-2 bg-transparent">Reviewed By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {leaveRequests.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">No team leave history found.</td>
+                        </tr>
+                      ) : (
+                        leaveRequests.map((req) => (
+                          <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                            <td className="py-3 px-2 font-bold text-brand-navy">{req.user.name}</td>
+                            <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                            <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                              {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
+                            </td>
+                            <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                              {req.reason}
+                            </td>
+                            <td className="py-3 px-2 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' :
+                                req.status === 'REJECTED' ? 'bg-red-100 text-brand-red' :
+                                'bg-amber-100 text-amber-800'
+                              }`}>
+                                {formatToTitleCase(req.status)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-gray-500 font-semibold">{req.reviewedBy?.name || (req.status === 'PENDING' ? 'Pending HR' : 'System')}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2148,6 +2404,49 @@ function TeamLeaderDashboardContent() {
                   className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
                 >
                   {submittingComment ? 'Saving...' : 'Save Feedback'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reject WFH Request Modal */}
+      {isRejectWfhModalOpen && rejectWfhId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4 bg-white">
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Reject Team WFH Request</h2>
+            <p className="text-xs text-gray-500">Provide an optional reason explaining why this Work From Home request is being rejected.</p>
+
+            <form onSubmit={handleConfirmRejectWfh} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason</label>
+                <textarea
+                  rows={2}
+                  value={rejectWfhReason}
+                  onChange={(e) => setRejectWfhReason(e.target.value)}
+                  placeholder="e.g. Critical project sprint requiring in-office collaboration."
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectWfhModalOpen(false);
+                    setRejectWfhId(null);
+                    setRejectWfhReason('');
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-brand-red hover:bg-red-700 hover:shadow-lg text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
+                >
+                  Confirm Rejection
                 </button>
               </div>
             </form>

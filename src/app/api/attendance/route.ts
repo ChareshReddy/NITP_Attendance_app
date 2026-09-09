@@ -109,7 +109,8 @@ export async function GET(request: Request) {
     const currentMonthPrefix = new Date().toLocaleDateString('en-CA').slice(0, 7);
     const monthlyRecords = attendanceRecords.filter(r => r.date.startsWith(currentMonthPrefix));
 
-    const presentCount = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH'].includes(r.status)).length;
+    const presentCount = monthlyRecords.filter(r => ['PRESENT', 'OVERTIME', 'LATE_COMING', 'EARLY_LEAVING', 'MISSING_PUNCH', 'WFH'].includes(r.status)).length;
+    const wfhCount = monthlyRecords.filter(r => r.status === 'WFH').length;
     const lateCount = monthlyRecords.filter(r => r.status === 'LATE_COMING').length;
     const absentCount = monthlyRecords.filter(r => r.status === 'ABSENT').length;
     const leaveCount = monthlyRecords.filter(r => r.status === 'LEAVE').length;
@@ -118,6 +119,7 @@ export async function GET(request: Request) {
     
     const stats = {
       present: presentCount,
+      wfh: wfhCount,
       late: lateCount,
       absent: absentCount,
       leave: leaveCount,
@@ -162,35 +164,52 @@ export async function POST(request: Request) {
     });
 
     if (action === 'check_in') {
-      if (existing) {
+      if (existing && existing.checkInTime) {
         return NextResponse.json({ error: 'Already checked in today' }, { status: 400 });
       }
 
       const timezone = tz || 'Asia/Kolkata';
-      let status = 'PRESENT';
-      try {
-        const options = { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false } as const;
-        const timeStr = new Intl.DateTimeFormat('en-US', options).format(now);
-        const [hour, minute] = timeStr.split(':').map(Number);
-        
-        // Late arrival threshold: after 9:30 AM
-        if (hour > 9 || (hour === 9 && minute > 30)) {
-          status = 'LATE_COMING';
+      let status = existing?.status === 'WFH' ? 'WFH' : 'PRESENT';
+      
+      if (status !== 'WFH') {
+        try {
+          const options = { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false } as const;
+          const timeStr = new Intl.DateTimeFormat('en-US', options).format(now);
+          const [hour, minute] = timeStr.split(':').map(Number);
+          
+          // Late arrival threshold: after 9:30 AM
+          if (hour > 9 || (hour === 9 && minute > 30)) {
+            status = 'LATE_COMING';
+          }
+        } catch (err) {
+          console.error('Timezone parsing error, defaulting status to PRESENT:', err);
         }
-      } catch (err) {
-        console.error('Timezone parsing error, defaulting status to PRESENT:', err);
       }
 
-      const record = await prisma.attendance.create({
-        data: {
-          userId: user.userId,
-          date: todayStr,
-          checkInTime: now,
-          status: status as any,
-          ip,
-          tz: timezone,
-        },
-      });
+      let record;
+      if (existing) {
+        // Update pre-populated record (e.g. WFH)
+        record = await prisma.attendance.update({
+          where: { id: existing.id },
+          data: {
+            checkInTime: now,
+            status: status as any,
+            ip,
+            tz: timezone,
+          },
+        });
+      } else {
+        record = await prisma.attendance.create({
+          data: {
+            userId: user.userId,
+            date: todayStr,
+            checkInTime: now,
+            status: status as any,
+            ip,
+            tz: timezone,
+          },
+        });
+      }
 
       await prisma.auditLog.create({
         data: {
@@ -203,7 +222,7 @@ export async function POST(request: Request) {
 
       return NextResponse.json({ success: true, record });
     } else if (action === 'check_out') {
-      if (!existing) {
+      if (!existing || !existing.checkInTime) {
         return NextResponse.json({ error: 'Must check in before checking out' }, { status: 400 });
       }
       if (existing.checkOutTime) {
@@ -216,12 +235,14 @@ export async function POST(request: Request) {
       
       let newStatus = existing.status;
       
-      if (workingHours < 8) {
-        newStatus = 'EARLY_LEAVING';
-      } else if (workingHours >= 9.5) {
-        newStatus = 'OVERTIME';
-      } else if (existing.status === 'LATE') {
-        newStatus = 'LATE_COMING'; // normalize legacy status
+      if (existing.status !== 'WFH') {
+        if (workingHours < 8) {
+          newStatus = 'EARLY_LEAVING';
+        } else if (workingHours >= 9.5) {
+          newStatus = 'OVERTIME';
+        } else if (existing.status === 'LATE') {
+          newStatus = 'LATE_COMING'; // normalize legacy status
+        }
       }
 
       const record = await prisma.attendance.update({

@@ -102,10 +102,22 @@ export async function POST(request: Request) {
       },
     });
 
+    const notifData = {
+      type: 'report',
+      title: 'New Team Report Submitted',
+      body: `New team report submitted by TL ${user.name} for team.`,
+      status: 'PENDING',
+      details: {
+        'Submitted By': user.name,
+        'Period': `${new Date(periodStart).toLocaleDateString()} - ${new Date(periodEnd).toLocaleDateString()}`,
+        'Summary': summary.length > 40 ? summary.substring(0, 40) + '...' : summary,
+      },
+      link: '/admin?tab=reports',
+    };
     await prisma.notification.create({
       data: {
         userId: hrAdmin.id,
-        message: `New team report submitted by TL ${user.name} for team.`,
+        message: JSON.stringify(notifData),
       },
     });
 
@@ -159,10 +171,21 @@ export async function PUT(request: Request) {
       },
     });
 
+    const statusNotifData = {
+      type: 'report',
+      title: `Team Report ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
+      body: `Your team report submitted for review has been ${status.toLowerCase()} by HR.`,
+      status,
+      details: {
+        'Status': status,
+        'Reviewed By': user.name || 'HR Admin',
+      },
+      link: '/tl?tab=reports',
+    };
     await prisma.notification.create({
       data: {
         userId: report.submittedById,
-        message: `Your team report submitted for review has been ${status.toLowerCase()} by HR.`,
+        message: JSON.stringify(statusNotifData),
       },
     });
 

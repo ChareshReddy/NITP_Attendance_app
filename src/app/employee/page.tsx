@@ -31,7 +31,11 @@ import {
   UserMinus,
   ExternalLink,
   Lock,
-  KeyRound
+  KeyRound,
+  Home,
+  Laptop,
+  CalendarCheck,
+  CalendarDays
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -329,6 +333,7 @@ function EmployeeDashboardContent() {
 
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
+  const subTabParam = searchParams.get('subTab');
 
   useEffect(() => {
     const updateTime = () => {
@@ -348,7 +353,41 @@ function EmployeeDashboardContent() {
     if (tabParam && ['dashboard', 'tasks', 'tracksheets', 'profile', 'leaves', 'payroll', 'trainings', 'history', 'resignation'].includes(tabParam)) {
       setActiveTab(tabParam as any);
     }
-  }, [tabParam]);
+    if (subTabParam && ['leave', 'regularisation', 'wfh'].includes(subTabParam)) {
+      setActiveLeaveFormTab(subTabParam as any);
+      if (subTabParam === 'wfh') {
+        setOpenLeaveHistorySections(prev => ({ ...prev, wfhHistory: true }));
+      } else if (subTabParam === 'regularisation') {
+        setOpenLeaveHistorySections(prev => ({ ...prev, regularisationHistory: true }));
+      } else if (subTabParam === 'leave') {
+        setOpenLeaveHistorySections(prev => ({ ...prev, leaveHistory: true }));
+      }
+    }
+  }, [tabParam, subTabParam]);
+
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        const { tab, subTab } = customEvent.detail;
+        if (tab && ['dashboard', 'tasks', 'tracksheets', 'profile', 'leaves', 'payroll', 'trainings', 'history', 'resignation'].includes(tab)) {
+          setActiveTab(tab as any);
+        }
+        if (subTab && ['leave', 'regularisation', 'wfh'].includes(subTab)) {
+          setActiveLeaveFormTab(subTab as any);
+          if (subTab === 'wfh') {
+            setOpenLeaveHistorySections(prev => ({ ...prev, wfhHistory: true }));
+          } else if (subTab === 'regularisation') {
+            setOpenLeaveHistorySections(prev => ({ ...prev, regularisationHistory: true }));
+          } else if (subTab === 'leave') {
+            setOpenLeaveHistorySections(prev => ({ ...prev, leaveHistory: true }));
+          }
+        }
+      }
+    };
+    window.addEventListener('appTabChange', handleTabChange);
+    return () => window.removeEventListener('appTabChange', handleTabChange);
+  }, []);
 
   const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
   const [stats, setStats] = useState({ present: 0, late: 0, absent: 0, leave: 0 });
@@ -371,14 +410,23 @@ function EmployeeDashboardContent() {
   const [leaveEndDate, setLeaveEndDate] = useState('');
   const [leaveReason, setLeaveReason] = useState('');
   const [submittingLeave, setSubmittingLeave] = useState(false);
-  const [activeLeaveFormTab, setActiveLeaveFormTab] = useState<'leave' | 'regularisation'>('leave');
+  const [activeLeaveFormTab, setActiveLeaveFormTab] = useState<'leave' | 'regularisation' | 'wfh'>('leave');
   const [activeTrackSheetTab, setActiveTrackSheetTab] = useState<'log' | 'fill'>('fill');
   const [openLeaveHistorySections, setOpenLeaveHistorySections] = useState({
     leaveHistory: true,
     regularisationHistory: false,
+    wfhHistory: false,
   });
   const [openLeaveBalances, setOpenLeaveBalances] = useState(false);
   const [openHolidays, setOpenHolidays] = useState(false);
+
+  // WFH States
+  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
+  const [wfhPreset, setWfhPreset] = useState<'today' | 'tomorrow' | 'custom'>('today');
+  const [wfhStartDate, setWfhStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [wfhEndDate, setWfhEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [wfhReason, setWfhReason] = useState('');
+  const [submittingWfh, setSubmittingWfh] = useState(false);
 
   // Performance Score States
   const [performanceScore, setPerformanceScore] = useState<any>(null);
@@ -615,6 +663,13 @@ function EmployeeDashboardContent() {
       if (regularisationRes.ok) {
         const regularisationData = await regularisationRes.json();
         setRegularisationRequests(regularisationData.requests || []);
+      }
+
+      // 13. Fetch WFH requests
+      const wfhRes = await fetch('/api/wfh-requests?userId=self');
+      if (wfhRes.ok) {
+        const wfhData = await wfhRes.json();
+        setWfhRequests(wfhData.requests || []);
       }
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -1123,6 +1178,45 @@ function EmployeeDashboardContent() {
     }
   };
 
+  const handleSubmitWfhRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!wfhStartDate || !wfhEndDate || !wfhReason.trim()) {
+      setErrorMsg('Please select dates and provide a reason for Work From Home.');
+      return;
+    }
+
+    setSubmittingWfh(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: wfhStartDate,
+          endDate: wfhEndDate,
+          reason: wfhReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit WFH request');
+
+      setSuccessMsg('Work From Home request submitted successfully!');
+      setWfhReason('');
+      setWfhPreset('today');
+      const todayStr = new Date().toISOString().split('T')[0];
+      setWfhStartDate(todayStr);
+      setWfhEndDate(todayStr);
+      fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error submitting WFH request');
+    } finally {
+      setSubmittingWfh(false);
+    }
+  };
+
   const handleUpdateTaskStatus = async (id: string, currentStatus: string) => {
     let nextStatus = 'TODO';
     if (currentStatus === 'TODO') nextStatus = 'IN_PROGRESS';
@@ -1373,9 +1467,10 @@ function EmployeeDashboardContent() {
                         </p>
                         {todayRecord && (
                           <span className={`inline-block mt-0.5 text-[8px] font-extrabold px-1.5 py-0.25 rounded-md uppercase border ${
+                            todayRecord.status === 'WFH' ? 'bg-purple-100 text-purple-800 border-purple-200' :
                             todayRecord.status.includes('LATE') ? 'bg-red-50 text-brand-red border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
                           }`}>
-                            {formatToTitleCase(todayRecord.status)}
+                            {todayRecord.status === 'WFH' ? '🏡 Work From Home' : formatToTitleCase(todayRecord.status)}
                           </span>
                         )}
                       </div>
@@ -1404,27 +1499,27 @@ function EmployeeDashboardContent() {
                       <div className="flex flex-col sm:flex-row gap-3">
                         <button
                           onClick={handleCheckIn}
-                          disabled={loadingAttendance || !!todayRecord}
+                          disabled={loadingAttendance || (!!todayRecord && !!todayRecord.checkInTime)}
                           className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
-                            (!todayRecord && !loadingAttendance)
+                            ((!todayRecord || (todayRecord.status === 'WFH' && !todayRecord.checkInTime)) && !loadingAttendance)
                               ? 'bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/20 text-white cursor-pointer btn-premium'
                               : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
                           }`}
                         >
                           <Clock className="w-4 h-4" />
-                          {loadingAttendance && !todayRecord ? 'Processing...' : 'Check In'}
+                          {loadingAttendance && (!todayRecord || !todayRecord.checkInTime) ? 'Processing...' : (todayRecord?.status === 'WFH' && !todayRecord.checkInTime ? 'Check In (WFH)' : 'Check In')}
                         </button>
 
                         <button
                           onClick={handleCheckOut}
-                          disabled={loadingAttendance || !todayRecord || !!todayRecord.checkOutTime}
+                          disabled={loadingAttendance || !todayRecord || !todayRecord.checkInTime || !!todayRecord.checkOutTime}
                           className={`flex-1 font-bold py-3.5 px-4 rounded-xl transition-all text-xs text-center uppercase tracking-wider flex items-center justify-center gap-2 ${
-                            (todayRecord && !todayRecord.checkOutTime && !loadingAttendance)
-                              ? 'bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/20 text-white cursor-pointer btn-premium'
+                            (todayRecord && todayRecord.checkInTime && !todayRecord.checkOutTime && !loadingAttendance)
+                              ? 'bg-slate-900 hover:bg-black hover:shadow-lg hover:shadow-black/20 text-white cursor-pointer btn-premium'
                               : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
                           }`}
                         >
-                          <Clock className="w-4 h-4" />
+                          <LogOut className="w-4 h-4" />
                           {loadingAttendance && todayRecord && !todayRecord.checkOutTime ? 'Processing...' : 'Check Out'}
                         </button>
                       </div>
@@ -2048,7 +2143,8 @@ function EmployeeDashboardContent() {
                     onClick={() => setOpenProfileSections(prev => ({ ...prev, professional: !prev.professional }))}
                     className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
                   >
-                    <div>
+                    <div className="flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4 text-blue-300" />
                       <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">My Professional Details</h2>
                     </div>
                     {openProfileSections.professional ? (
@@ -2198,7 +2294,8 @@ function EmployeeDashboardContent() {
                     onClick={() => setOpenProfileSections(prev => ({ ...prev, contact: !prev.contact }))}
                     className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
                   >
-                    <div>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-blue-300" />
                       <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Personal Contact Details</h2>
                     </div>
                     {openProfileSections.contact ? (
@@ -2377,7 +2474,8 @@ function EmployeeDashboardContent() {
                     onClick={() => setOpenProfileSections(prev => ({ ...prev, financial: !prev.financial }))}
                     className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
                   >
-                    <div>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-blue-300" />
                       <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Financial Details</h2>
                     </div>
                     {openProfileSections.financial ? (
@@ -2549,7 +2647,8 @@ function EmployeeDashboardContent() {
                       onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, leaveHistory: !prev.leaveHistory }))}
                       className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
                     >
-                      <div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 text-blue-300" />
                         <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Request History</h4>
                       </div>
                       {openLeaveHistorySections.leaveHistory ? (
@@ -2616,7 +2715,8 @@ function EmployeeDashboardContent() {
                       onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, regularisationHistory: !prev.regularisationHistory }))}
                       className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
                     >
-                      <div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-3.5 h-3.5 text-blue-300" />
                         <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Attendance Regularisation History</h4>
                       </div>
                       {openLeaveHistorySections.regularisationHistory ? (
@@ -2676,6 +2776,78 @@ function EmployeeDashboardContent() {
                     )}
                   </div>
 
+                  {/* Panel 3: Work From Home (WFH) History */}
+                  <div className="premium-card p-0 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, wfhHistory: !prev.wfhHistory }))}
+                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Home className="w-3.5 h-3.5 text-blue-300" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Work From Home (WFH) History</h4>
+                      </div>
+                      {openLeaveHistorySections.wfhHistory ? (
+                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
+                      )}
+                    </button>
+
+                    {openLeaveHistorySections.wfhHistory && (
+                      <div className="p-6">
+                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                          <table className="min-w-full text-left text-xs relative border-collapse">
+                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
+                              <tr className="border-b border-gray-200/50">
+                                <th className="py-2.5 px-2 bg-white">Duration</th>
+                                <th className="py-2.5 px-2 bg-white">Reason</th>
+                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
+                                <th className="py-2.5 px-2 bg-white">Reviewed / Assigned By</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {wfhRequests.length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} className="text-center py-8 text-gray-400">No Work From Home records found.</td>
+                                </tr>
+                              ) : (
+                                wfhRequests.map((req) => (
+                                  <tr key={req.id} className="hover:bg-gray-50/50">
+                                    <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">
+                                      {formatDateToIndian(req.startDate)}
+                                      {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
+                                      {req.isDirectHrAssignment && (
+                                        <span className="ml-1.5 inline-block text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                          HR Assigned
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                      {req.reason}
+                                    </td>
+                                    <td className="py-3 px-2 text-center">
+                                      <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
+                                        req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
+                                        req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
+                                        'bg-amber-100 text-amber-800 border-amber-250'
+                                      }`}>
+                                        {req.status}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-2 text-gray-500">
+                                      {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : (req.status === 'PENDING' ? 'Pending Review' : '-')}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* Leave Balances Card */}
                   <div className="premium-card p-0 overflow-hidden">
                     <button
@@ -2683,7 +2855,10 @@ function EmployeeDashboardContent() {
                       onClick={() => setOpenLeaveBalances(!openLeaveBalances)}
                       className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
                     >
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Balance Status</h4>
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck className="w-3.5 h-3.5 text-blue-300" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Balance Status</h4>
+                      </div>
                       {openLeaveBalances ? (
                         <ChevronUp className="w-4 h-4 text-white shrink-0" />
                       ) : (
@@ -2729,7 +2904,10 @@ function EmployeeDashboardContent() {
                       onClick={() => setOpenHolidays(!openHolidays)}
                       className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
                     >
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">List of Company Holidays</h4>
+                      <div className="flex items-center gap-2">
+                        <CalendarDays className="w-3.5 h-3.5 text-blue-300" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">List of Company Holidays</h4>
+                      </div>
                       {openHolidays ? (
                         <ChevronUp className="w-4 h-4 text-white shrink-0" />
                       ) : (
@@ -2748,15 +2926,15 @@ function EmployeeDashboardContent() {
                               const dayStr = dateObj.toLocaleDateString('en-US', { day: '2-digit' });
                               
                               const holidayAccents = [
-                                'bg-blue-50 border-blue-200/50 text-brand-cta',
-                                'bg-emerald-50 border-emerald-250/50 text-emerald-600',
-                                'bg-amber-50 border-amber-250/50 text-amber-600',
-                                'bg-purple-50 border-purple-250/50 text-purple-600'
+                                'bg-amber-50 border-amber-250 text-amber-600',
+                                'bg-emerald-50 border-emerald-250 text-emerald-600',
+                                'bg-blue-50 border-blue-200 text-brand-cta',
+                                'bg-purple-50 border-purple-250 text-purple-600'
                               ];
                               const accentClass = holidayAccents[idx % holidayAccents.length];
 
                               return (
-                                <div key={idx} className="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
+                                <div key={h.id} className="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
                                   <div className={`w-10 h-11 rounded-lg border flex flex-col items-center justify-center font-heading leading-none shrink-0 ${accentClass}`}>
                                     <span className="text-[9px] uppercase font-bold tracking-wider">{monthStr}</span>
                                     <span className="text-sm font-extrabold font-mono mt-0.5">{dayStr}</span>
@@ -2792,7 +2970,18 @@ function EmployeeDashboardContent() {
                             : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        Request Leave
+                        Leave
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('wfh')}
+                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'wfh'
+                            ? 'bg-brand-navy text-white'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        WFH
                       </button>
                       <button
                         type="button"
@@ -2803,7 +2992,7 @@ function EmployeeDashboardContent() {
                             : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        Regularisation
+                        Regularise
                       </button>
                     </div>
 
@@ -2873,6 +3062,128 @@ function EmployeeDashboardContent() {
                             className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
                           >
                             {submittingLeave ? 'Submitting...' : 'Request Leave'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                    {/* WFH Request Tab Content */}
+                    {activeLeaveFormTab === 'wfh' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div>
+                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider flex items-center gap-1.5">
+                            <Laptop className="w-3.5 h-3.5 text-brand-cta" />
+                            Request Work From Home
+                          </h4>
+                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Submit a WFH request for today, tomorrow, or a custom duration.</p>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="space-y-1.5">
+                          <label className="block text-[10px] font-bold text-brand-navy uppercase">Select Duration</label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWfhPreset('today');
+                                const t = new Date().toISOString().split('T')[0];
+                                setWfhStartDate(t);
+                                setWfhEndDate(t);
+                              }}
+                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
+                                wfhPreset === 'today'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Today
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWfhPreset('tomorrow');
+                                const tom = new Date();
+                                tom.setDate(tom.getDate() + 1);
+                                const tomStr = tom.toISOString().split('T')[0];
+                                setWfhStartDate(tomStr);
+                                setWfhEndDate(tomStr);
+                              }}
+                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
+                                wfhPreset === 'tomorrow'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Tomorrow
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setWfhPreset('custom')}
+                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
+                                wfhPreset === 'custom'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Custom
+                            </button>
+                          </div>
+                        </div>
+
+                        <form onSubmit={handleSubmitWfhRequest} className="space-y-3">
+                          {wfhPreset === 'custom' ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={wfhStartDate}
+                                  onChange={(e) => setWfhStartDate(e.target.value)}
+                                  className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={wfhEndDate}
+                                  onChange={(e) => setWfhEndDate(e.target.value)}
+                                  className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2 rounded-lg bg-blue-50/60 border border-blue-100 flex items-center justify-between text-xs">
+                              <span className="text-[11px] font-bold text-brand-navy">
+                                {wfhPreset === 'today' ? 'Applying for Today:' : 'Applying for Tomorrow:'}
+                              </span>
+                              <span className="font-mono font-extrabold text-brand-cta">
+                                {formatDateToIndian(wfhStartDate)}
+                              </span>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason for WFH</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={wfhReason}
+                              onChange={(e) => setWfhReason(e.target.value)}
+                              placeholder="E.g., personal emergency, bad weather, medical reason..."
+                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingWfh}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+                          >
+                            <Laptop className="w-3.5 h-3.5" />
+                            {submittingWfh ? 'Submitting...' : 'Request Work From Home'}
                           </button>
                         </form>
                       </div>
