@@ -3,8 +3,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, Clock } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, Clock, Laptop, FileText, CheckSquare, ChevronRight, Home } from 'lucide-react';
 
 interface UserSession {
   id: string;
@@ -199,6 +199,95 @@ export default function Header() {
     }
   };
 
+  const getNotificationDestination = (n: any, parsed: any, isJson: boolean, userRole?: string): string => {
+    if (isJson && parsed?.link) {
+      return parsed.link;
+    }
+    
+    const role = userRole || (pathname.startsWith('/admin') ? 'HR_ADMIN' : pathname.startsWith('/tl') ? 'TL' : 'EMPLOYEE');
+    const type = isJson ? (parsed?.type || '').toLowerCase() : '';
+    const text = (isJson ? `${parsed?.title || ''} ${parsed?.body || ''}` : n.message || '').toLowerCase();
+
+    // WFH
+    if (type === 'wfh' || text.includes('wfh') || text.includes('work from home')) {
+      if (role === 'HR_ADMIN') return '/admin?tab=leaves&subTab=wfh';
+      if (role === 'TL') return '/tl?tab=leaves&subTab=wfh';
+      return '/employee?tab=leaves&subTab=wfh';
+    }
+
+    // Regularisation
+    if (type === 'regularisation' || text.includes('regularisation')) {
+      if (role === 'HR_ADMIN') return '/admin?tab=leaves';
+      if (role === 'TL') return '/tl?tab=attendance';
+      return '/employee?tab=leaves&subTab=regularisation';
+    }
+
+    // Leaves
+    if (type === 'leave' || text.includes('leave request') || text.includes('leave')) {
+      if (role === 'HR_ADMIN') return '/admin?tab=leaves&subTab=requests';
+      if (role === 'TL') return '/tl?tab=leaves&subTab=leaves';
+      return '/employee?tab=leaves&subTab=leave';
+    }
+
+    // Resignation
+    if (type === 'resignation' || text.includes('resignation')) {
+      if (role === 'HR_ADMIN') return '/admin?tab=resignations';
+      if (role === 'TL') return '/tl';
+      return '/employee?tab=resignation';
+    }
+
+    // Reports
+    if (type === 'report' || type === 'reports' || text.includes('report')) {
+      if (role === 'HR_ADMIN') return '/admin?tab=reports';
+      if (role === 'TL') return '/tl?tab=reports';
+      return '/employee?tab=dashboard';
+    }
+
+    // Tasks
+    if (type === 'task' || type === 'tasks' || text.includes('task')) {
+      if (role === 'TL') return '/tl?tab=tasks';
+      return '/employee?tab=tasks';
+    }
+
+    // TrackSheets / Timesheets
+    if (type === 'tracksheet' || type === 'tracksheets' || text.includes('tracksheet') || text.includes('timesheet')) {
+      if (role === 'TL') return '/tl?tab=tracksheets';
+      return '/employee?tab=tracksheets';
+    }
+
+    // Password Reset / Account
+    if (text.includes('password')) {
+      return '/employee?tab=profile';
+    }
+
+    // Default fallbacks based on user role
+    if (role === 'HR_ADMIN') return '/admin';
+    if (role === 'TL') return '/tl';
+    return '/employee';
+  };
+
+  const handleNotificationClick = (n: any, parsed: any, isJson: boolean) => {
+    if (!n.read) {
+      handleMarkRead(n.id);
+    }
+    setIsNotifOpen(false);
+    const dest = getNotificationDestination(n, parsed, isJson, user?.role);
+    
+    // Parse target path, tab and subTab
+    const [pathPart, queryPart] = dest.split('?');
+    const params = new URLSearchParams(queryPart || '');
+    const tab = params.get('tab');
+    const subTab = params.get('subTab');
+
+    // 1. Dispatch custom event for instant in-page tab switching on current dashboard
+    window.dispatchEvent(new CustomEvent('appTabChange', { 
+      detail: { path: pathPart, tab, subTab, fullUrl: dest } 
+    }));
+
+    // 2. Perform router navigation
+    router.push(dest);
+  };
+
   const getRatingBadgeClass = (rating: string) => {
     switch (rating) {
       case 'BLUE':
@@ -380,39 +469,75 @@ export default function Header() {
                           }
                         }
 
+                        const type = isJson ? (parsed?.type || '').toLowerCase() : '';
+                        const text = (isJson ? `${parsed?.title || ''} ${parsed?.body || ''}` : n.message || '').toLowerCase();
+                        const isRejected = parsed?.status === 'REJECTED' || text.includes('rejected') || text.includes('declined');
+                        const isApproved = parsed?.status === 'APPROVED' || text.includes('approved') || text.includes('assigned');
+
                         let Icon = Bell;
                         let iconBg = 'bg-blue-50 text-brand-cta border-blue-100';
-                        if (isJson) {
-                          if (parsed.type === 'leave') {
-                            Icon = Calendar;
-                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-purple-50 text-purple-600 border-purple-100';
-                          } else if (parsed.type === 'resignation') {
-                            Icon = UserMinus;
-                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-brand-red border-red-100';
-                          } else if (parsed.type === 'regularisation') {
-                            Icon = Clock;
-                            iconBg = parsed.status === 'REJECTED' ? 'bg-rose-50 text-brand-red border-rose-100' : parsed.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100';
-                          }
+                        let displayTitle = 'Notification';
+
+                        if (type === 'wfh' || text.includes('wfh') || text.includes('work from home')) {
+                          Icon = Laptop;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-brand-cta border-blue-100';
+                          displayTitle = text.includes('assigned') ? 'Work From Home Assigned' : 'Work From Home';
+                        } else if (type === 'leave' || text.includes('leave')) {
+                          Icon = Calendar;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-purple-50 text-purple-600 border-purple-100';
+                          displayTitle = text.includes('rejected') ? 'Leave Request Rejected' : text.includes('approved') ? 'Leave Request Approved' : 'Leave Request';
+                        } else if (type === 'resignation' || text.includes('resignation')) {
+                          Icon = UserMinus;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-red-50 text-brand-red border-red-100';
+                          displayTitle = 'Resignation Update';
+                        } else if (type === 'regularisation' || text.includes('regularisation')) {
+                          Icon = Clock;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100';
+                          displayTitle = text.includes('rejected') ? 'Regularisation Rejected' : text.includes('approved') ? 'Regularisation Approved' : 'Attendance Regularisation';
+                        } else if (type === 'report' || type === 'reports' || text.includes('report')) {
+                          Icon = FileText;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-cyan-50 text-cyan-700 border-cyan-100';
+                          displayTitle = 'Team Report';
+                        } else if (type === 'task' || type === 'tasks' || text.includes('task')) {
+                          Icon = CheckSquare;
+                          iconBg = text.includes('completed') ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-violet-50 text-violet-600 border-violet-100';
+                          displayTitle = text.includes('completed') ? 'Task Completed' : 'Task Assigned';
+                        } else if (type === 'tracksheet' || text.includes('tracksheet') || text.includes('timesheet')) {
+                          Icon = Clock;
+                          iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100';
+                          displayTitle = 'Track Sheet Update';
+                        }
+
+                        if (isJson && parsed?.title) {
+                          displayTitle = parsed.title;
                         }
 
                         return (
                           <div 
                             key={n.id} 
-                            className={`p-3 text-left transition-colors flex gap-3 relative border-b border-gray-50 ${!n.read ? 'bg-blue-50/20' : ''}`}
+                            onClick={() => handleNotificationClick(n, parsed, isJson)}
+                            className={`p-3 text-left transition-colors flex gap-3 relative border-b border-gray-50 cursor-pointer hover:bg-blue-50/40 group ${!n.read ? 'bg-blue-50/20' : ''}`}
+                            title="Click to view details in relevant section"
                           >
-                            <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-3xs ${iconBg}`}>
+                            <div className={`w-8 h-8 rounded-xl border flex items-center justify-center shrink-0 shadow-3xs group-hover:scale-105 transition-transform ${iconBg}`}>
                               <Icon className="w-4 h-4" />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-1.5">
-                                <h4 className="text-[11px] font-extrabold text-brand-navy leading-none tracking-tight">
-                                  {isJson ? parsed.title : 'Notification'}
-                                </h4>
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                  <h4 className="text-[11px] font-extrabold text-brand-navy leading-none tracking-tight truncate group-hover:text-brand-cta transition-colors">
+                                    {displayTitle}
+                                  </h4>
+                                  <ChevronRight className="w-3 h-3 text-gray-300 group-hover:text-brand-cta group-hover:translate-x-0.5 transition-all shrink-0 opacity-0 group-hover:opacity-100" />
+                                </div>
                                 {!n.read && (
                                   <button 
-                                    onClick={() => handleMarkRead(n.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleMarkRead(n.id);
+                                    }}
                                     className="text-[9px] font-bold text-brand-cta hover:text-blue-700 shrink-0 cursor-pointer p-0.5 rounded-md hover:bg-slate-100 transition-colors"
-                                    title="Mark read"
+                                    title="Mark as read"
                                   >
                                     <Check className="w-3 h-3" />
                                   </button>

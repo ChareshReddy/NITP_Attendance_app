@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import { 
   Users, 
@@ -31,7 +32,9 @@ import {
   DollarSign,
   Activity,
   Award,
-  CalendarCheck
+  CalendarCheck,
+  Home,
+  Laptop
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import PerformancePieChart from '@/components/PerformancePieChart';
@@ -154,6 +157,18 @@ interface AuditLog {
 }
 
 export default function AdminDashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-500 font-semibold font-mono">Loading dashboard...</div>}>
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
+function AdminDashboardContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const subTabParam = searchParams.get('subTab');
+
   const [mounted, setMounted] = useState(false);
 
   const formatDateToIndian = (dateString: string | Date | null | undefined) => {
@@ -213,12 +228,50 @@ export default function AdminDashboard() {
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [performanceCounts, setPerformanceCounts] = useState({ RED: 0, YELLOW: 0, GREEN: 0, BLUE: 0 });
 
-  // Leave Request States
+  // Leave & WFH Request States
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [rejectRequestId, setRejectRequestId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-  const [leaveSubTab, setLeaveSubTab] = useState<'requests' | 'history'>('requests');
+  const [leaveSubTab, setLeaveSubTab] = useState<'requests' | 'history' | 'wfh'>('requests');
+
+  useEffect(() => {
+    if (tabParam && ['analytics', 'users', 'new-employee', 'reports', 'policies', 'audit', 'performance', 'leaves', 'payroll', 'trainings', 'resignations'].includes(tabParam)) {
+      setActiveTab(tabParam as any);
+    }
+    if (subTabParam && ['requests', 'history', 'wfh'].includes(subTabParam)) {
+      setLeaveSubTab(subTabParam as any);
+    }
+  }, [tabParam, subTabParam]);
+
+  useEffect(() => {
+    const handleTabChange = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        const { tab, subTab } = customEvent.detail;
+        if (tab && ['analytics', 'users', 'new-employee', 'reports', 'policies', 'audit', 'performance', 'leaves', 'payroll', 'trainings', 'resignations'].includes(tab)) {
+          setActiveTab(tab as any);
+        }
+        if (subTab && ['requests', 'history', 'wfh'].includes(subTab)) {
+          setLeaveSubTab(subTab as any);
+        }
+      }
+    };
+    window.addEventListener('appTabChange', handleTabChange);
+    return () => window.removeEventListener('appTabChange', handleTabChange);
+  }, []);
+
+  // WFH Management States
+  const [wfhRequests, setWfhRequests] = useState<any[]>([]);
+  const [isWfhAssignModalOpen, setIsWfhAssignModalOpen] = useState(false);
+  const [wfhAssignUserId, setWfhAssignUserId] = useState('');
+  const [wfhAssignStartDate, setWfhAssignStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [wfhAssignEndDate, setWfhAssignEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [wfhAssignReason, setWfhAssignReason] = useState('Authorized Work From Home');
+  const [submittingWfhAssign, setSubmittingWfhAssign] = useState(false);
+  const [rejectWfhId, setRejectWfhId] = useState<string | null>(null);
+  const [rejectWfhReason, setRejectWfhReason] = useState('');
+  const [isRejectWfhModalOpen, setIsRejectWfhModalOpen] = useState(false);
 
   // Resignation Request States
   const [resignationRequests, setResignationRequests] = useState<any[]>([]);
@@ -473,6 +526,13 @@ export default function AdminDashboard() {
       if (resignationsRes.ok) {
         const resignationsData = await resignationsRes.json();
         setResignationRequests(resignationsData.requests || []);
+      }
+
+      // 5.8. Fetch WFH Requests
+      const wfhRes = await fetch('/api/wfh-requests');
+      if (wfhRes.ok) {
+        const wfhData = await wfhRes.json();
+        setWfhRequests(wfhData.requests || []);
       }
 
       // 6. Fetch HR Self Attendance status
@@ -1067,6 +1127,102 @@ export default function AdminDashboard() {
       setErrorMsg(err.message || 'Error rejecting leave request');
     }
   };
+
+  // WFH Handlers
+  const handleDirectAssignWfh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!wfhAssignUserId || !wfhAssignStartDate || !wfhAssignEndDate || !wfhAssignReason.trim()) {
+      setErrorMsg('Please fill in all fields to assign Work From Home.');
+      return;
+    }
+
+    setSubmittingWfhAssign(true);
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: wfhAssignUserId,
+          startDate: wfhAssignStartDate,
+          endDate: wfhAssignEndDate,
+          reason: wfhAssignReason,
+          directAssign: true,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to assign Work From Home');
+
+      setSuccessMsg('Work From Home assigned and activated successfully!');
+      setIsWfhAssignModalOpen(false);
+      setWfhAssignUserId('');
+      const todayStr = new Date().toISOString().split('T')[0];
+      setWfhAssignStartDate(todayStr);
+      setWfhAssignEndDate(todayStr);
+      setWfhAssignReason('Authorized Work From Home');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error assigning WFH');
+    } finally {
+      setSubmittingWfhAssign(false);
+    }
+  };
+
+  const handleReviewWfhRequest = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to review WFH request');
+
+      setSuccessMsg(`WFH request has been ${status.toLowerCase()} successfully.`);
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error reviewing WFH request');
+    }
+  };
+
+  const handleOpenRejectWfhModal = (id: string) => {
+    setRejectWfhId(id);
+    setRejectWfhReason('');
+    setIsRejectWfhModalOpen(true);
+  };
+
+  const handleConfirmRejectWfh = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rejectWfhId) return;
+
+    try {
+      const res = await fetch('/api/wfh-requests', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: rejectWfhId,
+          status: 'REJECTED',
+          rejectionReason: rejectWfhReason,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to reject WFH request');
+
+      setSuccessMsg('WFH request has been rejected successfully.');
+      setIsRejectWfhModalOpen(false);
+      setRejectWfhId(null);
+      setRejectWfhReason('');
+      fetchAdminData();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error rejecting WFH request');
+    }
+  };
+
   const handleReviewResignation = async (id: string, status: 'APPROVED' | 'REJECTED') => {
     setSubmittingResignation(true);
     setErrorMsg('');
@@ -2889,23 +3045,38 @@ export default function AdminDashboard() {
         </div>
         )}
 
-        {/* TAB 7: Leave Requests System */}
+        {/* TAB 7: Leave & WFH Requests System */}
         {activeTab === 'leaves' && (
           <div className="premium-card p-0 overflow-hidden space-y-0">
             {/* Header Title strip with Navy Blue background */}
-            <div className="bg-brand-navy px-5 py-3 text-white">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
-                <Calendar className="w-4.5 h-4.5 text-white" />
-                Employee Leave Requests
-              </h3>
-              <p className="text-[10px] text-white/80 mt-0.5">
-                Approve, reject, or comment on annual leave requests submitted by staff.
-              </p>
+            <div className="bg-brand-navy px-5 py-3 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
+                  <Calendar className="w-4.5 h-4.5 text-white" />
+                  Leave & Work From Home (WFH) Management
+                </h3>
+                <p className="text-[10px] text-white/80 mt-0.5">
+                  Approve employee leave/WFH requests or directly assign Work From Home to staff.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const t = new Date().toISOString().split('T')[0];
+                  setWfhAssignStartDate(t);
+                  setWfhAssignEndDate(t);
+                  setIsWfhAssignModalOpen(true);
+                }}
+                className="bg-brand-cta hover:bg-blue-600 text-white font-bold text-xs py-2 px-3.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-md self-start sm:self-auto shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                Assign WFH to Employee
+              </button>
             </div>
 
             <div className="p-6 space-y-6">
-            {/* Leave Requests KPI Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Leave & WFH Requests KPI Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="bg-purple-50/50 p-4 rounded-xl border border-purple-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-purple-700 font-heading">
                   {leaveRequests.filter(r => r.status === 'PENDING').length}
@@ -2918,42 +3089,59 @@ export default function AdminDashboard() {
                 </span>
                 <span className="text-[10px] font-bold text-emerald-800 tracking-wider block mt-1">Approved Leave Requests</span>
               </div>
-              <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
-                <span className="block text-2xl font-extrabold text-brand-red font-heading">
-                  {leaveRequests.filter(r => r.status === 'REJECTED').length}
+              <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/50 text-center shadow-xs">
+                <span className="block text-2xl font-extrabold text-brand-cta font-heading">
+                  {wfhRequests.filter(r => r.status === 'PENDING').length}
                 </span>
-                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Rejected Leave Requests</span>
+                <span className="text-[10px] font-bold text-blue-800 tracking-wider block mt-1">Pending WFH Requests</span>
+              </div>
+              <div className="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100/50 text-center shadow-xs">
+                <span className="block text-2xl font-extrabold text-indigo-700 font-heading">
+                  {wfhRequests.filter(r => r.status === 'APPROVED').length}
+                </span>
+                <span className="text-[10px] font-bold text-indigo-800 tracking-wider block mt-1">Approved / Active WFH</span>
               </div>
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Tab Toggle for Leave Requests & History */}
+              {/* Tab Toggle for Leave Requests, History & WFH */}
               <div className="flex justify-center">
                 <div className="inline-flex p-1 bg-slate-100 rounded-full border border-slate-200 shadow-3xs">
                   <button
                     onClick={() => setLeaveSubTab('requests')}
-                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                    className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
                       leaveSubTab === 'requests'
                         ? 'bg-brand-navy text-white shadow-sm'
                         : 'text-brand-navy hover:bg-slate-200/50'
                     }`}
                   >
-                    Leave Requests
+                    Leave Requests ({leaveRequests.filter(r => r.status === 'PENDING').length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveSubTab('wfh')}
+                    className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer flex items-center gap-1.5 ${
+                      leaveSubTab === 'wfh'
+                        ? 'bg-brand-navy text-white shadow-sm'
+                        : 'text-brand-navy hover:bg-slate-200/50'
+                    }`}
+                  >
+                    <Laptop className="w-3.5 h-3.5" />
+                    WFH Management ({wfhRequests.filter(r => r.status === 'PENDING').length})
                   </button>
                   <button
                     onClick={() => setLeaveSubTab('history')}
-                    className={`px-6 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
+                    className={`px-5 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all cursor-pointer ${
                       leaveSubTab === 'history'
                         ? 'bg-brand-navy text-white shadow-sm'
                         : 'text-brand-navy hover:bg-slate-200/50'
                     }`}
                   >
-                    Leave Requests History
+                    Leave History
                   </button>
                 </div>
               </div>
 
-              {leaveSubTab === 'requests' ? (
+              {leaveSubTab === 'requests' && (
                 <div className="animate-in fade-in duration-200 premium-card p-6">
                   <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Pending Employee Leave Requests</h2>
                   <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
@@ -2984,7 +3172,7 @@ export default function AdminDashboard() {
                               <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
                               <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
                               <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                {req.startDate} to {req.endDate}
+                                {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
                               </td>
                               <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
                                 {req.reason}
@@ -3015,7 +3203,9 @@ export default function AdminDashboard() {
                     </table>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {leaveSubTab === 'history' && (
                 <div className="animate-in fade-in duration-200 premium-card p-6">
                   <h2 className="text-lg font-bold text-brand-navy font-heading mb-4">Leave Requests History</h2>
                   <div className="max-h-[400px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
@@ -3046,7 +3236,7 @@ export default function AdminDashboard() {
                               <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? teams.find(t => t.id === req.user.teamId)?.name : 'Unassigned'}</td>
                               <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
                               <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
-                                {req.startDate} to {req.endDate}
+                                {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
                               </td>
                               <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
                                 {req.reason}
@@ -3064,6 +3254,151 @@ export default function AdminDashboard() {
                         )}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {leaveSubTab === 'wfh' && (
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  {/* Section 1: Pending Employee WFH Requests */}
+                  <div className="premium-card p-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                          <Clock className="w-5 h-5 text-amber-500" />
+                          Pending Employee Work From Home Requests
+                        </h2>
+                        <p className="text-xs text-gray-500">Employee-submitted applications awaiting HR or TL review.</p>
+                      </div>
+                      <span className="self-start sm:self-auto px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold rounded-full">
+                        {wfhRequests.filter(r => r.status === 'PENDING').length} Pending
+                      </span>
+                    </div>
+
+                    <div className="max-h-[300px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                      <table className="min-w-full text-left text-xs relative border-collapse">
+                        <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                          <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                            <th className="py-3 px-2 bg-transparent">Employee</th>
+                            <th className="py-3 px-2 bg-transparent">Team</th>
+                            <th className="py-3 px-2 bg-transparent">Requested Duration</th>
+                            <th className="py-3 px-2 bg-transparent">Reason</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {wfhRequests.filter(r => r.status === 'PENDING').length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">No pending WFH requests in queue.</td>
+                            </tr>
+                          ) : (
+                            wfhRequests.filter(r => r.status === 'PENDING').map((req) => (
+                              <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                                <td className="py-3 px-2 font-bold text-brand-navy">
+                                  <div>{req.user.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? (req.user.team?.name || 'Assigned') : 'Unassigned'}</td>
+                                <td className="py-3 px-2 text-brand-navy font-semibold whitespace-nowrap font-mono">
+                                  {formatDateToIndian(req.startDate)}
+                                  {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                  {req.reason}
+                                </td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200">
+                                    Pending
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-center whitespace-nowrap space-x-1.5">
+                                  <button
+                                    onClick={() => handleReviewWfhRequest(req.id, 'APPROVED')}
+                                    className="bg-emerald-600 hover:bg-emerald-700 hover:shadow-lg text-white font-bold px-2.5 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenRejectWfhModal(req.id)}
+                                    className="bg-brand-red hover:bg-red-700 hover:shadow-lg text-white font-bold px-2.5 py-1 rounded-lg text-[10px] transition-all cursor-pointer shadow-xs"
+                                  >
+                                    Reject
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Section 2: Approved & Historical WFH Records */}
+                  <div className="premium-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h2 className="text-lg font-bold text-brand-navy font-heading flex items-center gap-2">
+                          <Home className="w-5 h-5 text-brand-cta" />
+                          Active & Past Work From Home Records
+                        </h2>
+                        <p className="text-xs text-gray-500">All direct HR assignments and approved remote work history.</p>
+                      </div>
+                    </div>
+
+                    <div className="max-h-[350px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                      <table className="min-w-full text-left text-xs relative border-collapse">
+                        <thead className="sticky top-0 bg-slate-100/70 backdrop-blur-xs text-slate-700 font-bold z-10">
+                          <tr className="border-b border-gray-200/50 text-gray-500 font-bold tracking-wider">
+                            <th className="py-3 px-2 bg-transparent">Employee</th>
+                            <th className="py-3 px-2 bg-transparent">Team</th>
+                            <th className="py-3 px-2 bg-transparent">Duration</th>
+                            <th className="py-3 px-2 bg-transparent">Reason / Remarks</th>
+                            <th className="py-3 px-2 text-center bg-transparent">Status</th>
+                            <th className="py-3 px-2 bg-transparent">Reviewed / Assigned By</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {wfhRequests.filter(r => r.status !== 'PENDING').length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="text-center py-10 text-gray-400 font-medium">No past WFH records found.</td>
+                            </tr>
+                          ) : (
+                            wfhRequests.filter(r => r.status !== 'PENDING').map((req) => (
+                              <tr key={req.id} className="hover:bg-gray-50/50 border-b border-gray-50">
+                                <td className="py-3 px-2 font-bold text-brand-navy">
+                                  <div>{req.user.name}</div>
+                                  <div className="text-[10px] text-gray-400 font-medium">{req.user.email}</div>
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-semibold">{req.user.teamId ? (req.user.team?.name || 'Assigned') : 'Unassigned'}</td>
+                                <td className="py-3 px-2 text-brand-navy font-semibold whitespace-nowrap font-mono">
+                                  {formatDateToIndian(req.startDate)}
+                                  {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
+                                  {req.isDirectHrAssignment && (
+                                    <span className="ml-1.5 inline-block text-[8px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                      Direct HR Assigned
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                  {req.reason}
+                                </td>
+                                <td className="py-3 px-2 text-center">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                                    req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-100 text-brand-red border-red-200'
+                                  }`}>
+                                    {req.status}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-2 text-gray-500 font-semibold">
+                                  {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -3959,6 +4294,190 @@ export default function AdminDashboard() {
                 <button
                   type="submit"
                   className="bg-brand-red hover:bg-red-700 hover:shadow-lg hover:shadow-brand-red/15 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Assign WFH Modal (HR Admin) */}
+      {isWfhAssignModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="premium-card max-w-lg w-full p-6 shadow-2xl space-y-4 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-brand-cta">
+                  <Laptop className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-brand-navy font-heading">Assign Work From Home (WFH)</h2>
+                  <p className="text-[11px] text-gray-400">Directly grant remote work status to an employee.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsWfhAssignModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleDirectAssignWfh} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Select Employee *</label>
+                <select
+                  required
+                  value={wfhAssignUserId}
+                  onChange={(e) => setWfhAssignUserId(e.target.value)}
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                >
+                  <option value="">-- Choose employee --</option>
+                  {users
+                    .filter((u) => u.isActive)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} ({u.email}) {u.teamId ? `• ${teams.find((t) => t.id === u.teamId)?.name || 'Team'}` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={wfhAssignStartDate}
+                    onChange={(e) => setWfhAssignStartDate(e.target.value)}
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-brand-navy uppercase mb-1">End Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={wfhAssignEndDate}
+                    onChange={(e) => setWfhAssignEndDate(e.target.value)}
+                    className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Quick helper buttons */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    setWfhAssignStartDate(todayStr);
+                    setWfhAssignEndDate(todayStr);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                >
+                  Today Only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const tom = new Date();
+                    tom.setDate(tom.getDate() + 1);
+                    const tomStr = tom.toISOString().split('T')[0];
+                    setWfhAssignStartDate(tomStr);
+                    setWfhAssignEndDate(tomStr);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                >
+                  Tomorrow Only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const nextWeek = new Date();
+                    nextWeek.setDate(nextWeek.getDate() + 4);
+                    setWfhAssignStartDate(todayStr);
+                    setWfhAssignEndDate(nextWeek.toISOString().split('T')[0]);
+                  }}
+                  className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+                >
+                  This Week (5 Days)
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-brand-navy uppercase mb-1">Reason / HR Remark *</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={wfhAssignReason}
+                  onChange={(e) => setWfhAssignReason(e.target.value)}
+                  placeholder="e.g. Authorized remote sprint, medical reasons, office maintenance..."
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsWfhAssignModalOpen(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingWfhAssign}
+                  className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Laptop className="w-3.5 h-3.5" />
+                  {submittingWfhAssign ? 'Assigning...' : 'Confirm WFH Assignment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reject WFH Request Modal */}
+      {isRejectWfhModalOpen && rejectWfhId && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="premium-card max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h2 className="text-lg font-bold text-brand-navy font-heading">Reject WFH Request</h2>
+            <p className="text-xs text-gray-500">Provide an optional reason explaining why this Work From Home request is being rejected.</p>
+
+            <form onSubmit={handleConfirmRejectWfh} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-brand-navy mb-1">Rejection Reason</label>
+                <textarea
+                  rows={2}
+                  value={rejectWfhReason}
+                  onChange={(e) => setRejectWfhReason(e.target.value)}
+                  placeholder="e.g. Critical in-office client demo or meeting requires physical attendance."
+                  className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y min-h-[50px]"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRejectWfhModalOpen(false);
+                    setRejectWfhId(null);
+                    setRejectWfhReason('');
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-brand-navy font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-brand-red hover:bg-red-700 hover:shadow-lg text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                 >
                   Confirm Rejection
                 </button>

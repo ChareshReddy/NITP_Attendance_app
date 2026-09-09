@@ -19,6 +19,7 @@ enum AttendanceStatus {
   LATE
   ABSENT
   LEAVE
+  WFH
   HOLIDAY
   WEEK_OFF
   LATE_COMING
@@ -81,6 +82,8 @@ model User {
   performanceUpdates    PerformanceScore[] @relation("PerformanceUpdatedBy")
   leaveRequests         LeaveRequest[]     @relation("UserLeaveRequests")
   reviewedLeaveRequests LeaveRequest[]     @relation("LeaveReviewer")
+  wfhRequests           WfhRequest[]       @relation("UserWfhRequests")
+  reviewedWfhRequests   WfhRequest[]       @relation("WfhReviewer")
   employeeProfile       EmployeeProfile?
   salaryStructure       SalaryStructure?
   payrollRuns           PayrollRun[]
@@ -438,3 +441,30 @@ model RegularisationRequest {
   updatedAt       DateTime           @updatedAt @map("updated_at")
   @@map("regularisation_requests")
 }
+
+enum WfhRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WfhRequest {
+  id                   String           @id @default(uuid())
+  userId               String           @map("user_id")
+  user                 User             @relation("UserWfhRequests", fields: [userId], references: [id], onDelete: Cascade)
+  startDate            String           @map("start_date") // YYYY-MM-DD
+  endDate              String           @map("end_date")   // YYYY-MM-DD
+  reason               String
+  status               WfhRequestStatus @default(PENDING)
+  reviewedById         String?          @map("reviewed_by_id")
+  reviewedBy           User?            @relation("WfhReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt           DateTime?        @map("reviewed_at")
+  rejectionReason      String?          @map("rejection_reason")
+  isDirectHrAssignment Boolean          @default(false) @map("is_direct_hr_assignment")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("wfh_requests")
+}
+

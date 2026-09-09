@@ -167,9 +167,10 @@ export default function Home() {
       <div className="relative w-full md:w-[50%] lg:w-[55%] h-64 md:h-screen shrink-0 overflow-hidden bg-brand-navy">
         <video
           id="login-video"
-          src="/login-hero.mp4"
+          src="/merged_custom_transition_video.mp4"
           autoPlay
           loop
+          muted={isMuted}
           playsInline
           className="w-full h-full object-cover"
         />

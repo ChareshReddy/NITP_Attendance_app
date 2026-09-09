@@ -219,10 +219,22 @@ export async function PUT(request: Request) {
     });
 
     if (status && existing.userId !== user.userId) {
+      const trackNotif = {
+        type: 'tracksheet',
+        title: `Track Sheet ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
+        body: `Your track sheet for ${existing.date} has been ${status.toLowerCase()} by ${user.name}.`,
+        status,
+        details: {
+          'Date': existing.date,
+          'Project': existing.project,
+          'Reviewed By': user.name,
+        },
+        link: '/employee?tab=tracksheets',
+      };
       await prisma.notification.create({
         data: {
           userId: existing.userId,
-          message: `Your track sheet for ${existing.date} has been ${status.toLowerCase()} by ${user.name}.`,
+          message: JSON.stringify(trackNotif),
         },
       });
     }

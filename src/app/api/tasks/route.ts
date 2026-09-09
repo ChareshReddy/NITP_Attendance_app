@@ -147,10 +147,24 @@ export async function POST(request: Request) {
       },
     });
 
+    const notifData = {
+      type: 'task',
+      title: 'New Task Assigned',
+      body: `New task assigned: "${title}" by ${user.name}.`,
+      status: 'PENDING',
+      details: {
+        'Task': title,
+        'Assigned By': user.name,
+        'Due Date': new Date(dueDate).toLocaleDateString(),
+        'Priority': priority || 'NORMAL',
+      },
+      link: '/employee?tab=tasks',
+    };
+
     await prisma.notification.create({
       data: {
         userId: assignedToId,
-        message: `New task assigned: "${title}" by ${user.name}. Due by ${new Date(dueDate).toLocaleDateString()}.`,
+        message: JSON.stringify(notifData),
       },
     });
 
@@ -224,10 +238,21 @@ export async function PUT(request: Request) {
     });
 
     if (status === 'COMPLETED' && user.role === 'EMPLOYEE') {
+      const taskDoneNotif = {
+        type: 'task',
+        title: 'Task Completed',
+        body: `${user.name} has completed the task: "${existing.title}".`,
+        status: 'COMPLETED',
+        details: {
+          'Task': existing.title,
+          'Completed By': user.name,
+        },
+        link: '/tl?tab=tasks',
+      };
       await prisma.notification.create({
         data: {
           userId: existing.assignedById,
-          message: `${user.name} has completed the task: "${existing.title}".`,
+          message: JSON.stringify(taskDoneNotif),
         },
       });
     }
