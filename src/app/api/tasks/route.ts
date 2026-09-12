@@ -125,6 +125,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Assigned employee not found' }, { status: 404 });
     }
 
+    if (user.role === 'TL' && user.teamId && targetEmployee.teamId && targetEmployee.teamId !== user.teamId && assignedToId !== user.userId) {
+      return NextResponse.json({ error: 'Forbidden: Cannot assign tasks to members of another team' }, { status: 403 });
+    }
+
     const task = await prisma.task.create({
       data: {
         teamId: targetEmployee.teamId || user.teamId,

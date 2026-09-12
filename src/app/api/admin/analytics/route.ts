@@ -84,7 +84,7 @@ export async function GET() {
     const presentLogs = await prisma.attendance.count({
       where: {
         date: { gte: thirtyDaysAgoStr, lte: todayStr },
-        status: { in: ['PRESENT', 'LATE', 'LATE_COMING', 'EARLY_LEAVING', 'OVERTIME', 'MISSING_PUNCH'] },
+        status: { in: ['PRESENT', 'LATE', 'LATE_COMING', 'EARLY_LEAVING', 'OVERTIME', 'MISSING_PUNCH', 'WFH'] },
         user: { role: { in: ['EMPLOYEE', 'TL'] }, isActive: true },
       },
     });

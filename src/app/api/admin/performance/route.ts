@@ -234,13 +234,18 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Ensure BOTH rating and a consistent score value are stored
+    const finalScore = overrideScoreFloat !== null 
+      ? overrideScoreFloat 
+      : (rating === 'RED' ? 15 : rating === 'YELLOW' ? 38 : rating === 'GREEN' ? 63 : 88);
+
     const updated = await prisma.performanceScore.upsert({
       where: { userId },
       update: {
         manualOverride: true,
         overrideReason: reason,
         rating,
-        overrideScore: overrideScoreFloat,
+        overrideScore: finalScore,
         updatedById: user.userId,
       },
       create: {
@@ -248,8 +253,8 @@ export async function PUT(request: Request) {
         manualOverride: true,
         overrideReason: reason,
         rating,
-        autoScore: 100,
-        overrideScore: overrideScoreFloat,
+        autoScore: finalScore,
+        overrideScore: finalScore,
         updatedById: user.userId,
       },
     });

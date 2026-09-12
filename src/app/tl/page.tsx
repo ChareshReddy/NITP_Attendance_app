@@ -1018,22 +1018,22 @@ function TeamLeaderDashboardContent() {
               {/* Team Performance */}
               <div className="flex flex-col justify-center py-2 lg:py-0 lg:px-6">
                 <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block text-center mb-1.5">Performance Health</span>
-                <div className="flex justify-around items-center gap-1 bg-slate-50/60 p-1.5 rounded-xl border border-gray-150/40">
-                  <div className="text-center">
+                <div className="flex justify-around items-center gap-1.5 bg-slate-50/60 p-1.5 rounded-xl border border-gray-150/40">
+                  <div className="text-center px-1">
                     <span className="block text-[10px] font-extrabold text-blue-600 bg-blue-50 px-1 rounded">{performanceCounts.BLUE}</span>
-                    <span className="text-[8px] text-gray-400 block mt-0.5">B</span>
+                    <span className="text-[8px] font-bold text-blue-700 block mt-0.5" title="Excellent">Excellent</span>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center px-1">
                     <span className="block text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-1 rounded">{performanceCounts.GREEN}</span>
-                    <span className="text-[8px] text-gray-400 block mt-0.5">G</span>
+                    <span className="text-[8px] font-bold text-emerald-700 block mt-0.5" title="Good">Good</span>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center px-1">
                     <span className="block text-[10px] font-extrabold text-amber-600 bg-amber-50 px-1 rounded">{performanceCounts.YELLOW}</span>
-                    <span className="text-[8px] text-gray-400 block mt-0.5">Y</span>
+                    <span className="text-[8px] font-bold text-amber-700 block mt-0.5" title="Average">Average</span>
                   </div>
-                  <div className="text-center">
+                  <div className="text-center px-1">
                     <span className="block text-[10px] font-extrabold text-brand-red bg-red-50 px-1 rounded">{performanceCounts.RED}</span>
-                    <span className="text-[8px] text-gray-400 block mt-0.5">R</span>
+                    <span className="text-[8px] font-bold text-brand-red block mt-0.5 whitespace-nowrap" title="Needs Improvement">Needs Imp.</span>
                   </div>
                 </div>
               </div>

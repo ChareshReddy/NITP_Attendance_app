@@ -29,10 +29,10 @@ export default function PerformancePieChart({
   const total = (counts.BLUE || 0) + (counts.GREEN || 0) + (counts.YELLOW || 0) + (counts.RED || 0);
 
   const categories = [
-    { key: 'BLUE', label: 'Blue (Excellent)', short: 'B', count: counts.BLUE || 0, color: '#2563eb', bgLight: 'bg-blue-50', textCol: 'text-blue-600', dotCol: 'bg-blue-600' },
-    { key: 'GREEN', label: 'Green (Good)', short: 'G', count: counts.GREEN || 0, color: '#10b981', bgLight: 'bg-emerald-50', textCol: 'text-emerald-600', dotCol: 'bg-emerald-600' },
-    { key: 'YELLOW', label: 'Yellow (Average)', short: 'Y', count: counts.YELLOW || 0, color: '#f59e0b', bgLight: 'bg-amber-50', textCol: 'text-amber-600', dotCol: 'bg-amber-600' },
-    { key: 'RED', label: 'Red (Bad)', short: 'R', count: counts.RED || 0, color: '#ef4444', bgLight: 'bg-rose-50', textCol: 'text-brand-red', dotCol: 'bg-brand-red' },
+    { key: 'BLUE', label: 'Excellent', count: counts.BLUE || 0, color: '#2563eb', bgLight: 'bg-blue-50', textCol: 'text-blue-600', dotCol: 'bg-blue-600' },
+    { key: 'GREEN', label: 'Good', count: counts.GREEN || 0, color: '#10b981', bgLight: 'bg-emerald-50', textCol: 'text-emerald-600', dotCol: 'bg-emerald-600' },
+    { key: 'YELLOW', label: 'Average', count: counts.YELLOW || 0, color: '#f59e0b', bgLight: 'bg-amber-50', textCol: 'text-amber-600', dotCol: 'bg-amber-600' },
+    { key: 'RED', label: 'Needs Improvement', count: counts.RED || 0, color: '#ef4444', bgLight: 'bg-rose-50', textCol: 'text-brand-red', dotCol: 'bg-brand-red' },
   ];
 
   // SVG Donut geometry
@@ -140,8 +140,8 @@ export default function PerformancePieChart({
                 <span className={`text-[10px] font-extrabold font-mono ${cat.textCol}`}>
                   {cat.count}
                 </span>
-                <span className="text-[8px] font-bold text-gray-400">
-                  {cat.short}
+                <span className="text-[9px] font-semibold text-gray-500 truncate">
+                  {cat.label}
                 </span>
               </div>
             );

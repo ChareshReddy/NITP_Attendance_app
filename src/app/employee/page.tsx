@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import Header from '@/components/Header';
 import { 
   Clock, 
@@ -35,7 +36,8 @@ import {
   Home,
   Laptop,
   CalendarCheck,
-  CalendarDays
+  CalendarDays,
+  ArrowLeftRight
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1341,6 +1343,20 @@ function EmployeeDashboardContent() {
               );
             })}
           </nav>
+
+          {employeeProfile?.user?.role === 'TL' && (
+            <div className="mt-auto px-2 border-t border-slate-100 pt-4 mb-2">
+              <Link
+                href="/tl"
+                className="w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
+              >
+                <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
+                <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
+                  Team Leader Board
+                </span>
+              </Link>
+            </div>
+          )}
         </aside>
 
         {/* Mobile Slide-over Drawer */}
@@ -1381,6 +1397,20 @@ function EmployeeDashboardContent() {
                   </button>
                 ))}
               </nav>
+
+              {employeeProfile?.user?.role === 'TL' && (
+                <div className="mt-auto px-4 border-t border-slate-100 pt-4 mb-4">
+                  <Link
+                    href="/tl"
+                    className="w-full text-left py-3 px-4 flex items-center gap-3 transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
+                  >
+                    <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
+                    <span className="text-xs font-semibold tracking-wide">
+                      Team Leader Board
+                    </span>
+                  </Link>
+                </div>
+              )}
             </aside>
           </div>
         )}
@@ -1560,7 +1590,7 @@ function EmployeeDashboardContent() {
                               {displayRating === 'BLUE' ? 'Excellent' :
                                displayRating === 'GREEN' ? 'Good' :
                                displayRating === 'YELLOW' ? 'Average' :
-                               'Bad'} ({Math.round(displayScore)})
+                               'Needs Improvement'} ({Math.round(displayScore)})
                             </span>
                           )}
                         </div>

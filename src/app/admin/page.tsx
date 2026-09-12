@@ -29,8 +29,6 @@ import {
   CalendarDays,
   KeyRound,
   Lock,
-  DollarSign,
-  Activity,
   Award,
   CalendarCheck,
   Home,
@@ -1552,6 +1550,7 @@ function AdminDashboardContent() {
                       {todayRecord.checkOutTime ? (
                         <>
                           {" "}• Out: <span className="font-semibold text-brand-red">{new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                          {" "}• <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider">Shift Completed</span>
                         </>
                       ) : ''}
                     </>
@@ -1591,7 +1590,7 @@ function AdminDashboardContent() {
         {/* HR KPI Cards - Only visible on Analytics (home) tab */}
         {activeTab === 'analytics' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* 1. Active Staff & Growth */}
               <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
                 <div className="flex items-center justify-between">
@@ -1640,25 +1639,7 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              {/* 3. Avg Attendance Rate */}
-              <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Avg Attendance</span>
-                  <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600">
-                    <Activity className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-                <div>
-                  <span className="block text-2xl font-extrabold text-emerald-600 font-heading leading-tight">
-                    {kpiStats.rollingAttendanceRate !== undefined ? `${kpiStats.rollingAttendanceRate.toFixed(1)}%` : '100.0%'}
-                  </span>
-                  <span className="text-[11px] font-semibold text-gray-400 block mt-0.5">
-                    Rolling 30-day rate
-                  </span>
-                </div>
-              </div>
-
-              {/* 4. Pending Actions (Reports + Leaves) */}
+              {/* 3. Pending Actions (Reports + Leaves) */}
               <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Pending Actions</span>
@@ -1691,44 +1672,7 @@ function AdminDashboardContent() {
                 </div>
               </div>
 
-              {/* 5. Payroll Status */}
-              <button
-                onClick={() => setActiveTab('payroll')}
-                className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all cursor-pointer group text-left w-full"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider group-hover:text-brand-navy transition-colors">Payroll Status</span>
-                  <span className="p-1 rounded-lg bg-emerald-50 text-emerald-600 group-hover:scale-105 transition-transform">
-                    <DollarSign className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-                <div>
-                  {payrollRuns.some(r => r.status === 'DRAFT') ? (
-                    <>
-                      <span className="block text-base font-extrabold text-amber-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
-                        Draft Active
-                      </span>
-                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Needs calculation</span>
-                    </>
-                  ) : payrollRuns.some(r => r.status === 'APPROVED') ? (
-                    <>
-                      <span className="block text-base font-extrabold text-blue-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
-                        Pending Payout
-                      </span>
-                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Approved runs</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="block text-base font-extrabold text-emerald-600 font-heading group-hover:text-brand-cta transition-colors leading-tight">
-                        All Paid
-                      </span>
-                      <span className="text-[11px] text-gray-400 block font-semibold mt-0.5">Up to date</span>
-                    </>
-                  )}
-                </div>
-              </button>
-
-              {/* 6. Performance Overview */}
+              {/* 4. Performance Overview */}
               <div className="premium-card p-3.5 flex flex-col justify-between min-h-[92px] shadow-xs hover:shadow-md transition-all">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Performance</span>
@@ -1781,7 +1725,7 @@ function AdminDashboardContent() {
                 <div className="premium-card p-6 lg:col-span-1">
                   <h2 className="text-base font-bold text-brand-navy font-heading mb-4 flex items-center gap-2">
                     <FileCheck className="w-5 h-5 text-brand-cta" />
-                    Deliverables Completion Rate
+                    Task Completion Overview
                   </h2>
                   
                   <div className="h-[180px] w-full flex items-center justify-center">
@@ -2159,7 +2103,7 @@ function AdminDashboardContent() {
                 <h3 className="text-xs font-bold tracking-wider text-brand-cta">1. Account Credentials & Hierarchy</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Full Name</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Full Name <span className="text-brand-red">*</span></label>
                     <input
                       type="text"
                       required
@@ -2170,7 +2114,7 @@ function AdminDashboardContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Official Email Address</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Official Email Address <span className="text-brand-red">*</span></label>
                     <input
                       type="email"
                       required
@@ -2181,7 +2125,7 @@ function AdminDashboardContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Password {editingUserId && '(Optional)'}</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Password {editingUserId ? '(Optional)' : <span className="text-brand-red">*</span>}</label>
                     <input
                       type="password"
                       required={!editingUserId}
@@ -2195,7 +2139,7 @@ function AdminDashboardContent() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">System Role <span className="text-brand-red">*</span></label>
                     <select
                       required
                       value={employeeForm.role}
@@ -2239,7 +2183,7 @@ function AdminDashboardContent() {
                 <h3 className="text-xs font-bold tracking-wider text-emerald-600">2. Employment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Joining</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Date of Joining <span className="text-brand-red">*</span></label>
                     <input
                       type="date"
                       required
@@ -2261,7 +2205,7 @@ function AdminDashboardContent() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Department</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Department <span className="text-brand-red">*</span></label>
                     <input
                       type="text"
                       required
@@ -2272,7 +2216,7 @@ function AdminDashboardContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-brand-navy mb-1">Designation</label>
+                    <label className="block text-xs font-bold text-brand-navy mb-1">Designation <span className="text-brand-red">*</span></label>
                     <input
                       type="text"
                       required
@@ -2939,7 +2883,7 @@ function AdminDashboardContent() {
               </div>
               <div className="bg-red-50/50 p-4 rounded-xl border border-red-100/50 text-center shadow-xs">
                 <span className="block text-2xl font-extrabold text-brand-red font-heading">{performanceCounts.RED}</span>
-                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Bad (0%–25%)</span>
+                <span className="text-[10px] font-bold text-red-800 tracking-wider block mt-1">Needs Improvement (0%–25%)</span>
               </div>
             </div>
 
@@ -3009,7 +2953,7 @@ function AdminDashboardContent() {
                             p.score.rating === 'YELLOW' ? 'bg-amber-100 text-amber-800 border-amber-200' :
                             'bg-red-100 text-brand-red border-red-200'
                           }`}>
-                            {p.score.rating === 'RED' ? 'Bad' : p.score.rating === 'YELLOW' ? 'Average' : p.score.rating === 'GREEN' ? 'Good' : 'Excellent'}
+                            {p.score.rating === 'RED' ? 'Needs Improvement' : p.score.rating === 'YELLOW' ? 'Average' : p.score.rating === 'GREEN' ? 'Good' : 'Excellent'}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={p.score.overrideReason || ''}>
@@ -4053,7 +3997,7 @@ function AdminDashboardContent() {
                   onChange={(e) => setOverrideRating(e.target.value)}
                   className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
                 >
-                  <option value="RED">RED (Bad: 0-25)</option>
+                  <option value="RED">RED (Needs Improvement: 0-25)</option>
                   <option value="YELLOW">YELLOW (Average: 26-50)</option>
                   <option value="GREEN">GREEN (Good: 51-75)</option>
                   <option value="BLUE">BLUE (Excellent: 76-100)</option>
@@ -4072,7 +4016,7 @@ function AdminDashboardContent() {
                   placeholder="e.g. 53"
                   className="block w-full rounded-xl border border-gray-200/80 py-2.5 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">If blank, defaults to midpoint of chosen rating band (RED=20, YELLOW=53, GREEN=75, BLUE=93).</p>
+                <p className="text-[10px] text-gray-400 mt-1">If blank, defaults to midpoint of chosen rating band (RED=15, YELLOW=38, GREEN=63, BLUE=88).</p>
               </div>
 
               <div>
