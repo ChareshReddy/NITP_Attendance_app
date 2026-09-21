@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
       details: {
         'Task': title,
         'Assigned By': user.name,
-        'Due Date': new Date(dueDate).toLocaleDateString(),
+        'Due Date': formatDateToIndian(dueDate),
         'Priority': priority || 'NORMAL',
       },
       link: '/employee?tab=tasks',

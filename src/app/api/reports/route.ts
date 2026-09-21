@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
       status: 'PENDING',
       details: {
         'Submitted By': user.name,
-        'Period': `${new Date(periodStart).toLocaleDateString()} - ${new Date(periodEnd).toLocaleDateString()}`,
+        'Period': `${formatDateToIndian(periodStart)} to ${formatDateToIndian(periodEnd)}`,
         'Summary': summary.length > 40 ? summary.substring(0, 40) + '...' : summary,
       },
       link: '/admin?tab=reports',

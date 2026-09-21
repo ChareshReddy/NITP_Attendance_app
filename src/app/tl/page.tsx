@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
 import PerformancePieChart from '@/components/PerformancePieChart';
 import Link from 'next/link';
+import { formatDateToIndian, formatDateTimeToIndian, formatTimeToIndian } from '@/lib/dateUtils';
 import { 
   Users, 
   Clock, 
@@ -101,6 +102,10 @@ interface TeamTask {
     id: string;
     name: string;
   };
+  assignedBy?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface TeamReport {
@@ -222,16 +227,6 @@ function TeamLeaderDashboardContent() {
   const [commentingTrackSheet, setCommentingTrackSheet] = useState<any | null>(null);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
-
-  const formatDateToIndian = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
 
   const formatEmployeeName = (name: string) => {
     if (!name) return '';
@@ -1472,10 +1467,10 @@ function TeamLeaderDashboardContent() {
                               <p className="text-xs text-gray-550 mt-1">{task.description}</p>
                               <div className="mt-2 flex items-center gap-2">
                                 <span className="text-[10px] bg-blue-100 text-brand-navy px-2 py-0.5 rounded-full font-bold">
-                                  Assigned to: {task.assignedTo.name}
+                                  Assigned to: {formatEmployeeName(task.assignedTo.name)}
                                 </span>
                                 <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
-                                  Created by TL
+                                  Assigned by: {task.assignedBy?.name ? formatEmployeeName(task.assignedBy.name) : 'Team Leader'}
                                 </span>
                               </div>
                             </div>
@@ -1498,7 +1493,10 @@ function TeamLeaderDashboardContent() {
                           </div>
 
                           <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center text-xs text-gray-400 font-semibold">
-                            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                            <div className="flex flex-col text-left">
+                              <span className="font-semibold text-slate-700">Due: {formatDateToIndian(task.dueDate)}</span>
+                              <span className="text-[10px] text-slate-400 font-medium mt-0.5">Timezone: IST (Asia/Kolkata)</span>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -1593,7 +1591,7 @@ function TeamLeaderDashboardContent() {
                           <div className="flex justify-between items-start mb-2">
                             <span className="text-xs font-extrabold text-brand-navy flex items-center gap-1">
                               <Calendar className="w-4 h-4 text-brand-cta" />
-                              {new Date(rep.periodStart).toLocaleDateString()} - {new Date(rep.periodEnd).toLocaleDateString()}
+                              {formatDateToIndian(rep.periodStart)} to {formatDateToIndian(rep.periodEnd)}
                             </span>
                             
                             <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
@@ -1610,8 +1608,8 @@ function TeamLeaderDashboardContent() {
                           </p>
 
                           <div className="text-[10px] text-gray-400 mt-2 flex justify-between">
-                            <span>Submitted by: {rep.submittedBy.name}</span>
-                            <span>Filed: {new Date(rep.createdAt).toLocaleDateString()}</span>
+                            <span>Submitted by: {formatEmployeeName(rep.submittedBy.name)}</span>
+                            <span>Filed: {formatDateToIndian(rep.createdAt)}</span>
                           </div>
                         </div>
                       ))
@@ -2193,7 +2191,7 @@ function TeamLeaderDashboardContent() {
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Date of Birth:</strong>
                     <span className="font-bold">
-                      {selectedMemberForDetail.employeeProfile?.dateOfBirth ? new Date(selectedMemberForDetail.employeeProfile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A'}
+                      {formatDateToIndian(selectedMemberForDetail.employeeProfile?.dateOfBirth)}
                     </span>
                   </p>
                   <p className="flex justify-between border-b border-slate-100 pb-1">
@@ -2241,7 +2239,7 @@ function TeamLeaderDashboardContent() {
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Date of Joining:</strong>
                     <span className="font-bold">
-                      {selectedMemberForDetail.employeeProfile?.dateOfJoining ? new Date(selectedMemberForDetail.employeeProfile.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
+                      {formatDateToIndian(selectedMemberForDetail.employeeProfile?.dateOfJoining)}
                     </span>
                   </p>
                   <p className="flex justify-between border-b border-slate-100 pb-1">
@@ -2267,7 +2265,7 @@ function TeamLeaderDashboardContent() {
                   <p className="flex justify-between border-b border-slate-100 pb-1">
                     <strong className="text-gray-500">Expected End Date:</strong>
                     <span className="font-bold">
-                      {selectedMemberForDetail.employeeProfile?.expectedEndDate ? new Date(selectedMemberForDetail.employeeProfile.expectedEndDate).toLocaleDateString('en-GB') : 'N/A'}
+                      {formatDateToIndian(selectedMemberForDetail.employeeProfile?.expectedEndDate)}
                     </span>
                   </p>
                   <p className="flex justify-between border-b border-slate-100 pb-1">

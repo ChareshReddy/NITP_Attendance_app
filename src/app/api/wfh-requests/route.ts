@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -170,10 +171,10 @@ export async function POST(request: Request) {
         const notifData = {
           type: 'wfh',
           title: 'Work From Home Assigned by HR',
-          body: `HR (${user.name}) has assigned you Work From Home from ${startDate} to ${endDate}.`,
+          body: `HR (${user.name}) has assigned you Work From Home from ${formatDateToIndian(startDate)} to ${formatDateToIndian(endDate)}.`,
           status: 'APPROVED',
           details: {
-            'Duration': `${startDate} to ${endDate}`,
+            'Duration': `${formatDateToIndian(startDate)} to ${formatDateToIndian(endDate)}`,
             'Assigned By': user.name,
             'Reason / Note': reason,
           },
@@ -252,7 +253,7 @@ export async function POST(request: Request) {
         status: 'PENDING',
         details: {
           'Applicant': applicant?.name || 'A team member',
-          'Duration': `${startDate} to ${endDate}`,
+          'Duration': `${formatDateToIndian(startDate)} to ${formatDateToIndian(endDate)}`,
           'Reason': reason,
         },
       };
@@ -386,10 +387,10 @@ export async function PUT(request: Request) {
       const notifData = {
         type: 'wfh',
         title: `Work From Home Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-        body: `Your WFH request from ${existing.startDate} to ${existing.endDate} has been ${status.toLowerCase()} by ${user.name}.`,
+        body: `Your WFH request from ${formatDateToIndian(existing.startDate)} to ${formatDateToIndian(existing.endDate)} has been ${status.toLowerCase()} by ${user.name}.`,
         status,
         details: {
-          'Duration': `${existing.startDate} to ${existing.endDate}`,
+          'Duration': `${formatDateToIndian(existing.startDate)} to ${formatDateToIndian(existing.endDate)}`,
           'Reviewed By': user.name,
           ...(status === 'REJECTED' && rejectionReason ? { 'Rejection Reason': rejectionReason } : {}),
         },
