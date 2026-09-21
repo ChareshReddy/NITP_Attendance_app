@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
 import ExcelJS from 'exceljs';
 import { decrypt } from '@/lib/encryption';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -63,8 +64,7 @@ export async function GET(request: Request) {
     // Period info
     sheet.mergeCells('A2:D2');
     const periodCell = sheet.getCell('A2');
-    const options: any = { year: 'numeric', month: 'long' };
-    periodCell.value = `Salary Period: ${new Date(run.periodStart).toLocaleDateString('en-US', options)}`;
+    periodCell.value = `Salary Period: ${formatDateToIndian(run.periodStart)} to ${formatDateToIndian(run.periodEnd)}`;
     periodCell.font = { name: 'Arial', size: 11, italic: true };
     periodCell.alignment = { horizontal: 'center' };
     sheet.getRow(2).height = 20;

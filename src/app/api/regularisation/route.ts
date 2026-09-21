@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -122,11 +123,11 @@ export async function POST(request: Request) {
       const notifData = {
         type: 'regularisation',
         title: 'New Regularisation Request Submitted',
-        body: `${applicant?.name || 'A team member'} has submitted a regularisation request for ${date}.`,
+        body: `${applicant?.name || 'A team member'} has submitted a regularisation request for ${formatDateToIndian(date)}.`,
         status: 'PENDING',
         details: {
           'Applicant': applicant?.name || 'A team member',
-          'Date': date,
+          'Date': formatDateToIndian(date),
           'Expected Check-in': checkInTime || '--:--',
           'Expected Check-out': checkOutTime || '--:--',
           'Reason': reason
@@ -230,10 +231,10 @@ export async function PUT(request: Request) {
     const notifData = {
       type: 'regularisation',
       title: `Regularisation Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-      body: `Your regularisation request for ${existing.date} has been ${status.toLowerCase()} by ${user.name}.`,
+      body: `Your regularisation request for ${formatDateToIndian(existing.date)} has been ${status.toLowerCase()} by ${user.name}.`,
       status,
       details: {
-        'Date': existing.date,
+        'Date': formatDateToIndian(existing.date),
         'Reviewed By': user.name
       }
     };

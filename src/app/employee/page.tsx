@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   CreditCard,
   GraduationCap,
+  Edit2,
   LogOut,
   ChevronDown,
   ChevronUp,
@@ -37,7 +38,8 @@ import {
   Laptop,
   CalendarCheck,
   CalendarDays,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Camera
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -60,23 +62,8 @@ export function formatEmployeeName(nameVal: string | null | undefined): string {
   return capitalized;
 }
 
-// Timezone-safe Indian date formatting
-export function formatDateToIndian(dateVal: string | Date | null | undefined): string {
-  if (!dateVal) return '-';
-  if (typeof dateVal === 'string' && dateVal.includes('-') && dateVal.length <= 10) {
-    const parts = dateVal.split('-');
-    if (parts.length === 3) {
-      if (parts[0].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
-      if (parts[2].length === 4) return dateVal;
-    }
-  }
-  const date = typeof dateVal === 'string' ? new Date(dateVal) : dateVal;
-  if (isNaN(date.getTime())) return typeof dateVal === 'string' ? dateVal : '-';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  return `${day}-${month}-${year}`;
-}
+import { formatDateToIndian, formatDateTimeToIndian, formatTimeToIndian } from '@/lib/dateUtils';
+export { formatDateToIndian, formatDateTimeToIndian, formatTimeToIndian };
 
 // CountUp animations for stats
 function CountUp({ value }: { value: number }) {
@@ -308,6 +295,10 @@ interface Task {
   dueDate: string;
   priority: string;
   status: string;
+  assignedBy?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface Notification {
@@ -437,7 +428,8 @@ function EmployeeDashboardContent() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'tasks' | 'tracksheets' | 'profile' | 'leaves' | 'payroll' | 'trainings' | 'history' | 'resignation'>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Collapsible Profile Sections
+  // Profile States
+  const [isEditingContact, setIsEditingContact] = useState(false);
   const [openProfileSections, setOpenProfileSections] = useState({
     professional: true,
     contact: false,
@@ -1036,6 +1028,7 @@ function EmployeeDashboardContent() {
       if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
       setSuccessMsg('Your personal profile details updated successfully!');
+      setIsEditingContact(false);
       fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error updating profile');
@@ -1256,9 +1249,8 @@ function EmployeeDashboardContent() {
   };
 
   // Helper date conversions
-  const formatTime = (isoString: string | null) => {
-    if (!isoString) return '--:--';
-    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatTime = (isoString: string | null | undefined) => {
+    return formatTimeToIndian(isoString);
   };
 
   const isCheckInLate = (isoString: string | null) => {
@@ -1474,7 +1466,7 @@ function EmployeeDashboardContent() {
                         {greeting}, {employeeProfile?.user?.name || 'Member'}!
                       </h2>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        {new Date().toLocaleDateString('en-US', { weekday: 'long' })}, {formatDateToIndian(new Date())}
                       </p>
                     </div>
                     <div className="flex items-center gap-2.5 bg-brand-navy/5 px-4 py-2 rounded-2xl border border-brand-navy/10">
@@ -1741,10 +1733,17 @@ function EmployeeDashboardContent() {
                             task.priority === 'HIGH' ? 'bg-red-100 text-brand-red border border-red-200' : 'bg-slate-100 text-slate-700'
                           }`}>{task.priority}</span>
                         </div>
-                        <p className="text-xs text-gray-500 line-clamp-3 leading-normal mb-4">{task.description}</p>
+                        <p className="text-xs text-gray-500 line-clamp-3 leading-normal mb-2.5">{task.description}</p>
+                        <div className="text-[11px] text-gray-500 mb-3 flex items-center gap-1.5">
+                          <span className="font-semibold text-gray-400">Assigned by:</span>
+                          <span className="font-bold text-brand-navy">{task.assignedBy?.name ? formatEmployeeName(task.assignedBy.name) : 'Team Leader'}</span>
+                        </div>
                       </div>
                       <div className="flex justify-between items-center pt-3 border-t border-gray-100 text-xs text-gray-400 mt-auto">
-                        <span className="font-medium">Due: {task.dueDate}</span>
+                        <div className="flex flex-col text-left">
+                          <span className="font-semibold text-slate-700">Due: {formatDateToIndian(task.dueDate)}</span>
+                          <span className="text-[10px] text-slate-400 font-medium mt-0.5">Timezone: IST (Asia/Kolkata)</span>
+                        </div>
                         <button
                           onClick={() => handleUpdateTaskStatus(task.id, task.status)}
                           disabled={task.status === 'COMPLETED'}
@@ -2164,182 +2163,242 @@ function EmployeeDashboardContent() {
 
           {/* TAB 2: My Profile */}
           {activeTab === 'profile' && employeeProfile && (
-            <div className="w-full space-y-6 max-w-5xl mx-auto">
-              {/* Profile Cards Block */}
-              <div className="space-y-6">
-                <div className="premium-card p-0 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setOpenProfileSections(prev => ({ ...prev, professional: !prev.professional }))}
-                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                  >
-                    <div className="flex items-center gap-2">
-                      <GraduationCap className="w-4 h-4 text-blue-300" />
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">My Professional Details</h2>
-                    </div>
-                    {openProfileSections.professional ? (
-                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                    )}
-                  </button>
-
-                  {openProfileSections.professional && (
-                    <div className="p-6">
-                      <div className="flex flex-col md:flex-row gap-12 items-center md:items-start">
-                        {/* Left Column: Professional Details Grid (2 columns of tables) */}
-                        <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4 order-2 md:order-1">
-                          {/* Sub-table 1: Basic employment specs */}
-                          <table className="w-full text-left text-xs border-collapse">
-                            <tbody>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Employee ID</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">
-                                  {employeeProfile.id.length > 15 ? 'NITP00021' : employeeProfile.id}
-                                </td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Official Email</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2 break-all">
-                                  {employeeProfile.professionalEmail || employeeProfile.user?.email || 'N/A'}
-                                </td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Department</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.department || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Designation</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.designation || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Team Leader / Reporting Manager</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">
-                                  {employeeProfile.user?.manager?.name || 'N/A'}
-                                </td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Date of Joining</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.dateOfJoining ? formatDateToIndian(employeeProfile.dateOfJoining) : 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100 last:border-b-0 lg:last:border-b-0">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Employee Type</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.employeeType || 'N/A'}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-
-                          {/* Sub-table 2: Details & Identifications */}
-                          <table className="w-full text-left text-xs border-collapse">
-                            <tbody>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Shift</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workShift || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Work Mode</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.workLocationStatus || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Office Location / Branch</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.location || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">UAN Number</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.uan || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">PF Number</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.pfNumber || 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Expected End Date</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</td>
-                              </tr>
-                              <tr className="border-b border-slate-100 last:border-b-0">
-                                <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Increment / Perks</td>
-                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.incrementPerks || 'N/A'}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {/* Right Column: Profile Photo & Name */}
-                        <div className="flex flex-col items-center shrink-0 w-44 order-1 md:order-2">
-                          <div className="relative group flex flex-col items-center">
-                            {profileForm.profileImage ? (
-                              <img 
-                                src={profileForm.profileImage} 
-                                alt="Profile Picture" 
-                                className="w-32 h-32 rounded-full object-cover border border-gray-250 shadow-sm"
-                              />
-                            ) : (
-                              <div className="w-32 h-32 rounded-full bg-slate-100 border border-gray-250 flex items-center justify-center text-brand-navy/60 shadow-sm">
-                                <User className="w-16 h-16" />
-                              </div>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-cta text-white hover:bg-blue-700 shadow-md border border-white cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
-                              title="Change Profile Picture"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                              </svg>
-                            </button>
-                            <input 
-                              type="file" 
-                              ref={fileInputRef}
-                              accept="image/*"
-                              onChange={handleImageUpload}
-                              className="hidden"
-                            />
-                            {uploadingImage && (
-                              <span className="absolute -bottom-5 text-[9px] text-center text-brand-cta font-bold whitespace-nowrap">
-                                Uploading...
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Employee Name */}
-                          <h3 className="mt-4 text-base font-extrabold text-brand-navy font-heading text-center">
-                            {formatEmployeeName(employeeProfile?.user?.name)}
-                          </h3>
-                          {employeeProfile.designation && (
-                            <p className="text-xs text-gray-500 font-medium text-center mt-1">
-                              {employeeProfile.designation}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+            <div className="w-full max-w-5xl mx-auto">
+              <div className="premium-card p-0 overflow-hidden shadow-lg border border-slate-200/80">
+                {/* Single Main Header Bar */}
+                <div className="bg-brand-navy px-6 py-4 text-white flex items-center justify-between border-b border-brand-navy-light">
+                  <div className="flex items-center gap-2.5">
+                    <User className="w-5 h-5 text-blue-300" />
+                    <h2 className="text-base font-bold uppercase tracking-wider text-white font-heading">
+                      Employee Profile Details
+                    </h2>
+                  </div>
                 </div>
 
-                {/* Editable Personal Contact Fields */}
-                <div className="premium-card p-0 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setOpenProfileSections(prev => ({ ...prev, contact: !prev.contact }))}
-                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                  >
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-blue-300" />
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Personal Contact Details</h2>
+                <div className="p-6 sm:p-8 space-y-8">
+                  {/* 1. Professional Details (3-Column Layout: Table 1, Table 2, Profile Card) */}
+                  <div>
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-6">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-navy text-white text-xs font-bold">
+                          1
+                        </span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-brand-navy font-heading">
+                          Professional Details
+                        </h3>
+                      </div>
                     </div>
-                    {openProfileSections.contact ? (
-                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                    )}
-                  </button>
 
-                  {openProfileSections.contact && (
-                    <div className="p-6">
-                      <form onSubmit={handleUpdateProfile} className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Left Column: All Text Inputs */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-start">
+                      {/* Column 1: Core Job Specs */}
+                      <div className="w-full">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Employee ID</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">
+                                {employeeProfile.id.length > 15 ? 'NITP00021' : employeeProfile.id}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Official Email</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5 break-all">
+                                {employeeProfile.professionalEmail || employeeProfile.user?.email || 'N/A'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Department</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.department || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Designation</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.designation || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Reporting Manager</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">
+                                {employeeProfile.user?.manager?.name || 'N/A'}
+                              </td>
+                            </tr>
+                            <tr className="border-b border-slate-100 last:border-b-0">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Employee Type</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.employeeType || 'N/A'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Column 2: Shift, Dates & Location */}
+                      <div className="w-full">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Date of Joining</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.dateOfJoining ? formatDateToIndian(employeeProfile.dateOfJoining) : 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Work Shift</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.workShift || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Work Mode</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.workLocationStatus || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Office Location</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.location || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Expected End Date</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.expectedEndDate ? formatDateToIndian(employeeProfile.expectedEndDate) : 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100 last:border-b-0">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Increment / Perks</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.incrementPerks || 'N/A'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Column 3: Profile Photo Card with Visible Edit/Camera Icon */}
+                      <div className="flex flex-col items-center justify-center p-4 bg-slate-50/60 rounded-2xl border border-slate-100 h-full">
+                        <div className="relative group flex flex-col items-center">
+                          {profileForm.profileImage ? (
+                            <img 
+                              src={profileForm.profileImage} 
+                              alt="Profile Picture" 
+                              className="w-28 h-28 rounded-full object-cover border-2 border-white shadow-md"
+                            />
+                          ) : (
+                            <div className="w-28 h-28 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-brand-navy/60 shadow-md">
+                              <User className="w-14 h-14" />
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="absolute bottom-0 right-0 p-2 rounded-full bg-brand-navy hover:bg-brand-cta text-white shadow-md border-2 border-white cursor-pointer transition-transform hover:scale-110 flex items-center justify-center"
+                            title="Change Profile Picture"
+                          >
+                            <Camera className="w-3.5 h-3.5 text-white" />
+                          </button>
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                          />
+                          {uploadingImage && (
+                            <span className="absolute -bottom-5 text-[9px] text-center text-brand-cta font-bold whitespace-nowrap">
+                              Uploading...
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Employee Name */}
+                        <h3 className="mt-3 text-sm font-extrabold text-brand-navy font-heading text-center">
+                          {formatEmployeeName(employeeProfile?.user?.name)}
+                        </h3>
+                        {employeeProfile.designation && (
+                          <p className="text-xs text-gray-500 font-medium text-center mt-0.5">
+                            {employeeProfile.designation}
+                          </p>
+                        )}
+                        <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          Active Employee
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Personal & Contact Details (3-Column Layout: Contact, Personal, Addresses) */}
+                  <div className="border-t border-slate-200/80 pt-8">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-6">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-navy text-white text-xs font-bold">
+                          2
+                        </span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-brand-navy font-heading">
+                          Personal & Contact Details
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingContact(!isEditingContact)}
+                        className="text-xs font-semibold px-3 py-1 bg-brand-navy/5 hover:bg-brand-navy/10 text-brand-navy rounded-lg border border-brand-navy/20 transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                        {isEditingContact ? 'Cancel' : 'Edit Details'}
+                      </button>
+                    </div>
+
+                    {!isEditingContact ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-start">
+                        {/* Column 1: Contact Details */}
+                        <div className="w-full">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <tbody>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Personal Email</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5 break-all">{profileForm.personalEmail || employeeProfile.personalEmail || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Mobile Number</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.mobileNumber || employeeProfile.mobileNumber || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100 last:border-b-0">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Emergency Contact</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.emergencyContact || employeeProfile.emergencyContact || 'N/A'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Column 2: Personal Profile */}
+                        <div className="w-full">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <tbody>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Gender</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.gender || employeeProfile.gender || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Marital Status</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.maritalStatus || employeeProfile.maritalStatus || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Blood Group</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.bloodGroup || employeeProfile.bloodGroup || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100 last:border-b-0">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Nationality</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{profileForm.nationality || employeeProfile.nationality || 'N/A'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Column 3: Addresses */}
+                        <div className="w-full">
+                          <table className="w-full text-left text-xs border-collapse">
+                            <tbody>
+                              <tr className="border-b border-slate-100">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Current Address</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5 whitespace-pre-line">{profileForm.currentAddress || employeeProfile.currentAddress || 'N/A'}</td>
+                              </tr>
+                              <tr className="border-b border-slate-100 last:border-b-0">
+                                <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Permanent Address</td>
+                                <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5 whitespace-pre-line">{profileForm.permanentAddress || employeeProfile.permanentAddress || 'N/A'}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleUpdateProfile} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          {/* Column 1: Contact Inputs */}
                           <div className="space-y-4">
                             <div>
                               <label className="block text-xs font-bold text-brand-navy mb-1">Personal Email</label>
@@ -2362,7 +2421,7 @@ function EmployeeDashboardContent() {
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact Number</label>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Emergency Contact</label>
                               <input
                                 type="text"
                                 required
@@ -2371,20 +2430,9 @@ function EmployeeDashboardContent() {
                                 className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                               />
                             </div>
-                            <div>
-                              <label className="block text-xs font-bold text-brand-navy mb-1">Nationality</label>
-                              <input
-                                type="text"
-                                required
-                                value={profileForm.nationality}
-                                onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
-                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                                placeholder="e.g. Indian"
-                              />
-                            </div>
                           </div>
 
-                          {/* Right Column: All Dropdowns & Addresses */}
+                          {/* Column 2: Personal Details */}
                           <div className="space-y-4">
                             <div>
                               <label className="block text-xs font-bold text-brand-navy mb-1">Gender</label>
@@ -2433,6 +2481,21 @@ function EmployeeDashboardContent() {
                               </select>
                             </div>
                             <div>
+                              <label className="block text-xs font-bold text-brand-navy mb-1">Nationality</label>
+                              <input
+                                type="text"
+                                required
+                                value={profileForm.nationality}
+                                onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
+                                className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                placeholder="e.g. Indian"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Column 3: Addresses */}
+                          <div className="space-y-4">
+                            <div>
                               <label className="block text-xs font-bold text-brand-navy mb-1">Current Address</label>
                               <textarea
                                 rows={2}
@@ -2467,7 +2530,7 @@ function EmployeeDashboardContent() {
                                 className="w-3.5 h-3.5 rounded border-gray-300 text-brand-cta focus:ring-brand-cta cursor-pointer"
                               />
                               <label htmlFor="sameAsCurrent" className="text-[10px] font-bold text-brand-navy cursor-pointer select-none">
-                                Permanent Address same as Current Address
+                                Permanent same as Current
                               </label>
                             </div>
                             <div>
@@ -2484,126 +2547,150 @@ function EmployeeDashboardContent() {
                           </div>
                         </div>
 
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-end gap-3 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingContact(false)}
+                            className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer"
+                          >
+                            Cancel
+                          </button>
                           <button
                             type="submit"
                             className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md"
                           >
-                            Save
+                            Save Changes
                           </button>
                         </div>
                       </form>
-                    </div>
-                  )}
-                </div>
-
-                {/* Financial Details (Read Only) */}
-                <div className="premium-card p-0 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setOpenProfileSections(prev => ({ ...prev, financial: !prev.financial }))}
-                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4 text-blue-300" />
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">Financial Details</h2>
-                    </div>
-                    {openProfileSections.financial ? (
-                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
                     )}
-                  </button>
+                  </div>
 
-                  {openProfileSections.financial && (
-                    <div className="p-6">
-                      <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-4">
-                        {/* Sub-table 1: Bank Details */}
+                  {/* 3. Financial & Statutory Details (3-Column Layout: Bank, Statutory IDs, Employment Terms) */}
+                  <div className="border-t border-slate-200/80 pt-8">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-6">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-navy text-white text-xs font-bold">
+                          3
+                        </span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-brand-navy font-heading">
+                          Financial & Statutory Details
+                        </h3>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 items-start">
+                      {/* Column 1: Bank Details */}
+                      <div className="w-full">
                         <table className="w-full text-left text-xs border-collapse">
                           <tbody>
                             <tr className="border-b border-slate-100">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Bank Name</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.bankName || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Bank Name</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.bankName || 'N/A'}</td>
                             </tr>
                             <tr className="border-b border-slate-100">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">IFSC Code</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.ifsc || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Account Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.accountNumber || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">IFSC Code</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.ifsc || 'N/A'}</td>
                             </tr>
                             <tr className="border-b border-slate-100 last:border-b-0">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Bank Branch</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.bankBranch || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Bank Branch</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.bankBranch || 'N/A'}</td>
                             </tr>
                           </tbody>
                         </table>
+                      </div>
 
-                        {/* Sub-table 2: Statutory Details */}
+                      {/* Column 2: Statutory Identifications */}
+                      <div className="w-full">
                         <table className="w-full text-left text-xs border-collapse">
                           <tbody>
                             <tr className="border-b border-slate-100">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Permanent Account Number (PAN)</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2 text-slate-800">
-                                {employeeProfile.pan ? '••••••••••' : 'N/A'}
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">PAN Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5 text-slate-800">
+                                {employeeProfile.pan ? employeeProfile.pan : 'N/A'}
                               </td>
                             </tr>
                             <tr className="border-b border-slate-100">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">PF Number</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.pfNumber || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">PF Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.pfNumber || 'N/A'}</td>
                             </tr>
                             <tr className="border-b border-slate-100">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">UAN Number</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.uan || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">UAN Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.uan || 'N/A'}</td>
                             </tr>
                             <tr className="border-b border-slate-100 last:border-b-0">
-                              <td className="py-2.5 px-1 font-bold text-gray-400 w-1/2">Insurance Number</td>
-                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-1/2">{employeeProfile.insuranceNumber || 'N/A'}</td>
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Insurance Number</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.insuranceNumber || 'N/A'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Column 3: Employment Terms & Status */}
+                      <div className="w-full">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <tbody>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Work Shift</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.workShift || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Work Mode</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.workLocationStatus || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Increment / Perks</td>
+                              <td className="py-2.5 px-1 font-extrabold text-brand-navy w-3/5">{employeeProfile.incrementPerks || 'N/A'}</td>
+                            </tr>
+                            <tr className="border-b border-slate-100 last:border-b-0">
+                              <td className="py-2.5 px-1 font-bold text-gray-400 w-2/5">Verification</td>
+                              <td className="py-2.5 px-1 font-extrabold text-emerald-600 w-3/5 flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                Verified
+                              </td>
                             </tr>
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Account Security & Password */}
-                <div className="premium-card p-0 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setOpenProfileSections(prev => ({ ...prev, security: !prev.security }))}
-                    className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none border-b border-brand-navy-light"
-                  >
-                    <div>
-                      <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading flex items-center gap-2">
-                        <Lock className="w-4 h-4 text-white" />
-                        Account Security & Change Password
-                      </h2>
+                  {/* 4. Account Security & Change Password (3-Column Layout for Inputs) */}
+                  <div className="border-t border-slate-200/80 pt-8">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-6">
+                      <div className="flex items-center gap-2.5">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-navy text-white text-xs font-bold">
+                          4
+                        </span>
+                        <h3 className="text-sm font-bold uppercase tracking-wider text-brand-navy font-heading">
+                          Account Security & Change Password
+                        </h3>
+                      </div>
                     </div>
-                    {openProfileSections.security ? (
-                      <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                    )}
-                  </button>
 
-                  {openProfileSections.security && (
-                    <div className="p-6">
-                      <p className="text-xs text-gray-500 mb-4">
-                        Update your login credentials. Your new password will be encrypted & hashed with bcrypt.
-                      </p>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Update your login credentials. Your new password will be encrypted & hashed with bcrypt.
+                    </p>
 
-                      <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
-                        {passwordError && (
-                          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-brand-red text-xs font-bold flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4 shrink-0" />
-                            {passwordError}
-                          </div>
-                        )}
-                        {passwordSuccess && (
-                          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 shrink-0" />
-                            {passwordSuccess}
-                          </div>
-                        )}
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                      {passwordError && (
+                        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-brand-red text-xs font-bold flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          {passwordError}
+                        </div>
+                      )}
+                      {passwordSuccess && (
+                        <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          {passwordSuccess}
+                        </div>
+                      )}
 
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                           <label className="block text-xs font-bold text-brand-navy mb-1">Current Password</label>
                           <input
@@ -2611,20 +2698,20 @@ function EmployeeDashboardContent() {
                             required
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
-                            placeholder="Enter your current password"
+                            placeholder="Enter current password"
                             className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-bold text-brand-navy mb-1">New Password (Min. 6 characters)</label>
+                          <label className="block text-xs font-bold text-brand-navy mb-1">New Password (Min. 6 chars)</label>
                           <input
                             type="password"
                             required
                             minLength={6}
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
-                            placeholder="Enter new secure password"
+                            placeholder="Enter new password"
                             className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
@@ -2641,64 +2728,369 @@ function EmployeeDashboardContent() {
                             className="block w-full rounded-xl border border-gray-200/80 py-2 px-3 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
                           />
                         </div>
+                      </div>
 
-                        <div className="flex justify-end pt-2">
-                          <button
-                            type="submit"
-                            disabled={passwordLoading}
-                            className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                          >
-                            {passwordLoading ? 'Updating...' : 'Update Password'}
-                          </button>
-                        </div>
-                      </form>
-                    </div>
-                  )}
+                      <div className="flex justify-end pt-2">
+                        <button
+                          type="submit"
+                          disabled={passwordLoading}
+                          className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
+                        >
+                          {passwordLoading ? 'Updating...' : 'Update Password'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {/* TAB 3: My Leaves */}
+          {/* TAB 3: My Leaves */}
           {/* TAB 3: My Leaves & Requests */}
           {/* TAB 1.3: Leaves & Time-off Requests */}
           {activeTab === 'leaves' && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Left Column: Sticky Request Form */}
+                <div className="lg:col-span-5 lg:sticky lg:top-[88px] self-start space-y-6 z-10">
+                  <div className="premium-card p-6 lg:p-7 border border-gray-200/60 space-y-5 shadow-md">
+                    {/* Tab Switch Headers */}
+                    <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('leave')}
+                        className={`flex-1 text-center py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'leave'
+                            ? 'bg-brand-navy text-white shadow-xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        Leave
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('wfh')}
+                        className={`flex-1 text-center py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'wfh'
+                            ? 'bg-brand-navy text-white shadow-xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        WFH
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLeaveFormTab('regularisation')}
+                        className={`flex-1 text-center py-2.5 text-xs font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                          activeLeaveFormTab === 'regularisation'
+                            ? 'bg-brand-navy text-white shadow-xs'
+                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        Regularise
+                      </button>
+                    </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: History, Balances, Holidays */}
-                <div className="lg:col-span-2 space-y-6">
-                  
-                  {/* Panel 1: Leave Requests History */}
-                  <div className="premium-card p-0 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, leaveHistory: !prev.leaveHistory }))}
-                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-blue-300" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Request History</h4>
+                    {/* Leave Request Tab Content */}
+                    {activeLeaveFormTab === 'leave' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div>
+                          <h4 className="text-sm font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
+                          <p className="text-xs text-gray-500 mt-0.5 leading-normal">Submit a new request for planned leaves.</p>
+                        </div>
+                        <form onSubmit={handleSubmitLeaveRequest} className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Leave Category</label>
+                            <select
+                              required
+                              value={leaveTypeId}
+                              onChange={(e) => setLeaveTypeId(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/90 py-2 px-3 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
+                            >
+                              <option value="">Select leave type</option>
+                              {leaveBalances.map((bal) => (
+                                <option key={bal.id} value={bal.id}>
+                                  {bal.name} ({bal.daysRemaining} left)
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Start Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={leaveStartDate}
+                                onChange={(e) => setLeaveStartDate(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">End Date</label>
+                              <input
+                                type="date"
+                                required
+                                value={leaveEndDate}
+                                onChange={(e) => setLeaveEndDate(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Reason</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={leaveReason}
+                              onChange={(e) => setLeaveReason(e.target.value)}
+                              placeholder="State reason for leave..."
+                              className="block w-full rounded-xl border border-gray-200/90 py-2 px-3 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingLeave}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs md:text-sm py-3 px-4 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 tracking-wider uppercase"
+                          >
+                            {submittingLeave ? 'Submitting...' : 'Request Leave'}
+                          </button>
+                        </form>
                       </div>
-                      {openLeaveHistorySections.leaveHistory ? (
-                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                      )}
-                    </button>
+                    )}
 
-                    {openLeaveHistorySections.leaveHistory && (
-                      <div className="p-6">
-                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                    {/* WFH Request Tab Content */}
+                    {activeLeaveFormTab === 'wfh' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div>
+                          <h4 className="text-sm font-bold text-brand-navy uppercase tracking-wider flex items-center gap-1.5">
+                            <Laptop className="w-4 h-4 text-brand-cta" />
+                            Request Work From Home
+                          </h4>
+                          <p className="text-xs text-gray-500 mt-0.5 leading-normal">Submit a WFH request for today, tomorrow, or a custom duration.</p>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="space-y-1.5">
+                          <label className="block text-xs font-bold text-brand-navy uppercase">Select Duration</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWfhPreset('today');
+                                const t = new Date().toISOString().split('T')[0];
+                                setWfhStartDate(t);
+                                setWfhEndDate(t);
+                              }}
+                              className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border ${
+                                wfhPreset === 'today'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Today
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setWfhPreset('tomorrow');
+                                const tom = new Date();
+                                tom.setDate(tom.getDate() + 1);
+                                const tomStr = tom.toISOString().split('T')[0];
+                                setWfhStartDate(tomStr);
+                                setWfhEndDate(tomStr);
+                              }}
+                              className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border ${
+                                wfhPreset === 'tomorrow'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Tomorrow
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setWfhPreset('custom')}
+                              className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border ${
+                                wfhPreset === 'custom'
+                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                              }`}
+                            >
+                              Custom
+                            </button>
+                          </div>
+                        </div>
+
+                        <form onSubmit={handleSubmitWfhRequest} className="space-y-4">
+                          {wfhPreset === 'custom' ? (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Start Date</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={wfhStartDate}
+                                  onChange={(e) => setWfhStartDate(e.target.value)}
+                                  className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">End Date</label>
+                                <input
+                                  type="date"
+                                  required
+                                  value={wfhEndDate}
+                                  onChange={(e) => setWfhEndDate(e.target.value)}
+                                  className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-100 flex items-center justify-between text-xs md:text-sm">
+                              <span className="text-xs font-bold text-brand-navy">
+                                {wfhPreset === 'today' ? 'Applying for Today:' : 'Applying for Tomorrow:'}
+                              </span>
+                              <span className="font-mono font-extrabold text-brand-cta">
+                                {formatDateToIndian(wfhStartDate)}
+                              </span>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Reason for WFH</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={wfhReason}
+                              onChange={(e) => setWfhReason(e.target.value)}
+                              placeholder="E.g., personal emergency, bad weather, medical reason..."
+                              className="block w-full rounded-xl border border-gray-200/90 py-2 px-3 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingWfh}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs md:text-sm py-3 px-4 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 flex items-center justify-center gap-2 tracking-wider uppercase"
+                          >
+                            <Laptop className="w-4 h-4" />
+                            {submittingWfh ? 'Submitting...' : 'Request Work From Home'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                    {/* Regularisation Tab Content */}
+                    {activeLeaveFormTab === 'regularisation' && (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div>
+                          <h4 className="text-sm font-bold text-brand-navy uppercase tracking-wider">Attendance Regularisation</h4>
+                          <p className="text-xs text-gray-500 mt-0.5 leading-normal">Correct a missed check-in/out record for a specific date.</p>
+                        </div>
+                        <form onSubmit={handleSubmitRegularisation} className="space-y-4">
+                          <div>
+                            <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Date to Regularise</label>
+                            <input
+                              type="date"
+                              required
+                              value={regDate}
+                              onChange={(e) => setRegDate(e.target.value)}
+                              className="block w-full rounded-xl border border-gray-200/90 py-2 px-3 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Check-in Time</label>
+                              <input
+                                type="time"
+                                required
+                                value={regCheckIn}
+                                onChange={(e) => setRegCheckIn(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Check-out Time</label>
+                              <input
+                                type="time"
+                                required
+                                value={regCheckOut}
+                                onChange={(e) => setRegCheckOut(e.target.value)}
+                                className="block w-full rounded-xl border border-gray-200/90 py-2 px-2.5 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold text-brand-navy uppercase mb-1.5">Reason / Explanation</label>
+                            <textarea
+                              required
+                              rows={3}
+                              value={regReason}
+                              onChange={(e) => setRegReason(e.target.value)}
+                              placeholder="E.g., forgot to check-in on arrival..."
+                              className="block w-full rounded-xl border border-gray-200/90 py-2 px-3 text-xs md:text-sm text-brand-navy bg-white/90 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs resize-y"
+                            />
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submittingReg}
+                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs md:text-sm py-3 px-4 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 tracking-wider uppercase"
+                          >
+                            {submittingReg ? 'Submitting...' : 'Submit Request'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* Right Column: Unified History & Balances Card with Continuous Scroll */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="premium-card p-0 overflow-hidden shadow-lg border border-slate-200/80">
+                    {/* Single Main Header Bar */}
+                    <div className="bg-brand-navy px-6 py-4 text-white flex items-center justify-between border-b border-brand-navy-light">
+                      <div className="flex items-center gap-2.5">
+                        <Calendar className="w-5 h-5 text-blue-300" />
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-white font-heading">
+                          Requests & Time-Off History
+                        </h2>
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-8">
+                      {/* Sub-section 1: Leave Request History */}
+                      <div>
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold">
+                              1
+                            </span>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-navy font-heading">
+                              Leave Request History
+                            </h3>
+                          </div>
+                        </div>
+
+                        <div className="max-h-[260px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1 border border-slate-100 rounded-xl">
                           <table className="min-w-full text-left text-xs relative border-collapse">
-                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
-                              <tr className="border-b border-gray-200/50">
-                                <th className="py-2.5 px-2 bg-white">Leave Type</th>
-                                <th className="py-2.5 px-2 bg-white">Duration</th>
-                                <th className="py-2.5 px-2 bg-white">Reason</th>
-                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
-                                <th className="py-2.5 px-2 bg-white">Approved By</th>
+                            <thead className="sticky top-0 bg-slate-50 text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs border-b border-gray-200/60">
+                              <tr>
+                                <th className="py-2.5 px-3 bg-slate-50">Leave Type</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Duration</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Reason</th>
+                                <th className="py-2.5 px-3 text-center bg-slate-50">Status</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Approved By</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -2708,15 +3100,15 @@ function EmployeeDashboardContent() {
                                 </tr>
                               ) : (
                                 leaveRequests.map((req) => (
-                                  <tr key={req.id} className="hover:bg-gray-50/50">
-                                    <td className="py-3 px-2 font-semibold text-brand-navy">{req.leaveType.name}</td>
-                                    <td className="py-3 px-2 text-gray-500 whitespace-nowrap">
+                                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="py-3 px-3 font-semibold text-brand-navy">{req.leaveType.name}</td>
+                                    <td className="py-3 px-3 text-gray-500 whitespace-nowrap font-mono text-[11px]">
                                       {formatDateToIndian(req.startDate)} to {formatDateToIndian(req.endDate)}
                                     </td>
-                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                    <td className="py-3 px-3 text-gray-500 max-w-xs truncate" title={req.reason}>
                                       {req.reason}
                                     </td>
-                                    <td className="py-3 px-2 text-center">
+                                    <td className="py-3 px-3 text-center">
                                       <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
                                         req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
                                         req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
@@ -2725,7 +3117,7 @@ function EmployeeDashboardContent() {
                                         {req.status}
                                       </span>
                                     </td>
-                                    <td className="py-3 px-2 text-gray-500">
+                                    <td className="py-3 px-3 text-gray-500">
                                       {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
                                     </td>
                                   </tr>
@@ -2735,39 +3127,30 @@ function EmployeeDashboardContent() {
                           </table>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Panel 2: Regularisation History */}
-                  <div className="premium-card p-0 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, regularisationHistory: !prev.regularisationHistory }))}
-                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-blue-300" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Attendance Regularisation History</h4>
-                      </div>
-                      {openLeaveHistorySections.regularisationHistory ? (
-                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                      )}
-                    </button>
+                      {/* Sub-section 2: Attendance Regularisation History */}
+                      <div className="border-t border-slate-200/80 pt-6">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold">
+                              2
+                            </span>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-navy font-heading">
+                              Attendance Regularisation History
+                            </h3>
+                          </div>
+                        </div>
 
-                    {openLeaveHistorySections.regularisationHistory && (
-                      <div className="p-6">
-                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                        <div className="max-h-[260px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1 border border-slate-100 rounded-xl">
                           <table className="min-w-full text-left text-xs relative border-collapse">
-                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
-                              <tr className="border-b border-gray-200/50">
-                                <th className="py-2.5 px-2 bg-white">Date to Correct</th>
-                                <th className="py-2.5 px-2 bg-white">Expected Check-in</th>
-                                <th className="py-2.5 px-2 bg-white">Expected Check-out</th>
-                                <th className="py-2.5 px-2 bg-white">Reason</th>
-                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
-                                <th className="py-2.5 px-2 bg-white">Approved By</th>
+                            <thead className="sticky top-0 bg-slate-50 text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs border-b border-gray-200/60">
+                              <tr>
+                                <th className="py-2.5 px-3 bg-slate-50">Date to Correct</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Expected Check-in</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Expected Check-out</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Reason</th>
+                                <th className="py-2.5 px-3 text-center bg-slate-50">Status</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Approved By</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -2777,14 +3160,14 @@ function EmployeeDashboardContent() {
                                 </tr>
                               ) : (
                                 regularisationRequests.map((req) => (
-                                  <tr key={req.id} className="hover:bg-gray-50/50">
-                                    <td className="py-3 px-2 font-semibold text-brand-navy">{formatDateToIndian(req.date)}</td>
-                                    <td className="py-3 px-2 text-gray-500 font-mono">{req.checkInTime ? formatTime(req.checkInTime) : '--:--'}</td>
-                                    <td className="py-3 px-2 text-gray-500 font-mono">{req.checkOutTime ? formatTime(req.checkOutTime) : '--:--'}</td>
-                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="py-3 px-3 font-semibold text-brand-navy font-mono text-[11px]">{formatDateToIndian(req.date)}</td>
+                                    <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">{req.checkInTime ? formatTime(req.checkInTime) : '--:--'}</td>
+                                    <td className="py-3 px-3 text-gray-500 font-mono text-[11px]">{req.checkOutTime ? formatTime(req.checkOutTime) : '--:--'}</td>
+                                    <td className="py-3 px-3 text-gray-500 max-w-xs truncate" title={req.reason}>
                                       {req.reason}
                                     </td>
-                                    <td className="py-3 px-2 text-center">
+                                    <td className="py-3 px-3 text-center">
                                       <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
                                         req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
                                         req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
@@ -2793,7 +3176,7 @@ function EmployeeDashboardContent() {
                                         {req.status}
                                       </span>
                                     </td>
-                                    <td className="py-3 px-2 text-gray-500">
+                                    <td className="py-3 px-3 text-gray-500">
                                       {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : '-'}
                                     </td>
                                   </tr>
@@ -2803,37 +3186,28 @@ function EmployeeDashboardContent() {
                           </table>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Panel 3: Work From Home (WFH) History */}
-                  <div className="premium-card p-0 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenLeaveHistorySections(prev => ({ ...prev, wfhHistory: !prev.wfhHistory }))}
-                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Home className="w-3.5 h-3.5 text-blue-300" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Work From Home (WFH) History</h4>
-                      </div>
-                      {openLeaveHistorySections.wfhHistory ? (
-                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                      )}
-                    </button>
+                      {/* Sub-section 3: Work From Home (WFH) History */}
+                      <div className="border-t border-slate-200/80 pt-6">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold">
+                              3
+                            </span>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-navy font-heading">
+                              Work From Home (WFH) History
+                            </h3>
+                          </div>
+                        </div>
 
-                    {openLeaveHistorySections.wfhHistory && (
-                      <div className="p-6">
-                        <div className="max-h-[140px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1">
+                        <div className="max-h-[260px] overflow-y-auto overflow-x-auto custom-scrollbar-container pr-1 border border-slate-100 rounded-xl">
                           <table className="min-w-full text-left text-xs relative border-collapse">
-                            <thead className="sticky top-0 bg-white text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs">
-                              <tr className="border-b border-gray-200/50">
-                                <th className="py-2.5 px-2 bg-white">Duration</th>
-                                <th className="py-2.5 px-2 bg-white">Reason</th>
-                                <th className="py-2.5 px-2 text-center bg-white">Status</th>
-                                <th className="py-2.5 px-2 bg-white">Reviewed / Assigned By</th>
+                            <thead className="sticky top-0 bg-slate-50 text-gray-500 font-bold uppercase tracking-wider z-10 shadow-2xs border-b border-gray-200/60">
+                              <tr>
+                                <th className="py-2.5 px-3 bg-slate-50">Duration</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Reason</th>
+                                <th className="py-2.5 px-3 text-center bg-slate-50">Status</th>
+                                <th className="py-2.5 px-3 bg-slate-50">Reviewed / Assigned By</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -2843,8 +3217,8 @@ function EmployeeDashboardContent() {
                                 </tr>
                               ) : (
                                 wfhRequests.map((req) => (
-                                  <tr key={req.id} className="hover:bg-gray-50/50">
-                                    <td className="py-3 px-2 font-semibold text-brand-navy whitespace-nowrap">
+                                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="py-3 px-3 font-semibold text-brand-navy whitespace-nowrap font-mono text-[11px]">
                                       {formatDateToIndian(req.startDate)}
                                       {req.startDate !== req.endDate ? ` to ${formatDateToIndian(req.endDate)}` : ' (Single Day)'}
                                       {req.isDirectHrAssignment && (
@@ -2853,10 +3227,10 @@ function EmployeeDashboardContent() {
                                         </span>
                                       )}
                                     </td>
-                                    <td className="py-3 px-2 text-gray-500 max-w-xs truncate" title={req.reason}>
+                                    <td className="py-3 px-3 text-gray-500 max-w-xs truncate" title={req.reason}>
                                       {req.reason}
                                     </td>
-                                    <td className="py-3 px-2 text-center">
+                                    <td className="py-3 px-3 text-center">
                                       <span className={`inline-block px-2.5 py-0.75 rounded-full text-[9px] font-extrabold border ${
                                         req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800 border-emerald-250' :
                                         req.status === 'REJECTED' ? 'bg-red-100 text-brand-red border-red-250' :
@@ -2865,7 +3239,7 @@ function EmployeeDashboardContent() {
                                         {req.status}
                                       </span>
                                     </td>
-                                    <td className="py-3 px-2 text-gray-500">
+                                    <td className="py-3 px-3 text-gray-500">
                                       {req.reviewedBy ? formatEmployeeName(req.reviewedBy.name) : (req.status === 'PENDING' ? 'Pending Review' : '-')}
                                     </td>
                                   </tr>
@@ -2875,28 +3249,20 @@ function EmployeeDashboardContent() {
                           </table>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Leave Balances Card */}
-                  <div className="premium-card p-0 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenLeaveBalances(!openLeaveBalances)}
-                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CalendarCheck className="w-3.5 h-3.5 text-blue-300" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">Leave Balance Status</h4>
-                      </div>
-                      {openLeaveBalances ? (
-                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                      )}
-                    </button>
-                    {openLeaveBalances && (
-                      <div className="p-6">
+                      {/* Sub-section 4: Leave Balance Status */}
+                      <div className="border-t border-slate-200/80 pt-6">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold">
+                              4
+                            </span>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-navy font-heading">
+                              Leave Balance Status
+                            </h3>
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {leaveBalances.map((bal, idx) => {
                             const balanceAccents = [
@@ -2908,14 +3274,14 @@ function EmployeeDashboardContent() {
                             const accentClass = balanceAccents[idx % balanceAccents.length];
 
                             return (
-                              <div key={bal.id} className="p-2.5 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
+                              <div key={bal.id} className="p-3 rounded-xl border border-gray-200 bg-white hover:border-brand-cta transition-colors flex items-center gap-3 shadow-2xs">
                                 <div className={`w-10 h-11 rounded-lg border flex flex-col items-center justify-center font-heading leading-none shrink-0 ${accentClass}`}>
                                   <span className="text-[7px] uppercase font-bold tracking-wider">Days</span>
                                   <span className="text-sm font-extrabold font-mono mt-0.5">{bal.daysRemaining}</span>
                                 </div>
                                 <div className="flex flex-col text-left overflow-hidden min-w-0">
                                   <span className="font-extrabold text-brand-navy text-xs truncate" title={bal.name}>{bal.name}</span>
-                                  <span className="text-[9px] text-gray-400 font-semibold font-mono mt-0.5">
+                                  <span className="text-[10px] text-gray-400 font-semibold font-mono mt-0.5">
                                     Used: {bal.daysUsed} / {bal.daysAllowed} days
                                   </span>
                                 </div>
@@ -2924,28 +3290,20 @@ function EmployeeDashboardContent() {
                           })}
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Upcoming Company Holidays Card */}
-                  <div className="premium-card p-0 overflow-hidden">
-                    <button
-                      type="button"
-                      onClick={() => setOpenHolidays(!openHolidays)}
-                      className="w-full flex items-center justify-between px-5 py-2.5 bg-brand-navy hover:bg-brand-navy-light transition-all text-left font-bold text-white cursor-pointer outline-none"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CalendarDays className="w-3.5 h-3.5 text-blue-300" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-white font-heading">List of Company Holidays</h4>
-                      </div>
-                      {openHolidays ? (
-                        <ChevronUp className="w-4 h-4 text-white shrink-0" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4 text-white shrink-0" />
-                      )}
-                    </button>
-                    {openHolidays && (
-                      <div className="p-6">
+                      {/* Sub-section 5: List of Company Holidays */}
+                      <div className="border-t border-slate-200/80 pt-6">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+                          <div className="flex items-center gap-2.5">
+                            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-navy text-white text-[11px] font-bold">
+                              5
+                            </span>
+                            <h3 className="text-xs font-bold uppercase tracking-wider text-brand-navy font-heading">
+                              List of Company Holidays
+                            </h3>
+                          </div>
+                        </div>
+
                         {holidays.length === 0 ? (
                           <p className="text-xs text-gray-400 py-4 text-center">No upcoming holidays scheduled.</p>
                         ) : (
@@ -2981,309 +3339,7 @@ function EmployeeDashboardContent() {
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-
-                </div>
-
-                {/* Right Column: Unified Form with Tab Switch */}
-                <div className="lg:col-span-1 space-y-6">
-                  <div className="premium-card p-6 border border-gray-200/50 space-y-4">
-                    {/* Tab Switch Headers */}
-                    <div className="flex border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => setActiveLeaveFormTab('leave')}
-                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                          activeLeaveFormTab === 'leave'
-                            ? 'bg-brand-navy text-white'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        Leave
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveLeaveFormTab('wfh')}
-                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                          activeLeaveFormTab === 'wfh'
-                            ? 'bg-brand-navy text-white'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        WFH
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveLeaveFormTab('regularisation')}
-                        className={`flex-1 text-center py-2 text-[10px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
-                          activeLeaveFormTab === 'regularisation'
-                            ? 'bg-brand-navy text-white'
-                            : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        Regularise
-                      </button>
                     </div>
-
-                    {/* Leave Request Tab Content */}
-                    {activeLeaveFormTab === 'leave' && (
-                      <div className="space-y-4 animate-in fade-in duration-200">
-                        <div>
-                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Request Time Off</h4>
-                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Submit a new request for planned leaves.</p>
-                        </div>
-                        <form onSubmit={handleSubmitLeaveRequest} className="space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Leave Category</label>
-                            <select
-                              required
-                              value={leaveTypeId}
-                              onChange={(e) => setLeaveTypeId(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs cursor-pointer"
-                            >
-                              <option value="">Select leave type</option>
-                              {leaveBalances.map((bal) => (
-                                <option key={bal.id} value={bal.id}>
-                                  {bal.name} ({bal.daysRemaining} left)
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
-                              <input
-                                type="date"
-                                required
-                                value={leaveStartDate}
-                                onChange={(e) => setLeaveStartDate(e.target.value)}
-                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
-                              <input
-                                type="date"
-                                required
-                                value={leaveEndDate}
-                                onChange={(e) => setLeaveEndDate(e.target.value)}
-                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason</label>
-                            <textarea
-                              required
-                              rows={3}
-                              value={leaveReason}
-                              onChange={(e) => setLeaveReason(e.target.value)}
-                              placeholder="State reason..."
-                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={submittingLeave}
-                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                          >
-                            {submittingLeave ? 'Submitting...' : 'Request Leave'}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-
-                    {/* WFH Request Tab Content */}
-                    {activeLeaveFormTab === 'wfh' && (
-                      <div className="space-y-4 animate-in fade-in duration-200">
-                        <div>
-                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider flex items-center gap-1.5">
-                            <Laptop className="w-3.5 h-3.5 text-brand-cta" />
-                            Request Work From Home
-                          </h4>
-                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Submit a WFH request for today, tomorrow, or a custom duration.</p>
-                        </div>
-
-                        {/* Quick Presets */}
-                        <div className="space-y-1.5">
-                          <label className="block text-[10px] font-bold text-brand-navy uppercase">Select Duration</label>
-                          <div className="grid grid-cols-3 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWfhPreset('today');
-                                const t = new Date().toISOString().split('T')[0];
-                                setWfhStartDate(t);
-                                setWfhEndDate(t);
-                              }}
-                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
-                                wfhPreset === 'today'
-                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
-                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              Today
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setWfhPreset('tomorrow');
-                                const tom = new Date();
-                                tom.setDate(tom.getDate() + 1);
-                                const tomStr = tom.toISOString().split('T')[0];
-                                setWfhStartDate(tomStr);
-                                setWfhEndDate(tomStr);
-                              }}
-                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
-                                wfhPreset === 'tomorrow'
-                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
-                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              Tomorrow
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setWfhPreset('custom')}
-                              className={`py-1.5 px-2 rounded-lg text-[10px] font-bold transition-all border ${
-                                wfhPreset === 'custom'
-                                  ? 'bg-brand-cta text-white border-brand-cta shadow-xs'
-                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                              }`}
-                            >
-                              Custom
-                            </button>
-                          </div>
-                        </div>
-
-                        <form onSubmit={handleSubmitWfhRequest} className="space-y-3">
-                          {wfhPreset === 'custom' ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Start Date</label>
-                                <input
-                                  type="date"
-                                  required
-                                  value={wfhStartDate}
-                                  onChange={(e) => setWfhStartDate(e.target.value)}
-                                  className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">End Date</label>
-                                <input
-                                  type="date"
-                                  required
-                                  value={wfhEndDate}
-                                  onChange={(e) => setWfhEndDate(e.target.value)}
-                                  className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                                />
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-2 rounded-lg bg-blue-50/60 border border-blue-100 flex items-center justify-between text-xs">
-                              <span className="text-[11px] font-bold text-brand-navy">
-                                {wfhPreset === 'today' ? 'Applying for Today:' : 'Applying for Tomorrow:'}
-                              </span>
-                              <span className="font-mono font-extrabold text-brand-cta">
-                                {formatDateToIndian(wfhStartDate)}
-                              </span>
-                            </div>
-                          )}
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason for WFH</label>
-                            <textarea
-                              required
-                              rows={3}
-                              value={wfhReason}
-                              onChange={(e) => setWfhReason(e.target.value)}
-                              placeholder="E.g., personal emergency, bad weather, medical reason..."
-                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={submittingWfh}
-                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
-                          >
-                            <Laptop className="w-3.5 h-3.5" />
-                            {submittingWfh ? 'Submitting...' : 'Request Work From Home'}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-
-                    {/* Regularisation Tab Content */}
-                    {activeLeaveFormTab === 'regularisation' && (
-                      <div className="space-y-4 animate-in fade-in duration-200">
-                        <div>
-                          <h4 className="text-xs font-bold text-brand-navy uppercase tracking-wider">Attendance Regularisation</h4>
-                          <p className="text-[10px] text-gray-500 mt-0.5 leading-normal">Correct a missed check-in/out record for a specific date.</p>
-                        </div>
-                        <form onSubmit={handleSubmitRegularisation} className="space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Date to Regularise</label>
-                            <input
-                              type="date"
-                              required
-                              value={regDate}
-                              onChange={(e) => setRegDate(e.target.value)}
-                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-in Time</label>
-                              <input
-                                type="time"
-                                required
-                                value={regCheckIn}
-                                onChange={(e) => setRegCheckIn(e.target.value)}
-                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Check-out Time</label>
-                              <input
-                                type="time"
-                                required
-                                value={regCheckOut}
-                                onChange={(e) => setRegCheckOut(e.target.value)}
-                                className="block w-full rounded-xl border border-gray-200/80 py-1 px-1.5 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                              />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Reason / Explanation</label>
-                            <textarea
-                              required
-                              rows={3}
-                              value={regReason}
-                              onChange={(e) => setRegReason(e.target.value)}
-                              placeholder="E.g., forgot to check-in on arrival..."
-                              className="block w-full rounded-xl border border-gray-200/80 py-1.5 px-2 text-xs text-brand-gray bg-white/70 backdrop-blur-xs outline-none focus:border-brand-cta focus:ring-4 focus:ring-brand-cta/15 transition-all shadow-xs"
-                            />
-                          </div>
-
-                          <button
-                            type="submit"
-                            disabled={submittingReg}
-                            className="w-full bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer btn-premium shadow-md disabled:opacity-50"
-                          >
-                            {submittingReg ? 'Submitting...' : 'Submit Request'}
-                          </button>
-                        </form>
-                      </div>
-                    )}
-
                   </div>
                 </div>
 
@@ -3378,7 +3434,7 @@ function EmployeeDashboardContent() {
                         myPayrollRuns.map((run) => (
                           <tr key={run.id} className="hover:bg-gray-50/50">
                             <td className="py-3 px-2 font-bold text-brand-navy">
-                              {new Date(run.periodStart).toLocaleDateString(undefined, {month:'long', year:'numeric'})}
+                              {formatDateToIndian(run.periodStart)} to {formatDateToIndian(run.periodEnd)}
                             </td>
                             <td className="py-3 px-2 text-right text-gray-500 font-semibold">
                               {run.grossEarnings.toLocaleString('en-IN', {minimumFractionDigits: 2})}
@@ -3895,7 +3951,7 @@ function EmployeeDashboardContent() {
                 Attendance Details
               </h3>
               <span className="text-xs font-mono font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                {selectedCalendarDate}
+                {formatDateToIndian(selectedCalendarDate)}
               </span>
             </div>
 

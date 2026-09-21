@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
 import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, Clock, Laptop, FileText, CheckSquare, ChevronRight, Home } from 'lucide-react';
+import { formatDateToIndian, formatDateTimeToIndian } from '@/lib/dateUtils';
 
 interface UserSession {
   id: string;
@@ -549,15 +550,25 @@ export default function Header() {
 
                               {isJson && parsed.details && (
                                 <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/50 rounded-xl text-[9px] text-brand-navy space-y-0.5 shadow-3xs font-medium">
-                                  {Object.entries(parsed.details).map(([key, val]) => (
-                                    <div key={key} className="flex justify-between gap-2">
-                                      <span className="text-gray-400 font-semibold">{key}:</span>
-                                      <span className="font-bold text-right text-[9px] truncate max-w-[130px]" title={String(val)}>{String(val)}</span>
-                                    </div>
-                                  ))}
+                                  {Object.entries(parsed.details).map(([key, val]) => {
+                                    let displayVal = String(val);
+                                    const lowerKey = key.toLowerCase();
+                                    if (['date', 'due date', 'resignation date', 'proposed lwd'].includes(lowerKey)) {
+                                      displayVal = formatDateToIndian(displayVal);
+                                    } else if (['duration', 'period'].includes(lowerKey) && displayVal.includes(' to ')) {
+                                      const [start, end] = displayVal.split(' to ');
+                                      displayVal = `${formatDateToIndian(start)} to ${formatDateToIndian(end)}`;
+                                    }
+                                    return (
+                                      <div key={key} className="flex justify-between gap-2">
+                                        <span className="text-gray-400 font-semibold">{key}:</span>
+                                        <span className="font-bold text-right text-[9px] truncate max-w-[130px]" title={displayVal}>{displayVal}</span>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               )}
-                              <span className="text-[8px] text-gray-400 mt-1.5 block">{new Date(n.createdAt).toLocaleString()}</span>
+                              <span className="text-[8px] text-gray-400 mt-1.5 block">{formatDateTimeToIndian(n.createdAt)}</span>
                             </div>
                           </div>
                         );

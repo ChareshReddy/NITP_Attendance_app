@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -242,7 +243,7 @@ export async function POST(request: Request) {
         details: {
           'Applicant': applicant?.name || 'A team member',
           'Leave Type': leaveTypeName,
-          'Duration': `${startDate} to ${endDate}`,
+          'Duration': `${formatDateToIndian(startDate)} to ${formatDateToIndian(endDate)}`,
           'Reason': reason
         }
       };
@@ -391,10 +392,10 @@ export async function PUT(request: Request) {
     const notifData = {
       type: 'leave',
       title: `Leave Request ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-      body: `Your leave request from ${existing.startDate} to ${existing.endDate} has been ${status.toLowerCase()} by ${user.name}.`,
+      body: `Your leave request from ${formatDateToIndian(existing.startDate)} to ${formatDateToIndian(existing.endDate)} has been ${status.toLowerCase()} by ${user.name}.`,
       status,
       details: {
-        'Duration': `${existing.startDate} to ${existing.endDate}`,
+        'Duration': `${formatDateToIndian(existing.startDate)} to ${formatDateToIndian(existing.endDate)}`,
         'Reviewed By': user.name,
         ...(status === 'REJECTED' && rejectionReason ? { 'Rejection Reason': rejectionReason } : {})
       }

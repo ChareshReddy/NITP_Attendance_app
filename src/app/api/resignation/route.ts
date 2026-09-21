@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -110,8 +111,8 @@ export async function POST(request: Request) {
         status: 'PENDING',
         details: {
           'Applicant': applicant?.name || 'A team member',
-          'Resignation Date': new Date(resignationDate).toLocaleDateString(),
-          'Proposed LWD': new Date(lastWorkingDay).toLocaleDateString(),
+          'Resignation Date': formatDateToIndian(resignationDate),
+          'Proposed LWD': formatDateToIndian(lastWorkingDay),
           'Reason': reason
         }
       };

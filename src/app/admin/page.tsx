@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
+import { formatDateToIndian, formatDateTimeToIndian, formatTimeToIndian } from '@/lib/dateUtils';
 import { 
   Users, 
   Clock, 
@@ -169,15 +170,6 @@ function AdminDashboardContent() {
 
   const [mounted, setMounted] = useState(false);
 
-  const formatDateToIndian = (dateString: string | Date | null | undefined) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return '-';
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
 
   const formatEmployeeName = (name: string) => {
     if (!name) return '';
@@ -2823,7 +2815,7 @@ function AdminDashboardContent() {
                     auditLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-gray-50/50">
                         <td className="py-3 px-2 text-gray-400 font-semibold whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString()}
+                          {formatDateTimeToIndian(log.createdAt)}
                         </td>
                         <td className="py-3 px-2">
                           <div className="font-bold text-brand-navy">{log.user.name}</div>

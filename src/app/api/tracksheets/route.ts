@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { auth } from '@/lib/auth';
+import { formatDateToIndian } from '@/lib/dateUtils';
 
 async function getAuthUser() {
   const session = await auth();
@@ -222,10 +223,10 @@ export async function PUT(request: Request) {
       const trackNotif = {
         type: 'tracksheet',
         title: `Track Sheet ${status === 'APPROVED' ? 'Approved' : 'Rejected'}`,
-        body: `Your track sheet for ${existing.date} has been ${status.toLowerCase()} by ${user.name}.`,
+        body: `Your track sheet for ${formatDateToIndian(existing.date)} has been ${status.toLowerCase()} by ${user.name}.`,
         status,
         details: {
-          'Date': existing.date,
+          'Date': formatDateToIndian(existing.date),
           'Project': existing.project,
           'Reviewed By': user.name,
         },
