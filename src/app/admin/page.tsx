@@ -1366,11 +1366,11 @@ function AdminDashboardContent() {
     { id: 'new-employee', label: 'Create Employee', icon: UserPlus },
     { id: 'performance', label: 'Performance Ratings', icon: FileCheck },
     { id: 'leaves', label: 'Leave Requests', icon: Calendar },
-    { id: 'resignations', label: 'Resignations', icon: UserMinus },
     { id: 'payroll', label: 'Run Payroll', icon: CreditCard },
-    { id: 'trainings', label: 'Training Center', icon: BookOpen },
     { id: 'reports', label: 'Review TL Reports', icon: FileText },
+    { id: 'trainings', label: 'Training Center', icon: BookOpen },
     { id: 'policies', label: 'Policies & Holidays', icon: Settings },
+    { id: 'resignations', label: 'Resignations', icon: UserMinus },
     { id: 'audit', label: 'System Audit Log', icon: ShieldAlert },
   ];
 
