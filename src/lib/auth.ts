@@ -14,9 +14,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         
-        const user = await prisma.user.findUnique({
-          where: { email: (credentials.email as string).toLowerCase() },
+        const loginIdentifier = (credentials.email as string).trim();
+        
+        // Find user by email or employee profile id or matching username
+        let user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { email: { equals: loginIdentifier, mode: 'insensitive' } },
+              { id: loginIdentifier },
+              // Check if HR or special username
+              ...(loginIdentifier.toLowerCase() === 'hr' ? [{ role: 'HR_ADMIN' as const }] : []),
+              // Check by employee profile ID if entered
+              { employeeProfile: { id: loginIdentifier } },
+            ],
+          },
         });
+
+        // Also fallback to search if login identifier is like NITP0021 or prefix
+        if (!user && loginIdentifier.includes('@')) {
+          user = await prisma.user.findUnique({
+            where: { email: loginIdentifier.toLowerCase() },
+          });
+        }
 
         if (!user) return null;
 

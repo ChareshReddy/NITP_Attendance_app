@@ -501,6 +501,7 @@ function EmployeeDashboardContent() {
     assignedByName: string;
     referenceLink: string;
   }>>([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }]);
+  const [activeSheetIndex, setActiveSheetIndex] = useState<number>(0);
 
   // Status handlers
   const [loadingAttendance, setLoadingAttendance] = useState(false);
@@ -722,8 +723,13 @@ function EmployeeDashboardContent() {
     setSuccessMsg('');
 
     try {
-      // Client-side URL validation if reference link is filled
-      for (const item of logItems) {
+      // Client-side validation across all sheets
+      for (let i = 0; i < logItems.length; i++) {
+        const item = logItems[i];
+        if (!item.project.trim() || !item.taskDescription.trim() || !item.assignedByName.trim() || !item.hours) {
+          setActiveSheetIndex(i);
+          throw new Error(`Please complete all required fields in Sheet ${i + 1}.`);
+        }
         if (item.referenceLink) {
           try {
             const tempUrl = item.referenceLink.startsWith('http://') || item.referenceLink.startsWith('https://') 
@@ -731,7 +737,8 @@ function EmployeeDashboardContent() {
               : `https://${item.referenceLink}`;
             new URL(tempUrl);
           } catch (_) {
-            throw new Error('Please enter a valid Reference Link URL.');
+            setActiveSheetIndex(i);
+            throw new Error(`Please enter a valid Reference Link URL in Sheet ${i + 1}.`);
           }
         }
       }
@@ -753,6 +760,7 @@ function EmployeeDashboardContent() {
 
       setSuccessMsg('Track sheet entries created successfully!');
       setLogItems([{ project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }]);
+      setActiveSheetIndex(0);
       fetchData();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error saving track sheet');
@@ -1813,117 +1821,174 @@ function EmployeeDashboardContent() {
                   <div className="animate-in fade-in duration-200 max-w-lg mx-auto w-full text-left">
                     <div className="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-xs">
                       {/* Name of the form section */}
-                      <div className="bg-slate-100 border-b border-slate-200 px-5 py-3">
+                      <div className="bg-slate-100 border-b border-slate-200 px-5 py-3 flex items-center justify-between">
                         <h4 className="text-xs font-extrabold text-brand-navy uppercase tracking-wider">Daily Track Sheet Form</h4>
+                        <span className="text-[11px] font-bold text-slate-500">
+                          Sheet {activeSheetIndex + 1} of {logItems.length}
+                        </span>
                       </div>
 
-                      <form onSubmit={handleSubmitTrackSheet} className="p-5 space-y-4">
-                        {logItems.map((item, index) => (
-                          <div key={index} className="p-5 bg-slate-100 border border-slate-250/85 rounded-xl space-y-4 relative mb-4">
+                      {/* Excel-style Sheet Tabs */}
+                      <div className="bg-slate-100/90 border-b border-slate-200 px-3 pt-2.5 flex items-center gap-1.5 overflow-x-auto custom-scrollbar-container">
+                        {logItems.map((_, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => setActiveSheetIndex(idx)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg text-xs font-bold transition-all cursor-pointer select-none border-t border-x shrink-0 ${
+                              activeSheetIndex === idx
+                                ? 'bg-white text-emerald-700 border-slate-300 border-b-2 border-b-emerald-600 shadow-2xs'
+                                : 'bg-slate-200/80 text-slate-600 border-slate-300/60 hover:bg-slate-200 hover:text-brand-navy'
+                            }`}
+                          >
+                            <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Sheet {idx + 1}</span>
                             {logItems.length > 1 && (
                               <button
                                 type="button"
-                                onClick={() => setLogItems(logItems.filter((_, i) => i !== index))}
-                                className="absolute top-3 right-3 text-brand-red hover:text-red-700 cursor-pointer p-1 rounded-lg hover:bg-red-200/50 transition-colors"
-                                title="Remove Task Row"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newItems = logItems.filter((_, i) => i !== idx);
+                                  setLogItems(newItems);
+                                  if (activeSheetIndex >= newItems.length) {
+                                    setActiveSheetIndex(Math.max(0, newItems.length - 1));
+                                  } else if (activeSheetIndex === idx && idx > 0) {
+                                    setActiveSheetIndex(idx - 1);
+                                  }
+                                }}
+                                className="text-gray-400 hover:text-red-500 rounded p-0.5 ml-1 transition-colors"
+                                title={`Delete Sheet ${idx + 1}`}
                               >
-                                <X className="w-4 h-4" />
+                                <X className="w-3 h-3" />
                               </button>
                             )}
-                            
-                            {/* Row 1: Task / Project */}
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
-                              <input
-                                type="text"
-                                required
-                                value={item.project}
-                                onChange={(e) => {
-                                  const updated = [...logItems];
-                                  updated[index].project = e.target.value;
-                                  setLogItems(updated);
-                                }}
-                                placeholder="e.g. API Integration"
-                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
-                              />
-                            </div>
-
-                            {/* Row 2: Hours and Assigned By Side by Side */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours</label>
-                                <input
-                                  type="number"
-                                  step="0.5"
-                                  min="0.5"
-                                  max="24"
-                                  required
-                                  value={item.hours}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].hours = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Assigned By</label>
-                                <input
-                                  type="text"
-                                  required
-                                  value={item.assignedByName}
-                                  onChange={(e) => {
-                                    const updated = [...logItems];
-                                    updated[index].assignedByName = e.target.value;
-                                    setLogItems(updated);
-                                  }}
-                                  placeholder="e.g. TL Likith"
-                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
-                                />
-                              </div>
-                            </div>
-
-                            {/* Row 3: Task Description */}
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
-                              <textarea
-                                rows={3}
-                                required
-                                value={item.taskDescription}
-                                onChange={(e) => {
-                                  const updated = [...logItems];
-                                  updated[index].taskDescription = e.target.value;
-                                  setLogItems(updated);
-                                }}
-                                placeholder="Explain task details..."
-                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white resize-y min-h-[60px]"
-                              />
-                            </div>
-
-                            {/* Row 4: Work Link (optional) */}
-                            <div>
-                              <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Work Link (optional)</label>
-                              <input
-                                type="text"
-                                value={item.referenceLink}
-                                onChange={(e) => {
-                                  const updated = [...logItems];
-                                  updated[index].referenceLink = e.target.value;
-                                  setLogItems(updated);
-                                }}
-                                placeholder="e.g. https://github.com/myorg/repo/pull/1"
-                                className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
-                              />
-                            </div>
                           </div>
                         ))}
 
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newIndex = logItems.length;
+                            setLogItems([
+                              ...logItems,
+                              { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }
+                            ]);
+                            setActiveSheetIndex(newIndex);
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-250 text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 mb-1"
+                          title="Add Sheet"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Add Sheet</span>
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSubmitTrackSheet} className="p-5 space-y-4">
+                        {(() => {
+                          const item = logItems[activeSheetIndex] || logItems[0];
+                          const index = activeSheetIndex;
+                          return (
+                            <div className="p-5 bg-slate-50/80 border border-slate-200 rounded-xl space-y-4 relative">
+                              {/* Row 1: Task / Project */}
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task / Project</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={item.project}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].project = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="e.g. API Integration"
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                />
+                              </div>
+
+                              {/* Row 2: Hours and Assigned By Side by Side */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Hours</label>
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="0.5"
+                                    max="24"
+                                    required
+                                    value={item.hours}
+                                    onChange={(e) => {
+                                      const updated = [...logItems];
+                                      updated[index].hours = e.target.value;
+                                      setLogItems(updated);
+                                    }}
+                                    className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Assigned By</label>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={item.assignedByName}
+                                    onChange={(e) => {
+                                      const updated = [...logItems];
+                                      updated[index].assignedByName = e.target.value;
+                                      setLogItems(updated);
+                                    }}
+                                    placeholder="e.g. TL Likith"
+                                    className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Row 3: Task Description */}
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1">Task Description</label>
+                                <textarea
+                                  rows={3}
+                                  required
+                                  value={item.taskDescription}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].taskDescription = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="Explain task details..."
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white resize-y min-h-[60px]"
+                                />
+                              </div>
+
+                              {/* Row 4: Work Link (optional) */}
+                              <div>
+                                <label className="block text-[10px] font-bold text-brand-navy uppercase mb-1 optional-label" data-optional="true">Work Link (optional)</label>
+                                <input
+                                  type="text"
+                                  value={item.referenceLink}
+                                  onChange={(e) => {
+                                    const updated = [...logItems];
+                                    updated[index].referenceLink = e.target.value;
+                                    setLogItems(updated);
+                                  }}
+                                  placeholder="e.g. https://github.com/myorg/repo/pull/1"
+                                  className="block w-full futuristic-input py-2 px-3 text-xs text-brand-gray bg-white"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         {/* Action buttons */}
-                        <div className="flex justify-end gap-3 items-center pt-2">
+                        <div className="flex justify-between items-center pt-2">
                           <button
                             type="button"
-                            onClick={() => setLogItems([...logItems, { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }])}
+                            onClick={() => {
+                              const newIndex = logItems.length;
+                              setLogItems([
+                                ...logItems,
+                                { project: '', taskDescription: '', hours: '8.0', notes: '', assignedByName: '', referenceLink: '' }
+                              ]);
+                              setActiveSheetIndex(newIndex);
+                            }}
                             className="bg-slate-100 hover:bg-slate-200 text-brand-navy border border-slate-200 font-bold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -1934,7 +1999,7 @@ function EmployeeDashboardContent() {
                             disabled={submittingTrack}
                             className="bg-brand-cta hover:bg-blue-700 hover:shadow-lg hover:shadow-brand-cta/15 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer btn-premium shadow-md"
                           >
-                            {submittingTrack ? 'Saving...' : 'Submit logs'}
+                            {submittingTrack ? 'Saving...' : 'Submit sheet'}
                           </button>
                         </div>
                       </form>
