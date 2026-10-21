@@ -167,6 +167,50 @@ export async function POST(request: Request) {
       },
     });
 
+    // Create Announcement & fan-out Notifications to all active users (except the new employee)
+    try {
+      // 1. Create Announcement record
+      const announcement = await prisma.announcement.create({
+        data: {
+          type: 'NEW_EMPLOYEE',
+          employeeId: newUser.id,
+          title: 'New employee joined',
+          message: `${name} has joined ${department} as ${designation}.`,
+          createdById: session.user.id,
+        },
+      });
+
+      // 2. Fetch all active users except the newly created employee
+      const activeUsers = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          id: { not: newUser.id },
+        },
+        select: { id: true },
+      });
+
+      if (activeUsers.length > 0) {
+        const notifPayload = JSON.stringify({
+          type: 'NEW_EMPLOYEE',
+          title: 'New employee joined',
+          body: `${name} has joined ${department} as ${designation}.`,
+          employeeId: newUser.id,
+          announcementId: announcement.id,
+        });
+
+        await prisma.notification.createMany({
+          data: activeUsers.map((u) => ({
+            userId: u.id,
+            message: notifPayload,
+            read: false,
+          })),
+        });
+      }
+    } catch (notifErr) {
+      // Must not block employee creation if notifications fail
+      console.error('Failed to create new employee announcement/notifications:', notifErr);
+    }
+
     return NextResponse.json({ success: true, user: newUser });
   } catch (error) {
     console.error('Admin Users POST error:', error);

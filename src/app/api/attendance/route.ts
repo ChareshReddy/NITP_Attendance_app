@@ -28,7 +28,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const userTz = searchParams.get('tz') || 'Asia/Kolkata';
+    let todayStr = new Date().toISOString().split('T')[0];
+    try {
+      todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: userTz }).format(new Date());
+    } catch (e) {
+      todayStr = new Date().toISOString().split('T')[0];
+    }
 
     // 1. Sweep missing punches from past days
     const pastUnclosedRecords = await prisma.attendance.findMany({
@@ -149,8 +155,14 @@ export async function POST(request: Request) {
     }
 
     const { action, tz } = await request.json();
-    const todayStr = new Date().toISOString().split('T')[0];
+    const timezone = tz || 'Asia/Kolkata';
     const now = new Date();
+    let todayStr = new Date().toISOString().split('T')[0];
+    try {
+      todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(now);
+    } catch (e) {
+      todayStr = new Date().toISOString().split('T')[0];
+    }
 
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 

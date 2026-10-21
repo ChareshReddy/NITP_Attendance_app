@@ -4,8 +4,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
-import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, Clock, Laptop, FileText, CheckSquare, ChevronRight, Home } from 'lucide-react';
-import { formatDateToIndian, formatDateTimeToIndian } from '@/lib/dateUtils';
+import { LogOut, User as UserIcon, Bell, Check, Lock, Calendar, UserMinus, UserPlus, Clock, Laptop, FileText, CheckSquare, ChevronRight, Home } from 'lucide-react';
+import { formatDateToIndian, formatDateTimeToIndian, getRelativeTime } from '@/lib/dateUtils';
+import BriefDetailsModal from '@/components/BriefDetailsModal';
 
 interface UserSession {
   id: string;
@@ -28,6 +29,24 @@ export default function Header() {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isPassModalOpen, setIsPassModalOpen] = useState(false);
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+  const [selectedWelcomeEmployeeId, setSelectedWelcomeEmployeeId] = useState<string | null>(null);
+  const [selectedWelcomeEmployeeIds, setSelectedWelcomeEmployeeIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    const handleOpenWelcome = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setSelectedWelcomeEmployeeId(customEvent.detail.employeeId || null);
+        setSelectedWelcomeEmployeeIds(customEvent.detail.employeeIds || null);
+        setIsWelcomeModalOpen(true);
+      }
+    };
+    window.addEventListener('openWelcomeMemberModal', handleOpenWelcome);
+    return () => {
+      window.removeEventListener('openWelcomeMemberModal', handleOpenWelcome);
+    };
+  }, []);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -272,6 +291,20 @@ export default function Header() {
       handleMarkRead(n.id);
     }
     setIsNotifOpen(false);
+
+    const type = isJson ? (parsed?.type || '').toLowerCase() : '';
+    const text = (isJson ? `${parsed?.title || ''} ${parsed?.body || ''}` : n.message || '').toLowerCase();
+
+    // New employee notification -> open welcome modal
+    if (type === 'new_employee' || text.includes('new employee joined') || text.includes('new employees joined')) {
+      if (parsed?.employeeId || parsed?.employeeIds) {
+        setSelectedWelcomeEmployeeId(parsed.employeeId || null);
+        setSelectedWelcomeEmployeeIds(parsed.employeeIds || null);
+        setIsWelcomeModalOpen(true);
+        return;
+      }
+    }
+
     const dest = getNotificationDestination(n, parsed, isJson, user?.role);
     
     // Parse target path, tab and subTab
@@ -507,6 +540,10 @@ export default function Header() {
                           Icon = Clock;
                           iconBg = isRejected ? 'bg-rose-50 text-brand-red border-rose-100' : isApproved ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100';
                           displayTitle = 'Track Sheet Update';
+                        } else if (type === 'new_employee' || text.includes('new employee joined') || text.includes('new employees joined')) {
+                          Icon = UserPlus;
+                          iconBg = 'bg-blue-50 text-blue-600 border-blue-200';
+                          displayTitle = isJson && parsed?.title ? parsed.title : 'New employee joined';
                         }
 
                         if (isJson && parsed?.title) {
@@ -526,6 +563,9 @@ export default function Header() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-1.5">
                                 <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                  {!n.read && (
+                                    <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" title="Unread notification" />
+                                  )}
                                   <h4 className="text-[11px] font-extrabold text-brand-navy leading-none tracking-tight truncate group-hover:text-brand-cta transition-colors">
                                     {displayTitle}
                                   </h4>
@@ -568,7 +608,7 @@ export default function Header() {
                                   })}
                                 </div>
                               )}
-                              <span className="text-[8px] text-gray-400 mt-1.5 block">{formatDateTimeToIndian(n.createdAt)}</span>
+                              <span className="text-[8px] text-gray-400 mt-1.5 block">{getRelativeTime(n.createdAt) || formatDateTimeToIndian(n.createdAt)}</span>
                             </div>
                           </div>
                         );
@@ -750,6 +790,18 @@ export default function Header() {
           </div>
         </div>
       )}
+
+      {/* Welcome New Member Modal */}
+      <BriefDetailsModal
+        isOpen={isWelcomeModalOpen}
+        onClose={() => {
+          setIsWelcomeModalOpen(false);
+          setSelectedWelcomeEmployeeId(null);
+          setSelectedWelcomeEmployeeIds(null);
+        }}
+        employeeId={selectedWelcomeEmployeeId}
+        employeeIds={selectedWelcomeEmployeeIds}
+      />
     </header>
   );
 }
