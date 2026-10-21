@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
 import PerformancePieChart from '@/components/PerformancePieChart';
+import DesktopSidebar from '@/components/DesktopSidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Framer motion variants
@@ -1396,46 +1397,19 @@ function AdminDashboardContent() {
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Persistent Left Sidebar - Desktop */}
-        <aside className="hidden md:flex w-20 hover:w-60 bg-white flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto transition-all duration-300 ease-in-out group shadow-sm border-r border-gray-200">
-          <nav className="flex-1 space-y-1 px-2 relative">
-            {adminNavItems.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    if (item.id === 'new-employee' && editingUserId) {
-                      setEditingUserId(null);
-                      setEmployeeForm(initialEmployeeForm);
-                    }
-                    setActiveTab(item.id);
-                  }}
-                  title={item.label}
-                  aria-label={item.label}
-                  className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
-                    isActive 
-                      ? 'text-brand-navy font-bold' 
-                      : 'text-slate-600 hover:text-brand-navy hover:bg-slate-50'
-                  }`}
-                >
-                  {/* Animated sliding highlight background pill */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabPillAdmin"
-                      className="absolute inset-0 bg-slate-100 border-l-4 border-brand-navy rounded-xl -z-10"
-                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    />
-                  )}
-                  
-                  <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-brand-navy' : 'text-slate-400 group-hover:text-brand-navy'}`} />
-                  <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
+        <DesktopSidebar
+          navItems={adminNavItems}
+          activeTab={activeTab}
+          onTabChange={(id) => {
+            if (id === 'new-employee' && editingUserId) {
+              setEditingUserId(null);
+              setEmployeeForm(initialEmployeeForm);
+            }
+            setActiveTab(id as any);
+          }}
+          layoutPillId="activeTabPillAdmin"
+          bottomLink={null}
+        />
 
         {/* Mobile Slide-over Drawer */}
         {isMobileSidebarOpen && (
@@ -1542,7 +1516,6 @@ function AdminDashboardContent() {
                       {todayRecord.checkOutTime ? (
                         <>
                           {" "}• Out: <span className="font-semibold text-brand-red">{new Date(todayRecord.checkOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                          {" "}• <span className="text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider">Shift Completed</span>
                         </>
                       ) : ''}
                     </>
@@ -1551,29 +1524,38 @@ function AdminDashboardContent() {
                   )}
                 </span>
               </div>
-              <div className="shrink-0 flex gap-2">
-                <button
-                  onClick={handleCheckIn}
-                  disabled={loadingAttendance || !!(todayRecord && todayRecord.checkInTime)}
-                  className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
-                    (!todayRecord?.checkInTime && !loadingAttendance)
-                      ? 'bg-brand-cta hover:bg-blue-700 text-white cursor-pointer shadow-sm btn-premium'
-                      : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {loadingAttendance && !todayRecord?.checkInTime ? '...' : 'Check In'}
-                </button>
-                <button
-                  onClick={handleCheckOut}
-                  disabled={loadingAttendance || !todayRecord?.checkInTime || !!todayRecord?.checkOutTime}
-                  className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
-                    (todayRecord?.checkInTime && !todayRecord?.checkOutTime && !loadingAttendance)
-                      ? 'bg-brand-red hover:bg-red-700 text-white cursor-pointer shadow-sm btn-premium'
-                      : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {loadingAttendance && todayRecord?.checkInTime && !todayRecord?.checkOutTime ? '...' : 'Check Out'}
-                </button>
+              <div className="shrink-0 flex items-center gap-2">
+                {todayRecord && todayRecord.checkInTime && todayRecord.checkOutTime ? (
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-bold shadow-xs">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Shift completed</span>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      onClick={handleCheckIn}
+                      disabled={loadingAttendance || !!(todayRecord && todayRecord.checkInTime)}
+                      className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
+                        (!todayRecord?.checkInTime && !loadingAttendance)
+                          ? 'bg-brand-cta hover:bg-blue-700 text-white cursor-pointer shadow-sm btn-premium'
+                          : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {loadingAttendance && !todayRecord?.checkInTime ? '...' : 'Check In'}
+                    </button>
+                    <button
+                      onClick={handleCheckOut}
+                      disabled={loadingAttendance || !todayRecord?.checkInTime || !!todayRecord?.checkOutTime}
+                      className={`font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all ${
+                        (todayRecord?.checkInTime && !todayRecord?.checkOutTime && !loadingAttendance)
+                          ? 'bg-brand-red hover:bg-red-700 text-white cursor-pointer shadow-sm btn-premium'
+                          : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      {loadingAttendance && todayRecord?.checkInTime && !todayRecord?.checkOutTime ? '...' : 'Check Out'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -1695,7 +1677,7 @@ function AdminDashboardContent() {
                   </h2>
                   
                   <div className="h-[250px] w-full text-xs">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" debounce={300}>
                       <AreaChart data={analyticsData}>
                         <defs>
                           <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
@@ -1721,7 +1703,7 @@ function AdminDashboardContent() {
                   </h2>
                   
                   <div className="h-[180px] w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" debounce={300}>
                       <PieChart>
                         <Pie
                           data={pieData}

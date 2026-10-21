@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import { 
   Clock, 
+  UserPlus, 
   MapPin, 
   Globe, 
   Plus, 
@@ -42,6 +43,8 @@ import {
   Camera
 } from 'lucide-react';
 import Speedometer from '@/components/Speedometer';
+import BriefDetailsModal from '@/components/BriefDetailsModal';
+import DesktopSidebar from '@/components/DesktopSidebar';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // Helper to capitalize employee name and ensure Surname is last
@@ -491,6 +494,9 @@ function EmployeeDashboardContent() {
   const [isSameAddress, setIsSameAddress] = useState(false);
   const [myPayrollRuns, setMyPayrollRuns] = useState<PayrollRun[]>([]);
   const [myTrainings, setMyTrainings] = useState<TrainingAssignment[]>([]);
+  const [recentJoiners, setRecentJoiners] = useState<any[]>([]);
+  const [selectedJoinerId, setSelectedJoinerId] = useState<string | null>(null);
+  const [isJoinerModalOpen, setIsJoinerModalOpen] = useState(false);
 
   // Form States
   const [logItems, setLogItems] = useState<Array<{
@@ -554,14 +560,22 @@ function EmployeeDashboardContent() {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Attendance
-      const attRes = await fetch('/api/attendance');
+      // 1. Fetch Attendance with user timezone
+      const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const attRes = await fetch(`/api/attendance?tz=${encodeURIComponent(userTz)}`);
       if (attRes.ok) {
         const attData = await attRes.json();
         setAttendance(attData.attendance || []);
         setHolidays(attData.holidays || []);
         setTodayRecord(attData.todayRecord);
         if (attData.stats) setStats(attData.stats);
+      }
+
+      // 1.5. Fetch Recent Joiners (last 14 days)
+      const joinersRes = await fetch('/api/employees/recent-joiners');
+      if (joinersRes.ok) {
+        const joinersData = await joinersRes.json();
+        setRecentJoiners(joinersData.recentJoiners || []);
       }
 
       // 2. Fetch Track sheets
@@ -1312,52 +1326,21 @@ function EmployeeDashboardContent() {
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Persistent Left Sidebar - Desktop */}
-        <aside className="hidden md:flex w-20 hover:w-60 bg-white flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto transition-all duration-300 ease-in-out group shadow-sm border-r border-gray-200">
-          <nav className="flex-1 space-y-1 px-2 relative">
-            {employeeNavItems.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
-                    isActive 
-                      ? 'text-brand-navy font-bold' 
-                      : 'text-slate-600 hover:text-brand-navy hover:bg-slate-50'
-                  }`}
-                >
-                  {/* Animated sliding highlight background pill */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabPill"
-                      className="absolute inset-0 bg-slate-100 border-l-4 border-brand-navy rounded-xl -z-10"
-                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    />
-                  )}
-                  
-                  <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-brand-navy' : 'text-slate-400 group-hover:text-brand-navy'}`} />
-                  <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {employeeProfile?.user?.role === 'TL' && (
-            <div className="mt-auto px-2 border-t border-slate-100 pt-4 mb-2">
-              <Link
-                href="/tl"
-                className="w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
-              >
-                <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
-                <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
-                  Team Leader Board
-                </span>
-              </Link>
-            </div>
-          )}
-        </aside>
+        <DesktopSidebar
+          navItems={employeeNavItems}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          layoutPillId="activeTabPill"
+          bottomLink={
+            employeeProfile?.user?.role === 'TL'
+              ? {
+                  href: '/tl',
+                  label: 'Team Leader Board',
+                  icon: ArrowLeftRight,
+                }
+              : null
+          }
+        />
 
         {/* Mobile Slide-over Drawer */}
         {isMobileSidebarOpen && (
@@ -1520,10 +1503,10 @@ function EmployeeDashboardContent() {
                   </div>
 
                   <div className="w-full space-y-3">
-                    {todayRecord && todayRecord.checkOutTime ? (
-                      <div className="w-full text-center bg-emerald-50 text-emerald-800 font-extrabold py-3.5 px-4 rounded-xl text-xs border border-emerald-200/50 uppercase tracking-wider flex items-center justify-center gap-2 animate-in fade-in duration-300">
-                        <Check className="w-4 h-4 text-emerald-600" />
-                        Shift Completed
+                    {todayRecord && todayRecord.checkInTime && todayRecord.checkOutTime ? (
+                      <div className="w-full text-center bg-emerald-50 text-emerald-700 font-bold py-3 px-5 rounded-full text-xs sm:text-sm border border-emerald-300 flex items-center justify-center gap-2 shadow-xs animate-in fade-in duration-300">
+                        <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 shrink-0" />
+                        <span>Shift completed</span>
                       </div>
                     ) : (
                       <div className="flex flex-col sm:flex-row gap-3">
@@ -4259,6 +4242,15 @@ function EmployeeDashboardContent() {
           </div>
         </div>
       )}
+      {/* Welcome New Member Modal */}
+      <BriefDetailsModal
+        isOpen={isJoinerModalOpen}
+        onClose={() => {
+          setIsJoinerModalOpen(false);
+          setSelectedJoinerId(null);
+        }}
+        employeeId={selectedJoinerId}
+      />
     </div>
   );
 }

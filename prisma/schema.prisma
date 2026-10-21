@@ -92,6 +92,7 @@ model User {
   trainingAttendance    TrainingAttendance[]
   resignationRequest     ResignationRequest?
   regularisationRequests RegularisationRequest[]
+  createdAnnouncements   Announcement[]         @relation("CreatedAnnouncements")
 
   @@map("users")
 }
@@ -468,3 +469,17 @@ model WfhRequest {
   @@map("wfh_requests")
 }
 
+
+model Announcement {
+  id          String   @id @default(uuid())
+  type        String   @default("NEW_EMPLOYEE")
+  employeeId  String?  @map("employee_id")
+  employeeIds String?  @map("employee_ids")
+  title       String
+  message     String
+  createdById String   @map("created_by")
+  createdBy   User     @relation("CreatedAnnouncements", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("announcements")
+}

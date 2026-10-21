@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/Header';
+import DesktopSidebar from '@/components/DesktopSidebar';
 import PerformancePieChart from '@/components/PerformancePieChart';
 import Link from 'next/link';
 import { formatDateToIndian, formatDateTimeToIndian, formatTimeToIndian } from '@/lib/dateUtils';
@@ -132,6 +133,7 @@ function TeamLeaderDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const subTabParam = searchParams.get('subTab');
+
 
   const [activeTab, setActiveTab] = useState<'attendance' | 'tracksheets' | 'tasks' | 'reports' | 'leaves' | 'goals'>('attendance');
 
@@ -790,50 +792,17 @@ function TeamLeaderDashboardContent() {
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Persistent Left Sidebar - Desktop */}
-        <aside className="hidden md:flex w-20 hover:w-60 bg-white flex-col shrink-0 sticky top-[73px] h-[calc(100vh-73px)] z-20 py-6 overflow-y-auto transition-all duration-300 ease-in-out group shadow-sm border-r border-gray-200">
-          <nav className="flex-1 space-y-1 px-2 relative">
-            {tlNavItems.map((item) => {
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl ${
-                    isActive 
-                      ? 'text-brand-navy font-bold' 
-                      : 'text-slate-600 hover:text-brand-navy hover:bg-slate-50'
-                  }`}
-                >
-                  {/* Animated sliding highlight background pill */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabPillTL"
-                      className="absolute inset-0 bg-slate-100 border-l-4 border-brand-navy rounded-xl -z-10"
-                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                    />
-                  )}
-                  
-                  <item.icon className={`w-4 h-4 shrink-0 transition-colors ${isActive ? 'text-brand-navy' : 'text-slate-400 group-hover:text-brand-navy'}`} />
-                  <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-          
-          <div className="mt-auto px-2 border-t border-slate-100 pt-4 mb-2">
-            <Link
-              href="/employee"
-              className="w-full text-left py-3 px-4 flex items-center relative transition-all cursor-pointer rounded-xl text-slate-600 hover:text-brand-navy hover:bg-slate-50"
-            >
-              <ArrowLeftRight className="w-4 h-4 shrink-0 text-slate-400" />
-              <span className="text-xs font-semibold tracking-wide ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap overflow-hidden">
-                My Portal
-              </span>
-            </Link>
-          </div>
-        </aside>
+        <DesktopSidebar
+          navItems={tlNavItems}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          layoutPillId="activeTabPillTL"
+          bottomLink={{
+            href: '/employee',
+            label: 'My Portal',
+            icon: ArrowLeftRight,
+          }}
+        />
 
         {/* Mobile Slide-over Drawer */}
         {isMobileSidebarOpen && (

@@ -220,3 +220,57 @@ div:has(> input:not(:required)) > label.optional-label::after {
   display: none !important;
 }
 
+
+
+/* Card illustration floating animations */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes float-front-card {
+    0% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    100% {
+      transform: translateY(-10px) rotate(0.5deg);
+    }
+  }
+
+  @keyframes float-back-card {
+    0% {
+      transform: translateY(0px) rotate(0deg);
+    }
+    100% {
+      transform: translateY(6px) rotate(-0.4deg);
+    }
+  }
+
+  @keyframes float-card-shadow {
+    0% {
+      transform: scale(1);
+      opacity: 0.35;
+    }
+    100% {
+      transform: scale(0.92);
+      opacity: 0.18;
+    }
+  }
+
+  .anim-float-front {
+    animation: float-front-card 6s ease-in-out infinite alternate;
+    transform-origin: 50% 50%;
+    transform-box: fill-box;
+    will-change: transform;
+  }
+
+  .anim-float-back {
+    animation: float-back-card 7s ease-in-out 0.6s infinite alternate;
+    transform-origin: 50% 50%;
+    transform-box: fill-box;
+    will-change: transform;
+  }
+
+  .anim-card-shadow {
+    animation: float-card-shadow 6s ease-in-out infinite alternate;
+    transform-origin: 50% 50%;
+    transform-box: fill-box;
+    will-change: transform, opacity;
+  }
+}
